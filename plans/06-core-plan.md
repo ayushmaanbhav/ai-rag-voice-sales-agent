@@ -38,7 +38,7 @@ Core infrastructure crates:
 | ~~No WebRTC transport~~ | `crates/transport/` | ✅ **FIXED** - 647 lines, Opus codec |
 | ~~No Metrics/Observability~~ | `server/src/metrics.rs` | ✅ **FIXED** - Prometheus + init |
 | ~~No Rate Limiting~~ | `server/src/rate_limit.rs` | ✅ **FIXED** - Token bucket |
-| Insecure CORS default | `http.rs:51-56` | ⚠️ **PARTIAL** - Config secure, runtime uses Any |
+| ~~Insecure CORS default~~ | `http.rs:71-117` | ✅ **FIXED** - Origins from config, Any only for headers |
 
 ---
 
@@ -52,7 +52,7 @@ Core infrastructure crates:
 | No session persistence | `session.rs:64-203` | ❌ **OPEN** - In-memory only |
 | WebSocket lock contention | `websocket.rs:81-85` | ⚠️ **PARTIAL** - Uses tokio::sync::Mutex |
 | ~~No graceful shutdown~~ | `main.rs:41-80` | ✅ **FIXED** - SIGTERM/SIGINT handling |
-| Health check incomplete | `http.rs:210-227` | ⚠️ **PARTIAL** - Minimal impl |
+| ~~Health check incomplete~~ | `http.rs:268-366` | ✅ **FIXED** - Model/tool/LLM connectivity checks |
 | ort pre-release | `Cargo.toml:46` | ⚠️ **CONFIRMED** - 2.0.0-rc.9 |
 | ~~API key plain text~~ | `config/agent.rs:132-134` | ✅ **SECURE** - Env vars only |
 

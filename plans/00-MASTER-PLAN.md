@@ -162,7 +162,7 @@ This document tracks the implementation status and next steps for the Gold Loan 
 | Hindi analyzer for BM25 | RAG | Medium | ✅ FIXED - SimpleTokenizer handles Devanagari |
 | required_intents validation | Agent | Low | ✅ FIXED - `stage_completed()` validates |
 | SlotType inference | Agent | Low | ✅ FIXED - Typed `CompiledSlotPattern` |
-| Health check completeness | Core | Low | ⚠️ PARTIAL - minimal impl |
+| ~~Health check completeness~~ | Core | Low | ✅ FIXED - model/tool/LLM checks |
 
 ---
 

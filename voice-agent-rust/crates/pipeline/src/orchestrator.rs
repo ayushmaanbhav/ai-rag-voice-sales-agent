@@ -192,6 +192,9 @@ impl VoicePipeline {
 
             PipelineState::Listening => {
                 // Feed audio to STT
+                // Note: True parallelization with spawn_blocking isn't possible because
+                // ort::Session contains raw pointers that aren't Send. The ONNX runtime
+                // handles threading internally, so this is acceptable for now.
                 if let Some(partial) = self.stt.lock().process(&frame.samples)? {
                     let _ = self.event_tx.send(PipelineEvent::PartialTranscript(partial.clone()));
 
