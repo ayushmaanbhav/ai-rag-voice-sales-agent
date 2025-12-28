@@ -1,0 +1,29 @@
+### Context
+You are a Senior Product Manager at Kotak Mahindra Bank in 2025. The Indian gold loan market has grown a lot in India. Our target segment is our existing customers in Tier 1 and Tier 2 cities who currently hold active gold loans with NBFC giants like Muthoot Finance, Manappuram, or IIFL.
+
+### Objectives
+Read, understand, analyze all gathered research data and generate a multi-layered Product Strategy Report and come up with innovative approaches to pitch personalised Kotak Gold Loan offerings to Kotak's existing customers in Tier 1 and Tier 2 cities who currently hold active gold loans with NBFC giants like Muthoot Finance, Manappuram, or IIFL.
+
+### Task: Research Synthesis & Strategy Generation
+1. Analysis of Research.
+2. Acquisition Strategy.
+3. AI-Driven Solutions: Propose 3 high-impact AI features to streamline the lifecycle:
+   - Computer Vision for instant preliminary appraisal via the existing Kotak's mobile app.
+   - Predictive Acquisition: Using bank transaction data to identify customers paying interest to competitors.
+   - "THIS IS REALLY IMPORTANT POINT" : Potential use of AI to identify customer base who are most probable to switch to Kotak or would be best users to pitch the gold loan. Also we can use AI to pitch personalised gold loans based on different parameters like age-group, credit score, financial activity, risk taking capacity, loan count and amount taken before, age-group, gender, customer_type (msme / peronal) , demographics, psychology, etc.
+4. Real , pratical, actionable, pain points of customers.
+5. Gaps and Failures in Industry so far, leverage competition weaknesses. 
+6. Cost analysis: Actionable initiatives without incurring to much cost overhead (mature strategy).
+7. Success stories, strategies that worked and innovations in India and Abroad.
+8. Leverage latest RBI developments and policy changes, security, regulatory, compliance, first mover or gaps we can fill.
+9. Digitisation stories, failures and successes.
+10. Kotaks existing presence compared to NBFC's (in South India specifically), strengths and weaknesses.
+
+### Constraints & Structure
+Inputs: Tone: Strategic, data-driven, and persuasive for a C-suite pitch.
+
+### Self-Check (Reasoning)
+Before providing the final strategy, think step-by-step: Why would a Muthoot / Manappuram customer move their gold to Kotak? Is the interest saving enough to overcome the friction of moving physical collateral? How to gain trust through personalisation pitch, use incentives, ease and psychology? How can AI reduce this friction? etc , formulate and ask other questions as well. create agents and debate from different perspectives and approaches,  communicate on this then formulate the final report. Ask questions to me where ambuigity.
+
+
+use plan mode and multi agents and multiple stages debate and drive decision then debate again if required and include me as well in debate if there is ambuigity or you need my opinion.

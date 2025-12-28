@@ -1,0 +1,264 @@
+% ============================================
+% SECTION 10: FINANCIALS
+% ============================================
+\section{Financials}
+
+% --------------------------------------------
+% Slide 51: Investment Ask
+% --------------------------------------------
+\begin{frame}{Investment Ask: Rs 148 Crore over 3 Years}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{center}
+            \begin{tikzpicture}
+                \begin{axis}[
+                    ybar,
+                    width=7.5cm,
+                    height=4.8cm,
+                    bar width=0.9cm,
+                    ymin=0,
+                    ymax=70,
+                    ylabel={Investment (Rs Crore)},
+                    symbolic x coords={Year 1,Year 2,Year 3},
+                    xtick=data,
+                    nodes near coords,
+                    nodes near coords style={font=\small\bfseries},
+                    axis lines=left,
+                    ylabel style={font=\small},
+                    tick label style={font=\small}
+                ]
+                    \addplot[fill=kotakred!70] coordinates {(Year 1,53) (Year 2,48) (Year 3,47)};
+                \end{axis}
+
+                % Total annotation
+                \node[draw=kotakgold, fill=kotakgold!20, rounded corners=5pt, font=\small\bfseries] at (3.2,5) {Total: Rs 148 Cr};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{block}{Investment Breakdown}
+            \footnotesize
+            \begin{tabular}{lr}
+                \toprule
+                \textbf{Category} & \textbf{3-Year (Cr)} \\
+                \midrule
+                Technology & 45 \\
+                Marketing & 40 \\
+                Operations & 35 \\
+                Training & 15 \\
+                Doorstep Pilot & 8 \\
+                Contingency & 5 \\
+                \midrule
+                \rowcolor{kotakred!10} \textbf{Total} & \textbf{148} \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+
+        \vspace{0.1cm}
+        \statcard{0.02\%}{of Kotak Assets}{Minimal Risk}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 52: 3-Year Projections
+% --------------------------------------------
+\begin{frame}{3-Year AUM \& Revenue Projections}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{center}
+            \textbf{AUM Growth Trajectory}
+            \vspace{0.1cm}
+
+            \begin{tikzpicture}
+                \begin{axis}[
+                    ybar,
+                    width=7cm,
+                    height=4.5cm,
+                    bar width=0.9cm,
+                    ymin=0,
+                    ymax=10000,
+                    ylabel={AUM (Rs Crore)},
+                    symbolic x coords={Y1,Y2,Y3},
+                    xtick=data,
+                    nodes near coords,
+                    nodes near coords style={font=\small\bfseries, text=kotakblue},
+                    axis lines=left,
+                    ylabel style={font=\small},
+                    tick label style={font=\small}
+                ]
+                    \addplot[fill=kotakblue!70] coordinates {(Y1,1500) (Y2,4000) (Y3,8500)};
+                \end{axis}
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{block}{P\&L Summary (Rs Cr)}
+            \footnotesize
+            \begin{tabular}{lrrr}
+                \toprule
+                & \textbf{Y1} & \textbf{Y2} & \textbf{Y3} \\
+                \midrule
+                Revenue & 135 & 360 & 765 \\
+                Costs & (53) & (48) & (47) \\
+                \midrule
+                \rowcolor{green!10} PAT & \textbf{47} & \textbf{128} & \textbf{188} \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+
+        \vspace{0.1cm}
+
+        \begin{exampleblock}{3-Year Totals}
+            \footnotesize
+            \begin{itemize}
+                \item Total Revenue: \textbf{Rs 1,260 Cr}
+                \item Total PAT: \textbf{Rs 363 Cr}
+                \item Cumulative AUM: \textbf{Rs 8,500 Cr}
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 53: ROI Analysis
+% --------------------------------------------
+\begin{frame}{ROI Analysis: 2.45x Return in 3 Years}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape]
+        % ROI gauge
+        \fill[kotaklightgray] (0,0) arc (180:0:3cm) -- cycle;
+        \fill[kotakgreen] (0,0) arc (180:68:3cm) -- cycle;
+
+        % Needle
+        \draw[kotakred, line width=3pt] (0,0) -- (68:2.5cm);
+        \fill[kotakred] (0,0) circle (0.3cm);
+
+        % Labels
+        \node[font=\tiny] at (170:3.3) {1x};
+        \node[font=\tiny] at (135:3.3) {1.5x};
+        \node[font=\tiny] at (90:3.3) {2x};
+        \node[font=\tiny] at (45:3.3) {2.5x};
+        \node[font=\tiny] at (10:3.3) {3x};
+
+        % ROI value
+        \node[font=\fontsize{32}{36}\selectfont\bfseries, text=kotakgreen] at (0,-1) {2.45x};
+        \node[font=\small, text=kotakblue] at (0,-1.8) {3-Year ROI};
+
+        % Stats on sides
+        \node[draw=kotakblue!30, fill=white, rounded corners=5pt, font=\small, align=center] at (-5.5,0) {
+            \textbf{Investment}\\
+            Rs 148 Cr
+        };
+
+        \node[draw=kotakgreen!50, fill=green!5, rounded corners=5pt, font=\small, align=center] at (5.5,0) {
+            \textbf{Returns}\\
+            Rs 363 Cr PAT
+        };
+
+        % Payback
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\small, align=center] at (0,-3.5) {
+            \textbf{Payback Period:} ~20 months | \textbf{IRR:} 45\%+
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 54: Investment Context
+% --------------------------------------------
+\begin{frame}{Investment in Context: Minimal Relative to Capacity}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape]
+        % Bar comparison
+        \fill[kotaklightgray] (0,0) rectangle (10,1.5);
+        \node[font=\small, text=kotakblue] at (5,1.8) {Kotak Total Assets: Rs 7,28,000 Crore};
+        \node[font=\footnotesize] at (5,0.75) {Full Bar = 100\%};
+
+        % Investment portion (tiny)
+        \fill[kotakred] (0,0) rectangle (0.02,1.5);
+
+        % Zoomed view
+        \draw[-{Stealth}, kotakred] (0.02,1.5) to[bend left=30] (2,3);
+        \node[draw=kotakred, fill=red!5, rounded corners=5pt, font=\small, align=center] at (4,3.5) {
+            Investment: Rs 148 Cr\\
+            = \textbf{0.02\%} of assets
+        };
+
+        % Comparison boxes
+        \node[draw=kotakblue!30, fill=white, rounded corners=5pt, font=\scriptsize, align=center] at (-2,-1.5) {
+            \textbf{Annual Marketing}\\
+            Budget: Rs 500+ Cr
+        };
+
+        \node[draw=kotakblue!30, fill=white, rounded corners=5pt, font=\scriptsize, align=center] at (2,-1.5) {
+            \textbf{Tech Investment}\\
+            Budget: Rs 1,000+ Cr
+        };
+
+        \node[draw=kotakblue!30, fill=white, rounded corners=5pt, font=\scriptsize, align=center] at (6,-1.5) {
+            \textbf{Gold Loan Ask}\\
+            \textbf{Rs 148 Cr} (3-year)
+        };
+
+        \node[draw=kotakgreen, fill=green!10, rounded corners=5pt, font=\scriptsize, align=center] at (10,-1.5) {
+            \textbf{Potential Return}\\
+            Rs 363 Cr PAT
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 55: Sensitivity Analysis
+% --------------------------------------------
+\begin{frame}{Sensitivity Analysis: Conservative to Aggressive}
+\vspace{-0.2cm}
+\begin{center}
+    \footnotesize
+    \begin{tabular}{lrrr}
+        \toprule
+        \textbf{Scenario} & \textbf{Conservative} & \textbf{Base Case} & \textbf{Aggressive} \\
+        \midrule
+        Conversion Rate & 5\% & 8\% & 12\% \\
+        Y3 AUM (Rs Cr) & 5,000 & 8,500 & 12,000 \\
+        3-Year PAT (Rs Cr) & 180 & 363 & 520 \\
+        ROI & 1.2x & 2.45x & 3.5x \\
+        Payback & 30 months & 20 months & 14 months \\
+        \midrule
+        \rowcolor{green!10} \textbf{Break-even?} & \cmark~Yes & \cmark~Yes & \cmark~Yes \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\vspace{0.1cm}
+
+\begin{columns}
+    \column{0.48\textwidth}
+    \begin{alertblock}{Downside Protection}
+        \footnotesize
+        Even conservative scenario:
+        \begin{itemize}
+            \item[\cmark] Positive ROI (1.2x)
+            \item[\cmark] Break-even in 30 months
+            \item[\cmark] Builds strategic capability
+        \end{itemize}
+    \end{alertblock}
+
+    \column{0.48\textwidth}
+    \begin{exampleblock}{Upside Potential}
+        \footnotesize
+        Aggressive scenario:
+        \begin{itemize}
+            \item 3.5x ROI
+            \item Rs 520 Cr PAT
+            \item Market leadership position
+        \end{itemize}
+    \end{exampleblock}
+\end{columns}
+\end{frame}

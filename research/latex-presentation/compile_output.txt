@@ -1,0 +1,935 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./main.tex
+LaTeX2e <2023-11-01> patch level 1
+L3 programming layer <2024-01-22>
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamer.cls
+Document Class: beamer 2024/01/06 v3.71 A class for typesetting presentations
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasemodes.sty
+(/usr/share/texlive/texmf-dist/tex/latex/etoolbox/etoolbox.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasedecode.sty))
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/iftex.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseoptions.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/ifvtex.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered
+.code.tex)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonomet
+ric.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.cod
+e.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerari
+thmetics.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex)))
+(/usr/share/texlive/texmf-dist/tex/latex/base/size11.clo)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphics.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/trig.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-def/pdftex.def)))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.de
+f)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.
+tex)) (/usr/share/texlive/texmf-dist/tex/latex/xcolor/xcolor.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.
+code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.c
+ode.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformation
+s.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.t
+ex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.c
+ode.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex))
+) (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/xxcolor.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/base/atbegshi-ltx.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/hyperref.sty
+(/usr/share/texlive/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/pdfescape/pdfescape.sty
+(/usr/share/texlive/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(/usr/share/texlive/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/auxhook/auxhook.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
+(/usr/share/texlive/texmf-dist/tex/latex/refcount/refcount.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty
+(/usr/share/texlive/texmf-dist/tex/latex/kvoptions/kvoptions.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(/usr/share/texlive/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/puenc.def)
+(/usr/share/texlive/texmf-dist/tex/latex/url/url.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/bitset/bitset.sty
+(/usr/share/texlive/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+
+Package hyperref Message: Stopped early.
+
+) (/usr/share/texlive/texmf-dist/tex/latex/hyperref/hpdftex.def
+(/usr/share/texlive/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaserequires.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasecompatibility.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasefont.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/sansmathaccent/sansmathaccent.sty
+(/usr/share/texlive/texmf-dist/tex/latex/koma-script/scrlfile.sty
+(/usr/share/texlive/texmf-dist/tex/latex/koma-script/scrlfile-hook.sty
+(/usr/share/texlive/texmf-dist/tex/latex/koma-script/scrlogo.sty)))))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetranslator.sty
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasemisc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetwoscreens.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseoverlay.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetitle.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasesection.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseframe.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseverbatim.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseframesize.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseframecomponents.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasecolor.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasenotes.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetoc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetemplates.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseauxtemplates.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaseboxes.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbaselocalstructure.sty
+(/usr/share/texlive/texmf-dist/tex/latex/tools/enumerate.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasenavigation.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasenavigationsymbols.tex
+)) (/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasetheorems.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerbasethemes.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerthemedefault.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerfontthemedefault.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamercolorthemedefault.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerinnerthemedefault.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerouterthemedefault.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/base/fontenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65
+.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18
+.sty)) (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarytopaths.code.tex)))
+(/usr/share/texlive/texmf-dist/tex/latex/pgfplots/pgfplots.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.revision.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotscore.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/sys/pgfplotssysgeneric.code
+.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/libs/pgfplotslibrary.code.t
+ex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldp
+gfsupp_loader.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryfpu.code.tex
+)
+Package pgfplots: loading complementary utilities for your pgf version...
+
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/oldpgfcompatib/pgfplotsoldp
+gfsupp_pgfutil-common-lists.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotslists
+tructure.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotslists
+tructureext.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsarray
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsmatri
+x.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/numtable/pgfplotstableshare
+d.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/liststructure/pgfplotsdeque
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.code.te
+x
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotsbinary.data.co
+de.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotsutil.verb.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/libs/pgflibrarypgfplots.sur
+fshading.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/sys/pgflibrarypgfplots.surf
+shading.pgfsys-pdftex.def)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotscolormap.code.
+tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/util/pgfplotscolor.code.tex
+))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.t
+ex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.t
+ex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplothandler.cod
+e.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotsmeshplotimage.code.
+tex)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.scaling.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.cod
+e.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.errorbars.code.tex
+) (/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex
+) (/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/pgfplots.paths.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarydecorations.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.cod
+e.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarydecorations.pathmorphing.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrary
+decorations.pathmorphing.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarydecorations.pathreplacing.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrary
+decorations.pathreplacing.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.co
+ntourlua.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryplotmarks.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.co
+de.tex))) (/usr/share/texlive/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/array.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/colortbl/colortbl.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/multirow/multirow.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/fontawesome5.sty
+(/usr/share/texlive/texmf-dist/tex/latex/l3kernel/expl3.sty
+(/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def))
+(/usr/share/texlive/texmf-dist/tex/latex/l3packages/l3keys2e/l3keys2e.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/l3packages/xparse/xparse.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/fontawesome5-generic-help
+er.sty
+(/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/fontawesome5-mapping.def)
+)) (/usr/share/texlive/texmf-dist/tex/latex/psnfss/pifont.sty
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/upzd.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/psnfss/upsy.fd))
+(/usr/share/texlive/texmf-dist/tex/latex/tools/calc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/adjustbox/adjustbox.sty
+(/usr/share/texlive/texmf-dist/tex/latex/xkeyval/xkeyval.sty
+(/usr/share/texlive/texmf-dist/tex/generic/xkeyval/xkeyval.tex
+(/usr/share/texlive/texmf-dist/tex/generic/xkeyval/xkvutils.tex)))
+(/usr/share/texlive/texmf-dist/tex/latex/adjustbox/adjcalc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/adjustbox/trimclip.sty
+(/usr/share/texlive/texmf-dist/tex/latex/collectbox/collectbox.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/adjustbox/tc-pdftex.def))
+(/usr/share/texlive/texmf-dist/tex/latex/ifoddpage/ifoddpage.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/varwidth/varwidth.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/tikz-cd/tikz-cd.sty
+(/usr/share/texlive/texmf-dist/tex/generic/tikz-cd/tikzlibrarycd.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarymatrix.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryquotes.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.
+code.tex)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryshapes.geometric.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshape
+s.geometric.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryshapes.symbols.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshape
+s.symbols.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryshapes.arrows.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshape
+s.arrows.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarypositioning.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarycalc.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarybackgrounds.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryfit.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarydecorations.markings.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrary
+decorations.markings.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryshadows.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryfadings.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryfadings.code
+.tex)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarypatterns.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.cod
+e.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarychains.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarycalendar.code.tex
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfcalendar.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfcalendar.code.tex))
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarymindmap.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarytrees.code.tex)) (./styles/beamerthemeKotak.sty
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerinnerthemerectangles.sty)
+
+(/usr/share/texlive/texmf-dist/tex/latex/beamer/beamerfontthemeprofessionalfont
+s.sty)) (./main.aux)
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+(/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+(./main.out) (./main.out)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-basic-dictionary
+-English.dict)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-bibliography-dic
+tionary-English.dict)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-environment-dict
+ionary-English.dict)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-months-dictionar
+y-English.dict)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-numbers-dictiona
+ry-English.dict)
+(/usr/share/texlive/texmf-dist/tex/latex/translator/translator-theorem-dictiona
+ry-English.dict)
+Package pgfplots notification 'compat/show suggested version=true': document ha
+s been generated with the most recent feature set (\pgfplotsset{compat=1.18}).
+
+(./main.nav) [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/t
+exmf/fonts/enc/dvips/cm-super/cm-super-t1.enc}] (./sections/01-opening.tex
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd) [2]
+
+! LaTeX Error: Something's wrong--perhaps a missing \item.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.98 \end{frame}
+                
+(/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/ufontawesomefree1.fd)
+
+LaTeX Font Warning: Font shape `T1/cmss/m/n' in size <20> not available
+(Font)              size <20.74> substituted on input line 98.
+
+
+LaTeX Font Warning: Font shape `T1/cmss/bx/n' in size <20> not available
+(Font)              size <20.74> substituted on input line 98.
+
+
+Overfull \vbox (10.45905pt too high) detected at line 98
+[3{/usr/share/texlive/texmf-dist/fonts/enc/dvips/fontawesome5/fa5free1.enc}]
+Overfull \hbox (14.62622pt too wide) in paragraph at lines 127--127
+ [] 
+[4] (/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/ufontawesomefree2.fd)
+ [5{/usr/share/texlive/texmf-dist/fonts/enc/dvips/fontawesome5/fa5free2.enc}])
+(./sections/02-opportunity.tex [6]
+Overfull \hbox (0.73615pt too wide) in paragraph at lines 58--58
+[][]  
+
+LaTeX Font Warning: Font shape `T1/cmss/m/n' in size <28> not available
+(Font)              size <29.86> substituted on input line 58.
+
+
+LaTeX Font Warning: Font shape `T1/cmss/bx/n' in size <28> not available
+(Font)              size <29.86> substituted on input line 58.
+
+[7]
+Overfull \vbox (1.87407pt too high) detected at line 89
+[8] (/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/ufontawesomefree0.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/fontawesome5/ufontawesomefree3.fd)
+[9{/usr/share/texlive/texmf-dist/fonts/enc/dvips/fontawesome5/fa5free0.enc}{/us
+r/share/texlive/texmf-dist/fonts/enc/dvips/fontawesome5/fa5free3.enc}] [10]
+
+LaTeX Font Warning: Font shape `T1/cmss/m/n' in size <24> not available
+(Font)              size <24.88> substituted on input line 234.
+
+
+LaTeX Font Warning: Font shape `T1/cmss/bx/n' in size <24> not available
+(Font)              size <24.88> substituted on input line 234.
+
+
+Overfull \vbox (31.52307pt too high) detected at line 234
+[11]) (./sections/03-competitor-crisis.tex [12]
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+! Illegal parameter number in definition of \beamer@doifinframe.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+! Illegal parameter number in definition of \beamer@doifinframe.
+<to be read again> 
+                   1
+l.49 \end{frame}
+                
+[13] [14] [15] [16] [17]
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+! Illegal parameter number in definition of \beamer@doifinframe.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+! Illegal parameter number in definition of \beamer@doifinframe.
+<to be read again> 
+                   1
+l.300 \end{frame}
+                 
+[18] [19] [20]) (./sections/04-customer-psychology.tex [21]
+
+LaTeX Font Warning: Font shape `T1/cmss/m/n' in size <22> not available
+(Font)              size <20.74> substituted on input line 72.
+
+
+LaTeX Font Warning: Font shape `T1/cmss/bx/n' in size <22> not available
+(Font)              size <20.74> substituted on input line 72.
+
+[22] [23] [24] [25] [26]) (./sections/05-target-segments.tex [27]
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.70 \end{frame}
+                
+! Illegal parameter number in definition of \iterate.
+<to be read again> 
+                   1
+l.70 \end{frame}
+                
+! Illegal parameter number in definition of \beamer@doifinframe.
+<to be read again> 
+                   1
+l.70 \end{frame}
+                
+[28]
+Overfull \vbox (53.94589pt too high) detected at line 115
+[29]
+Overfull \vbox (53.80234pt too high) detected at line 160
+[30]
+Overfull \vbox (72.28938pt too high) detected at line 206
+[31]
+Overfull \vbox (53.57292pt too high) detected at line 251
+[32]
+! Undefined control sequence.
+\beamer@doifinframe ... at (-5,1) {\faExchangeAlt 
+                                                  \\Transaction\\Patterns}; ...
+l.298 \end{frame}
+                 
+[33]) (./sections/06-switch-save.tex [34] [35])
+Runaway argument?
+{center> \end {frame} \par \begin {frame}{Bridge Loan: How It Works} \ETC.
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.116 \input{sections/06-switch-save}
+                                     
+(./sections/07-personalized-pitch.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.35     \end{tikzpicture}
+                          
+Runaway argument?
+{Personalized Pitch Architecture} \vspace {-0.2cm} \begin {center} \begin \ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.35     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.35     \end{tikzpicture}
+                          
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.35     \end{tikzpicture}
+                          
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.35     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.35     \end{tikzpicture}
+                          
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.35     \end{tikzpicture}
+                          
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.117 \input{sections/07-personalized-pitch}
+                                            
+(./sections/08-ai-acquisition.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.44     \end{tikzpicture}
+                          
+Runaway argument?
+{AI Strategy: Three Pillars} \vspace {-0.2cm} \begin {center} \begin \ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.44     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.44     \end{tikzpicture}
+                          
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.44     \end{tikzpicture}
+                          
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.44     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.44     \end{tikzpicture}
+                          
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.44     \end{tikzpicture}
+                          
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.118 \input{sections/08-ai-acquisition}
+                                        
+(./sections/09-doorstep-pilot.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.21             \end{itemize}
+                              
+Runaway argument?
+{Doorstep Gold Loans: The Convenience Frontier} \vspace {-0.2cm} \begin \ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.21             \end{itemize}
+                              
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.21             \end{itemize}
+                              
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.21             \end{itemize}
+                              
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.21             \end{itemize}
+                              
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.21             \end{itemize}
+                              
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.21             \end{itemize}
+                              
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.119 \input{sections/09-doorstep-pilot}
+                                        
+(./sections/10-financials.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.32                 \end{axis}
+                               
+Runaway argument?
+{Investment Ask: Rs 148 Crore over 3 Years} \vspace {-0.2cm} \begin {\ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.32                 \end{axis}
+                               
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.32                 \end{axis}
+                               
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.32                 \end{axis}
+                               
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.32                 \end{axis}
+                               
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.32                 \end{axis}
+                               
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.32                 \end{axis}
+                               
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.120 \input{sections/10-financials}
+                                    
+(./sections/11-risk-compliance.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.29             \end{tikzpicture}
+                                  
+Runaway argument?
+{Compliance as Competitive Advantage} \vspace {-0.2cm} \begin {column\ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.29             \end{tikzpicture}
+                                  
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.29             \end{tikzpicture}
+                                  
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.29             \end{tikzpicture}
+                                  
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.29             \end{tikzpicture}
+                                  
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.29             \end{tikzpicture}
+                                  
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.29             \end{tikzpicture}
+                                  
+)
+Runaway argument?
+{center> \end {frame} \par \begin {frame}{Growth Guardrails: Responsi\ETC.
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.121 \input{sections/11-risk-compliance}
+                                         
+(./sections/12-roadmap.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.72     \end{tikzpicture}
+                          
+Runaway argument?
+{Implementation Roadmap: Q1 2025 to 2027} \vspace {-0.2cm} \begin {ce\ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.72     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.72     \end{tikzpicture}
+                          
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.72     \end{tikzpicture}
+                          
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.72     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.72     \end{tikzpicture}
+                          
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.72     \end{tikzpicture}
+                          
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.122 \input{sections/12-roadmap}
+                                 
+(./sections/13-closing.tex
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.42     \end{tikzpicture}
+                          
+Runaway argument?
+{The Strategic Imperative} \vspace {-0.2cm} \begin {center} \begin {t\ETC.
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.42     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.42     \end{tikzpicture}
+                          
+! Argument of \frame has an extra }.
+<inserted text> 
+                \par 
+l.42     \end{tikzpicture}
+                          
+Runaway argument?
+! Paragraph ended before \frame was complete.
+<to be read again> 
+                   \par 
+l.42     \end{tikzpicture}
+                          
+! Extra }, or forgotten \endgroup.
+<recently read> }
+                 
+l.42     \end{tikzpicture}
+                          
+! Extra \fi.
+\frame ...let \@next =\beamer@process@envbody \fi 
+                                                  \@next 
+l.42     \end{tikzpicture}
+                          
+)
+Runaway argument?
+ 
+! File ended while scanning use of \frame.
+<inserted text> 
+                \par 
+l.123 \input{sections/13-closing}
+                                 
+
+! LaTeX Error: \begin{frame} on input line 42 ended by \end{document}.
+
+See the LaTeX manual or LaTeX Companion for explanation.
+Type  H <return>  for immediate help.
+ ...                                              
+                                                  
+l.125 \end{document}
+                    
+(./main.aux)
+
+LaTeX Font Warning: Size substitutions with differences
+(Font)              up to 1.86pt have occurred.
+
+ )
+(\end occurred inside a group at level 22)
+
+### semi simple group (level 22) entered at line 42 (\begingroup)
+### semi simple group (level 21) entered at line 42 (\begingroup)
+### semi simple group (level 20) entered at line 4 (\begingroup)
+### semi simple group (level 19) entered at line 72 (\begingroup)
+### semi simple group (level 18) entered at line 72 (\begingroup)
+### semi simple group (level 17) entered at line 4 (\begingroup)
+### semi simple group (level 16) entered at line 29 (\begingroup)
+### semi simple group (level 15) entered at line 29 (\begingroup)
+### semi simple group (level 14) entered at line 4 (\begingroup)
+### semi simple group (level 13) entered at line 32 (\begingroup)
+### semi simple group (level 12) entered at line 32 (\begingroup)
+### semi simple group (level 11) entered at line 4 (\begingroup)
+### semi simple group (level 10) entered at line 21 (\begingroup)
+### semi simple group (level 9) entered at line 21 (\begingroup)
+### semi simple group (level 8) entered at line 4 (\begingroup)
+### semi simple group (level 7) entered at line 44 (\begingroup)
+### semi simple group (level 6) entered at line 44 (\begingroup)
+### semi simple group (level 5) entered at line 4 (\begingroup)
+### semi simple group (level 4) entered at line 35 (\begingroup)
+### semi simple group (level 3) entered at line 35 (\begingroup)
+### semi simple group (level 2) entered at line 41 (\begingroup)
+### semi simple group (level 1) entered at line 41 (\begingroup)
+### bottom level
+(see the transcript file for additional information)</usr/share/texlive/texmf-d
+ist/fonts/type1/public/fontawesome5/FontAwesome5Free-Solid.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/te
+xmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dis
+t/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+symbols/msam10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/s
+ymbols/msam7.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfsi0600.pfb></u
+sr/share/texmf/fonts/type1/public/cm-super/sfsi1000.pfb></usr/share/texmf/fonts
+/type1/public/cm-super/sfsi1095.pfb></usr/share/texmf/fonts/type1/public/cm-sup
+er/sfss0600.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfss0800.pfb></us
+r/share/texmf/fonts/type1/public/cm-super/sfss0900.pfb></usr/share/texmf/fonts/
+type1/public/cm-super/sfss1000.pfb></usr/share/texmf/fonts/type1/public/cm-supe
+r/sfss1095.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfss1440.pfb></usr
+/share/texmf/fonts/type1/public/cm-super/sfsx0600.pfb></usr/share/texmf/fonts/t
+ype1/public/cm-super/sfsx0800.pfb></usr/share/texmf/fonts/type1/public/cm-super
+/sfsx0900.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfsx1000.pfb></usr/
+share/texmf/fonts/type1/public/cm-super/sfsx1095.pfb></usr/share/texmf/fonts/ty
+pe1/public/cm-super/sfsx1200.pfb></usr/share/texmf/fonts/type1/public/cm-super/
+sfsx1440.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfsx2074.pfb></usr/s
+hare/texmf/fonts/type1/public/cm-super/sfsx2488.pfb></usr/share/texmf/fonts/typ
+e1/public/cm-super/sfsx2986.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/
+zapfding/uzdr.pfb>
+Output written on main.pdf (35 pages, 536226 bytes).
+Transcript written on main.log.

@@ -1,0 +1,44 @@
+[package]
+name = "voice-agent-rag"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "RAG with hybrid search and early-exit cross-encoder reranking"
+
+[features]
+default = []
+onnx = ["dep:ort"]
+
+[dependencies]
+voice-agent-core.workspace = true
+voice-agent-config.workspace = true
+
+# Async
+tokio = { workspace = true, features = ["sync", "time"] }
+tokio-stream.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# Vector store
+qdrant-client.workspace = true
+
+# Search
+tantivy.workspace = true
+
+# ML
+ort = { version = "2.0.0-rc.9", optional = true }
+ndarray.workspace = true
+tokenizers.workspace = true
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Utilities
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

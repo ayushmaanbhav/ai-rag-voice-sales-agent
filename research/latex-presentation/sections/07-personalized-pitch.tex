@@ -1,0 +1,226 @@
+% ============================================
+% SECTION 7: PERSONALIZED PITCH
+% ============================================
+\section{Personalized Pitch}
+
+% --------------------------------------------
+% Slide 36: Pitch Framework
+% --------------------------------------------
+\begin{frame}{Personalized Pitch Architecture}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.75, transform shape,
+        stage/.style={draw=kotakblue, fill=kotakblue!10, rounded corners=5pt, minimum width=1.8cm, minimum height=1.1cm, align=center, font=\scriptsize},
+        arrow/.style={-{Stealth}, kotakgold, thick}
+    ]
+        % Pipeline stages
+        \node[stage] (data) at (-5.5,0) {\faDatabase\\Customer Data};
+        \node[stage] (score) at (-2.5,0) {\faChartLine\\Propensity Score};
+        \node[stage] (segment) at (0.5,0) {\faUsers\\Segment};
+        \node[stage] (offer) at (3.5,0) {\faTag\\Personalized Offer};
+        \node[stage, fill=kotakgreen!20] (convert) at (6.5,0) {\faCheckCircle\\Optimized Conversion};
+
+        % Arrows
+        \draw[arrow] (data) -- (score);
+        \draw[arrow] (score) -- (segment);
+        \draw[arrow] (segment) -- (offer);
+        \draw[arrow] (offer) -- (convert);
+
+        % Data sources (above)
+        \node[font=\tiny, text=kotakblue, align=center] at (-5.5,1.3) {KYC, Transactions\\Credit Bureau, Product Holdings};
+
+        % Output details (below)
+        \node[font=\tiny, text=kotakgold, align=center] at (0.5,-1.2) {P1/P2/P3/P4\\Segment};
+        \node[font=\tiny, text=kotakgold, align=center] at (3.5,-1.2) {Rate, Channel\\Message, Timing};
+    \end{tikzpicture}
+\end{center}
+\vspace{-0.1cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Input Signals}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Payments to Muthoot/IIFL/Manappuram
+                \item Credit bureau gold loan flags
+                \item Age, gender, occupation
+                \item Product holdings (811, savings, etc.)
+            \end{itemize}
+        \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{exampleblock}{Output Actions}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Right rate for segment
+                \item Right channel (app/RM/BC)
+                \item Right message (safety vs savings)
+                \item Right timing (loan renewal date)
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 37: Segment Messaging Matrix
+% --------------------------------------------
+\begin{frame}{Segment-Specific Messaging}
+\vspace{-0.3cm}
+\begin{center}
+    \scriptsize
+    \begin{tabular}{>{\raggedright}p{1.5cm}>{\raggedright}p{2.2cm}>{\raggedright}p{2.5cm}>{\raggedright}p{2.5cm}}
+        \toprule
+        \textbf{Segment} & \textbf{Lead Message} & \textbf{Support Message} & \textbf{CTA} \\
+        \midrule
+        \rowcolor{kotakred!10}
+        P1: High-Value & ``Save Rs 40K+ yearly'' & Savings calculator, ROI focus & ``See your savings'' \\
+        \rowcolor{kotakblue!10}
+        P2: Trust-Seeker & ``Your gold deserves a bank'' & Vault security, 0.22\% NPA & ``Secure your gold'' \\
+        \rowcolor{kotakgold!10}
+        P3: Women & ``Shakti Gold: Your power'' & Free insurance, female RM & ``Empower yourself'' \\
+        \rowcolor{kotaklightgray}
+        P4: Digital & ``Gold loan in 3 clicks'' & Speed, app-first, UPI & ``Apply now'' \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+\vspace{-0.1cm}
+\begin{columns}
+    \column{0.48\textwidth}
+    \begin{alertblock}{Emotional Hooks}
+        \scriptsize
+        \begin{itemize}\setlength{\itemsep}{0pt}
+            \item P1: Business growth, competitiveness
+            \item P2: Fear of loss, NBFC scandals
+            \item P3: Empowerment, independence
+            \item P4: Convenience, modernity
+        \end{itemize}
+    \end{alertblock}
+
+    \column{0.48\textwidth}
+    \begin{exampleblock}{Rational Hooks}
+        \scriptsize
+        \begin{itemize}\setlength{\itemsep}{0pt}
+            \item P1: Clear savings, ROI
+            \item P2: Bank safety, RBI regulated
+            \item P3: Lowest rate, insurance
+            \item P4: Speed, digital features
+        \end{itemize}
+    \end{exampleblock}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 38: Campaign Concepts
+% --------------------------------------------
+\begin{frame}{Four Campaign Concepts}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        campaign/.style={draw=kotakblue, fill=white, rounded corners=8pt, minimum width=5.5cm, minimum height=2.3cm, align=left, font=\scriptsize, drop shadow}
+    ]
+        % Campaign 1
+        \node[campaign] at (-3.5,2) {
+            \textbf{\textcolor{kotakred}{Campaign 1: The Smart Switch}}\\[0.1cm]
+            \faUser~Target: P1 High-Value\\
+            \faComment~Message: Savings calculation\\
+            \faBullhorn~Channels: Digital, RM, Business dailies
+        };
+
+        % Campaign 2
+        \node[campaign] at (3.5,2) {
+            \textbf{\textcolor{kotakblue}{Campaign 2: Gold Deserves a Bank}}\\[0.1cm]
+            \faUser~Target: P2 Trust-Seekers\\
+            \faComment~Message: Safety \& security\\
+            \faBullhorn~Channels: Digital video, Regional TV
+        };
+
+        % Campaign 3
+        \node[campaign] at (-3.5,-1.5) {
+            \textbf{\textcolor{kotakgold}{Campaign 3: Shakti Gold}}\\[0.1cm]
+            \faUser~Target: P3 Women\\
+            \faComment~Message: Empowerment\\
+            \faBullhorn~Channels: BC network, SHGs, Social
+        };
+
+        % Campaign 4
+        \node[campaign] at (3.5,-1.5) {
+            \textbf{\textcolor{kotakgreen}{Campaign 4: Gold in Clicks}}\\[0.1cm]
+            \faUser~Target: P4 Young Professionals\\
+            \faComment~Message: Digital convenience\\
+            \faBullhorn~Channels: Kotak 811 app, Instagram
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 39: Channel Strategy
+% --------------------------------------------
+\begin{frame}{Channel Strategy: Right Message, Right Place}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        channel/.style={draw=kotakblue!50, fill=white, rounded corners=3pt, minimum width=2.2cm, minimum height=1.1cm, align=center, font=\tiny}
+    ]
+        % Channel categories
+        \node[font=\small\bfseries, text=kotakred] at (-5,3.5) {DIGITAL};
+        \node[channel] at (-5,2.5) {\faMobile\\Kotak 811 App};
+        \node[channel] at (-5,1.2) {\faEnvelope\\Email/SMS};
+        \node[channel] at (-5,-0.1) {\faInstagram\\Social Media};
+
+        \node[font=\small\bfseries, text=kotakblue] at (-1.5,3.5) {DIRECT};
+        \node[channel] at (-1.5,2.5) {\faUserTie\\RM Outreach};
+        \node[channel] at (-1.5,1.2) {\faPhone\\Call Center};
+        \node[channel] at (-1.5,-0.1) {\faBuilding\\Branch Walk-in};
+
+        \node[font=\small\bfseries, text=kotakgold] at (2,3.5) {BC NETWORK};
+        \node[channel] at (2,2.5) {\faUsers\\Field Agents};
+        \node[channel] at (2,1.2) {\faStore\\Partner Outlets};
+        \node[channel] at (2,-0.1) {\faHome\\Doorstep};
+
+        \node[font=\small\bfseries, text=kotakgreen] at (5.5,3.5) {MASS};
+        \node[channel] at (5.5,2.5) {\faTv\\Regional TV};
+        \node[channel] at (5.5,1.2) {\faNewspaper\\Print Ads};
+        \node[channel] at (5.5,-0.1) {\faRadio\\Radio};
+
+        % Segment mapping
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\tiny, align=center] at (0,-1.8) {
+            \textbf{P1:} RM + Digital | \textbf{P2:} Digital Video + TV | \textbf{P3:} BC + SHGs | \textbf{P4:} 811 App + Social
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 40: Conversion Funnel
+% --------------------------------------------
+\begin{frame}{Conversion Funnel: Optimized for Each Stage}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape]
+        % Funnel shape
+        \fill[kotakblue!20] (-5,4) -- (5,4) -- (3.5,2.5) -- (-3.5,2.5) -- cycle;
+        \fill[kotakblue!30] (-3.5,2.5) -- (3.5,2.5) -- (2.5,1) -- (-2.5,1) -- cycle;
+        \fill[kotakblue!40] (-2.5,1) -- (2.5,1) -- (1.5,-0.5) -- (-1.5,-0.5) -- cycle;
+        \fill[kotakgreen!60] (-1.5,-0.5) -- (1.5,-0.5) -- (0.8,-2) -- (-0.8,-2) -- cycle;
+
+        % Stage labels
+        \node[font=\small\bfseries, text=kotakblue] at (0,3.3) {AWARENESS (100\%)};
+        \node[font=\small\bfseries, text=kotakblue] at (0,1.8) {INTEREST (40\%)};
+        \node[font=\small\bfseries, text=kotakblue] at (0,0.3) {INTENT (20\%)};
+        \node[font=\small\bfseries, text=white] at (0,-1.2) {CONVERSION (8-12\%)};
+
+        % Actions on right - reduced font size
+        \node[font=\fontsize{6}{7}\selectfont, align=left] at (5.5,3.3) {Mass media, digital ads\\Competitor news amplification};
+        \node[font=\fontsize{6}{7}\selectfont, align=left] at (4.5,1.8) {Savings calculator\\Safety messaging};
+        \node[font=\fontsize{6}{7}\selectfont, align=left] at (4,0.3) {Pre-approval offer\\Bridge loan intro};
+        \node[font=\fontsize{6}{7}\selectfont, align=left] at (3,-1.2) {Switch Assist\\Seamless execution};
+
+        % Conversion improvement
+        \node[draw=kotakgold, fill=kotakgold!20, rounded corners=5pt, font=\scriptsize, align=center] at (0,-3.3) {
+            \textbf{Target:} 8-12\% funnel conversion (vs industry 3-5\%)\\
+            Key lever: Bridge loan removes 60\% drop-off at Intent stage
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

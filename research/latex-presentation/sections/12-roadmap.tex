@@ -1,0 +1,129 @@
+% ============================================
+% SECTION 12: ROADMAP
+% ============================================
+\section{Roadmap}
+
+% --------------------------------------------
+% Slide 58: Implementation Phases
+% --------------------------------------------
+\begin{frame}{Implementation Roadmap: Q1 2025 to 2027}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        phase/.style={draw=kotakblue, fill=white, rounded corners=8pt, minimum width=3.2cm, minimum height=2.7cm, align=center, font=\scriptsize}
+    ]
+        % Timeline bar
+        \fill[kotakgold!30] (-6,-2.5) rectangle (6,-2);
+        \node[font=\tiny] at (-5,-2.25) {Q1 2025};
+        \node[font=\tiny] at (-2,-2.25) {Q2-Q4 2025};
+        \node[font=\tiny] at (1.5,-2.25) {2026};
+        \node[font=\tiny] at (5,-2.25) {2027};
+
+        % Phase 1
+        \node[phase, fill=kotakred!10] at (-5,0.5) {
+            \textbf{PHASE 1}\\
+            \textbf{Foundation}\\[0.1cm]
+            \faCode~Tech setup\\
+            \faUsers~Team hiring\\
+            \faFile~Process design\\
+            \faMapMarker~5-city pilot
+        };
+
+        % Phase 2
+        \node[phase, fill=kotakblue!10] at (-1.5,0.5) {
+            \textbf{PHASE 2}\\
+            \textbf{Launch}\\[0.1cm]
+            \faRocket~Campaign launch\\
+            \faHandshake~Bridge loan live\\
+            \faMobile~App integration\\
+            \faChartLine~1,500 Cr AUM
+        };
+
+        % Phase 3
+        \node[phase, fill=kotakgreen!10] at (2,0.5) {
+            \textbf{PHASE 3}\\
+            \textbf{Scale}\\[0.1cm]
+            \faBuilding~30 cities\\
+            \faRobot~AI optimization\\
+            \faHome~Doorstep expand\\
+            \faChartLine~4,000 Cr AUM
+        };
+
+        % Phase 4
+        \node[phase, fill=kotakgold!10] at (5.5,0.5) {
+            \textbf{PHASE 4}\\
+            \textbf{Leadership}\\[0.1cm]
+            \faTrophy~Market leader\\
+            \faGlobeAsia~Pan-India\\
+            \faLightbulb~Innovation hub\\
+            \faChartLine~8,500 Cr AUM
+        };
+
+        % Connecting arrows
+        \draw[-{Stealth}, kotakgold, thick] (-3.3,0.5) -- (-3,0.5);
+        \draw[-{Stealth}, kotakgold, thick] (0.2,0.5) -- (0.5,0.5);
+        \draw[-{Stealth}, kotakgold, thick] (3.7,0.5) -- (4,0.5);
+
+        % Phase durations
+        \draw[kotakred, very thick] (-6,-2) -- (-4,-2);
+        \draw[kotakblue, very thick] (-4,-2) -- (-0.5,-2);
+        \draw[kotakgreen, very thick] (-0.5,-2) -- (3,-2);
+        \draw[kotakgold, very thick] (3,-2) -- (6,-2);
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 59: Success Metrics Dashboard
+% --------------------------------------------
+\begin{frame}{Success Metrics: Dashboard View}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        metric/.style={draw=kotakblue!50, fill=white, rounded corners=5pt, minimum width=3.5cm, minimum height=1.6cm, align=center, font=\small}
+    ]
+        % Row 1
+        \node[metric] at (-4.5,2) {
+            \faMoneyBillWave~\textbf{AUM}\\[0.1cm]
+            Y1: Rs 1,500 Cr\\
+            Y3: Rs 8,500 Cr
+        };
+
+        \node[metric] at (0,2) {
+            \faUsers~\textbf{Customers}\\[0.1cm]
+            Y1: 15,000\\
+            Y3: 85,000
+        };
+
+        \node[metric] at (4.5,2) {
+            \faPercentage~\textbf{Conversion}\\[0.1cm]
+            Target: 8-12\%\\
+            vs Industry 3-5\%
+        };
+
+        % Row 2
+        \node[metric] at (-4.5,-0.5) {
+            \faChartLine~\textbf{NPA Rate}\\[0.1cm]
+            Target: <0.5\%\\
+            Current: 0.22\%
+        };
+
+        \node[metric] at (0,-0.5) {
+            \faSmile~\textbf{NPS Score}\\[0.1cm]
+            Target: 70+\\
+            Industry: 30-40
+        };
+
+        \node[metric] at (4.5,-0.5) {
+            \faCalculator~\textbf{ROI}\\[0.1cm]
+            Target: 2.45x\\
+            Payback: 20 months
+        };
+
+        % KPI callout
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\small, align=center] at (0,-3) {
+            \textbf{Key KPI:} Bridge Loan utilization rate >60\% | Customer savings communicated at onboarding
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

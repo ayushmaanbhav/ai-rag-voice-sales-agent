@@ -1,0 +1,52 @@
+//! Voice Agent Server
+//!
+//! Provides WebSocket and HTTP endpoints for the voice agent.
+
+pub mod websocket;
+pub mod http;
+pub mod session;
+pub mod state;
+pub mod rate_limit;
+
+pub use websocket::WebSocketHandler;
+pub use http::create_router;
+pub use session::{Session, SessionManager};
+pub use state::AppState;
+pub use rate_limit::{RateLimiter, RateLimitError};
+
+use thiserror::Error;
+
+/// Server errors
+#[derive(Error, Debug)]
+pub enum ServerError {
+    #[error("Session error: {0}")]
+    Session(String),
+
+    #[error("WebSocket error: {0}")]
+    WebSocket(String),
+
+    #[error("Authentication error: {0}")]
+    Auth(String),
+
+    #[error("Rate limit exceeded")]
+    RateLimit,
+
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
+
+    #[error("Internal error: {0}")]
+    Internal(String),
+}
+
+impl From<ServerError> for axum::http::StatusCode {
+    fn from(err: ServerError) -> Self {
+        match err {
+            ServerError::Session(_) => axum::http::StatusCode::NOT_FOUND,
+            ServerError::WebSocket(_) => axum::http::StatusCode::BAD_REQUEST,
+            ServerError::Auth(_) => axum::http::StatusCode::UNAUTHORIZED,
+            ServerError::RateLimit => axum::http::StatusCode::TOO_MANY_REQUESTS,
+            ServerError::InvalidRequest(_) => axum::http::StatusCode::BAD_REQUEST,
+            ServerError::Internal(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}

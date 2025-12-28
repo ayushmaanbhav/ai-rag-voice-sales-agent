@@ -1,0 +1,236 @@
+% ============================================
+% SECTION 2: MARKET OPPORTUNITY
+% ============================================
+\section{Market Opportunity}
+
+% --------------------------------------------
+% Slide 6: Market Size
+% --------------------------------------------
+\begin{frame}{Gold Loan Market: A Rs 7.1 Lakh Crore Opportunity}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{tikzpicture}
+            \begin{axis}[
+                width=8cm,
+                height=6cm,
+                ybar,
+                bar width=1.2cm,
+                ymin=0,
+                ymax=16,
+                ylabel={Market Size (Rs Lakh Crore)},
+                symbolic x coords={2024-25,2028},
+                xtick=data,
+                nodes near coords,
+                nodes near coords style={font=\small\bfseries, color=kotakblue},
+                every axis plot/.append style={fill=kotakred!80},
+                axis lines=left,
+                enlarge x limits=0.4,
+                ylabel style={font=\small},
+                xlabel style={font=\small},
+                tick label style={font=\small}
+            ]
+                \addplot[fill=kotakred] coordinates {(2024-25,7.1) (2028,14.19)};
+            \end{axis}
+
+            % CAGR annotation
+            \draw[-{Stealth}, kotakgold, very thick] (3.2,3.5) to[bend left=30] node[above, font=\small\bfseries, text=kotakgold] {14.85\% CAGR} (5.5,5);
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{block}{Growth Drivers}
+            \begin{itemize}
+                \item Rising gold prices (+25\% YoY)
+                \item MSME credit demand
+                \item Rural \& Tier 2 penetration
+                \item Shift from informal lenders
+            \end{itemize}
+        \end{block}
+
+        \vspace{0.3cm}
+
+        \begin{exampleblock}{Bank Gold Loan Surge}
+            \centering
+            \fontsize{28}{32}\selectfont\bfseries\textcolor{kotakgreen}{71.3\%}\\
+            \normalsize YoY Growth (FY25)
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 7: Household Gold Opportunity
+% --------------------------------------------
+\begin{frame}{India's Hidden Gold Reserve: Only 5.6\% Monetized}
+\begin{center}
+    \begin{tikzpicture}
+        % Total gold circle
+        \fill[kotakgold!30] (0,0) circle (3.5cm);
+        \node[font=\Large\bfseries, text=kotakblue] at (0,0.5) {Rs 126 Lakh Cr};
+        \node[font=\small, text=kotakblue] at (0,-0.3) {Household Gold};
+        \node[font=\footnotesize, text=kotakgray] at (0,-0.9) {25,000+ Tonnes};
+
+        % Monetized slice
+        \fill[kotakred] (3.5,0) arc (0:20:3.5cm) -- (0,0) -- cycle;
+        \node[font=\scriptsize\bfseries, text=kotakred] at (4.2,0.8) {5.6\%};
+        \node[font=\tiny, text=kotakgray] at (4.2,0.4) {Monetized};
+
+        % Arrows showing opportunity
+        \draw[-{Stealth}, kotakgreen, very thick] (4.5,-0.5) -- (5.5,-1.5);
+        \node[font=\footnotesize, text=kotakgreen, align=center] at (6.5,-2) {Massive\\Untapped\\Opportunity};
+
+        % Key stats on right
+        \node[draw=kotakblue, fill=white, rounded corners=5pt, minimum width=3.5cm, minimum height=1cm, align=center, font=\small] at (7,1.5) {37\% Organized\\63\% Unorganized};
+
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, minimum width=3.5cm, minimum height=1cm, align=center, font=\small] at (7,0) {\textbf{Target:} Convert\\Informal to Kotak};
+
+        \node[draw=kotakred, fill=kotakred!10, rounded corners=5pt, minimum width=3.5cm, minimum height=1cm, align=center, font=\small] at (7,-1.5) {Rs 7.1L Cr\\Current Market};
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 8: Why Now
+% --------------------------------------------
+\begin{frame}{Why Now: The Perfect Storm}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.82, transform shape,
+        factor/.style={draw=kotakblue, fill=white, rounded corners=6pt, minimum width=2.8cm, minimum height=1.3cm, align=center, font=\small, drop shadow},
+        arrow/.style={-{Stealth}, kotakgold, thick}
+    ]
+        % Center - Opportunity
+        \node[draw=kotakred, fill=kotakred, text=white, rounded corners=8pt, minimum width=3cm, minimum height=1.6cm, font=\normalsize\bfseries, align=center] (center) at (0,0) {MARKET\\OPPORTUNITY};
+
+        % Surrounding factors
+        \node[factor] (f1) at (-4.2,1.8) {\faExclamationTriangle\\[0.05cm]\textbf{IIFL Crisis}\\6-month ban};
+        \node[factor] (f2) at (0,2.6) {\faBalanceScale\\[0.05cm]\textbf{RBI Tightening}\\Sept 2024 circular};
+        \node[factor] (f3) at (4.2,1.8) {\faNewspaper\\[0.05cm]\textbf{Trust Deficit}\\NBFC scandals};
+        \node[factor] (f4) at (-4.2,-1.8) {\faChartLine\\[0.05cm]\textbf{Gold Surge}\\+25\% prices};
+        \node[factor] (f5) at (0,-2.6) {\faMobile\\[0.05cm]\textbf{Digital Ready}\\Customer behavior};
+        \node[factor] (f6) at (4.2,-1.8) {\faUniversity\\[0.05cm]\textbf{Bank Advantage}\\Lower rates};
+
+        % Arrows to center
+        \draw[arrow] (f1) -- (center);
+        \draw[arrow] (f2) -- (center);
+        \draw[arrow] (f3) -- (center);
+        \draw[arrow] (f4) -- (center);
+        \draw[arrow] (f5) -- (center);
+        \draw[arrow] (f6) -- (center);
+    \end{tikzpicture}
+\end{center}
+\vspace{-0.1cm}
+\begin{center}
+    \colorbox{kotakgold!20}{\parbox{0.75\textwidth}{\centering\textcolor{kotakblue}{\textbf{Window of Opportunity:} 12-18 months before NBFCs recover trust}}}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 9: Market Share Opportunity
+% --------------------------------------------
+\begin{frame}{Current Market: NBFC Dominance Creates Opportunity}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{Gold Loan Market Share}
+            \vspace{0.1cm}
+
+            \begin{tikzpicture}[scale=0.85, transform shape]
+                % Pie chart
+                \def\radius{2.2}
+
+                % Muthoot - 38%
+                \fill[kotakgray!60] (0,0) -- (90:\radius) arc (90:226.8:\radius) -- cycle;
+                \node[font=\small\bfseries, text=white] at (160:1.6) {38\%};
+                \node[font=\tiny] at (160:2.5) {Muthoot};
+
+                % Manappuram - 12%
+                \fill[kotakgray!40] (0,0) -- (226.8:\radius) arc (226.8:270:\radius) -- cycle;
+                \node[font=\scriptsize\bfseries] at (248:1.4) {12\%};
+
+                % IIFL - 13%
+                \fill[kotakgray!80] (0,0) -- (270:\radius) arc (270:316.8:\radius) -- cycle;
+                \node[font=\scriptsize\bfseries, text=white] at (293:1.4) {13\%};
+
+                % Banks - 22%
+                \fill[kotakblue] (0,0) -- (316.8:\radius) arc (316.8:396:\radius) -- cycle;
+                \node[font=\small\bfseries, text=white] at (356:1.6) {22\%};
+                \node[font=\tiny, text=kotakblue] at (356:2.6) {Banks};
+
+                % Others - 15%
+                \fill[kotaklightgray] (0,0) -- (36:\radius) arc (36:90:\radius) -- cycle;
+                \node[font=\scriptsize] at (63:1.4) {15\%};
+
+                % Center
+                \fill[white] (0,0) circle (0.7);
+                \node[font=\tiny, align=center] at (0,0) {Organized\\Sector};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+        \begin{alertblock}{NBFC Vulnerabilities}
+            \begin{itemize}
+                \item[\xmark] IIFL: Complete ban (Mar-Sep 2024)
+                \item[\xmark] Muthoot: Multiple RBI penalties
+                \item[\xmark] Manappuram: Fraud cases, subsidiary banned
+            \end{itemize}
+        \end{alertblock}
+        \vspace{0.1cm}
+        \begin{exampleblock}{Bank Advantages}
+            \begin{itemize}
+                \item[\cmark] Lower cost of funds (7\% vs 10\%)
+                \item[\cmark] Trust \& safety perception
+                \item[\cmark] Existing customer base
+                \item[\cmark] Cross-sell opportunities
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 10: Kotak Position
+% --------------------------------------------
+\begin{frame}{Kotak's Strategic Position}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape,
+                box/.style={draw=kotakgold, fill=white, rounded corners=5pt, minimum width=5.2cm, minimum height=0.85cm, align=left, font=\small}
+            ]
+                \node[draw=kotakred, fill=kotakred, text=white, rounded corners=6pt, minimum width=5.5cm, minimum height=1.2cm, font=\normalsize\bfseries] at (0,3.2) {KOTAK ECOSYSTEM};
+
+                \node[box] at (0,2) {\faUsers\hspace{0.3cm}53 Million Customers};
+                \node[box] at (0,1) {\faMobile\hspace{0.3cm}20M+ Kotak 811 Users};
+                \node[box] at (0,0) {\faBuilding\hspace{0.3cm}1,900+ Branches};
+                \node[box] at (0,-1) {\faLock\hspace{0.3cm}0.22\% NPA (vs 2.14\% NBFC)};
+                \node[box] at (0,-2) {\faPercentage\hspace{0.3cm}9-12\% Interest Rate};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{block}{Competitive Rates}
+            \scriptsize
+            \begin{tabular}{lr}
+                \toprule
+                \textbf{Lender} & \textbf{Rate} \\
+                \midrule
+                \rowcolor{kotakgold!20} Kotak & 9-12\% \\
+                Muthoot & 12-26\% \\
+                Manappuram & 12-26\% \\
+                IIFL & 9-24\% \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+
+        \vspace{0.1cm}
+
+        \begin{exampleblock}{Customer Savings}
+            \centering
+            \fontsize{22}{26}\selectfont\bfseries\textcolor{kotakgreen}{40-50\%}\\
+            \small Lower Interest Cost
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}

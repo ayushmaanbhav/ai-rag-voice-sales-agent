@@ -1,0 +1,249 @@
+% ============================================
+% SECTION 4: CUSTOMER PSYCHOLOGY
+% ============================================
+\section{Customer Psychology}
+
+% --------------------------------------------
+% Slide 19: Switching Economics
+% --------------------------------------------
+\begin{frame}{The Economics of Switching: 40-50\% Savings}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{center}
+            \textbf{Interest Rate Comparison}
+            \vspace{0.1cm}
+
+            \begin{tikzpicture}[scale=0.85, transform shape]
+                % Manual horizontal bar chart
+                \def\barheight{0.4}
+                \def\barspacing{0.7}
+
+                % Y-axis labels
+                \node[anchor=east, font=\scriptsize] at (-0.2,0*\barspacing) {Kotak};
+                \node[anchor=east, font=\scriptsize] at (-0.2,1*\barspacing) {SBI};
+                \node[anchor=east, font=\scriptsize] at (-0.2,2*\barspacing) {Federal};
+                \node[anchor=east, font=\scriptsize] at (-0.2,3*\barspacing) {IIFL};
+                \node[anchor=east, font=\scriptsize] at (-0.2,4*\barspacing) {Manappuram};
+                \node[anchor=east, font=\scriptsize] at (-0.2,5*\barspacing) {Muthoot};
+
+                % Bars (scale: 0.15cm per 1%)
+                \fill[kotakred] (0,-\barheight/2) rectangle (12*0.15,\barheight/2);
+                \node[anchor=west, font=\tiny\bfseries, text=white] at (0.1,0) {12\%};
+
+                \fill[kotakblue!70] (0,1*\barspacing-\barheight/2) rectangle (17*0.15,1*\barspacing+\barheight/2);
+                \node[anchor=west, font=\tiny] at (17*0.15+0.1,1*\barspacing) {17\%};
+
+                \fill[kotakblue!50] (0,2*\barspacing-\barheight/2) rectangle (18*0.15,2*\barspacing+\barheight/2);
+                \node[anchor=west, font=\tiny] at (18*0.15+0.1,2*\barspacing) {18\%};
+
+                \fill[kotakgray!80] (0,3*\barspacing-\barheight/2) rectangle (24*0.15,3*\barspacing+\barheight/2);
+                \node[anchor=west, font=\tiny] at (24*0.15+0.1,3*\barspacing) {24\%};
+
+                \fill[kotakgray!60] (0,4*\barspacing-\barheight/2) rectangle (26*0.15,4*\barspacing+\barheight/2);
+                \node[anchor=west, font=\tiny] at (26*0.15+0.1,4*\barspacing) {26\%};
+
+                \fill[kotakgray!40] (0,5*\barspacing-\barheight/2) rectangle (26*0.15,5*\barspacing+\barheight/2);
+                \node[anchor=west, font=\tiny] at (26*0.15+0.1,5*\barspacing) {26\%};
+
+                % X-axis
+                \draw[kotakgray] (0,-0.5) -- (4.5,-0.5);
+                \node[font=\tiny] at (0,-0.7) {0};
+                \node[font=\tiny] at (1.5,-0.7) {10};
+                \node[font=\tiny] at (3,-0.7) {20};
+                \node[font=\tiny] at (4.2,-0.7) {28\%};
+
+                % Savings bracket
+                \draw[kotakgreen, very thick, decorate, decoration={brace, amplitude=5pt}] (4.3,0) -- (4.3,5*\barspacing);
+                \node[font=\scriptsize\bfseries, text=kotakgreen, rotate=-90, anchor=south] at (4.7,2.5*\barspacing) {40-50\% Savings};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{exampleblock}{Annual Savings Example}
+            \footnotesize
+            \textbf{Loan Amount:} Rs 5,00,000
+            \vspace{0.1cm}
+            \begin{tabular}{lr}
+                \toprule
+                NBFC (18\%) & Rs 90,000/yr \\
+                Kotak (10\%) & Rs 50,000/yr \\
+                \midrule
+                \rowcolor{green!10} \textbf{Savings} & \textbf{Rs 40,000/yr} \\
+                \bottomrule
+            \end{tabular}
+        \end{exampleblock}
+        \vspace{0.1cm}
+        \begin{block}{Over 3 Years}
+            \centering
+            \fontsize{22}{26}\selectfont\bfseries\textcolor{kotakgreen}{Rs 1.2L}\\
+            \normalsize Saved per Customer
+        \end{block}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 20: Savings Calculator
+% --------------------------------------------
+\begin{frame}{Savings by Loan Size: The Bigger the Loan, The More They Save}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.9, transform shape]
+        \begin{axis}[
+            ybar,
+            width=11cm,
+            height=5cm,
+            bar width=0.7cm,
+            ylabel={Annual Savings (Rs)},
+            xlabel={Loan Amount},
+            symbolic x coords={Rs 1L,Rs 2L,Rs 5L,Rs 10L,Rs 25L},
+            xtick=data,
+            ymin=0,
+            ymax=220000,
+            nodes near coords,
+            nodes near coords style={font=\scriptsize\bfseries, color=kotakgreen},
+            every axis plot/.append style={fill=kotakgreen!70},
+            axis lines=left,
+            ylabel style={font=\small},
+            xlabel style={font=\small},
+            tick label style={font=\scriptsize}
+        ]
+            \addplot[fill=kotakgreen!70] coordinates {
+                (Rs 1L,8000)
+                (Rs 2L,16000)
+                (Rs 5L,40000)
+                (Rs 10L,80000)
+                (Rs 25L,200000)
+            };
+        \end{axis}
+
+        % Annotation
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=4pt, font=\scriptsize, align=center] at (9,3.5) {
+            \textbf{Assumption:}\\
+            NBFC: 18\% p.a.\\
+            Kotak: 10\% p.a.
+        };
+    \end{tikzpicture}
+\end{center}
+\vspace{-0.2cm}
+\begin{center}
+    \colorbox{kotakred!10}{\parbox{0.65\textwidth}{\centering\small\textcolor{kotakblue}{\textbf{Priority Target:} High-value loans (Rs 5L+) where savings exceed Rs 40,000/year}}}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 21: Psychological Barriers
+% --------------------------------------------
+\begin{frame}{Why They Don't Switch: The Psychological Barriers}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.8, transform shape,
+        barrier/.style={draw=kotakdarkred, fill=red!5, rounded corners=6pt, minimum width=3.2cm, minimum height=1.7cm, align=center, font=\small},
+        solution/.style={draw=kotakgreen, fill=green!5, rounded corners=6pt, minimum width=3.2cm, minimum height=1.7cm, align=center, font=\small}
+    ]
+        % Barriers (top row)
+        \node[barrier] (b1) at (-4.5,2.2) {\faLock\\[0.05cm]\textbf{Cash Gap}\\Need Rs 3-10L\\upfront};
+        \node[barrier] (b2) at (0,2.2) {\faHandHoldingUsd\\[0.05cm]\textbf{Sunk Cost}\\Already paid\\processing fees};
+        \node[barrier] (b3) at (4.5,2.2) {\faClock\\[0.05cm]\textbf{Time \& Effort}\\10-14 days\\4-6 visits};
+
+        % Second row barriers
+        \node[barrier] (b4) at (-4.5,0) {\faUsers\\[0.05cm]\textbf{Social Stigma}\\Borrow from\\family?};
+        \node[barrier] (b5) at (0,0) {\faLock\\[0.05cm]\textbf{Gold Transit Risk}\\Personal liability\\during switch};
+        \node[barrier] (b6) at (4.5,0) {\faQuestionCircle\\[0.05cm]\textbf{Uncertainty}\\Will Kotak\\approve me?};
+
+        % Solutions (bottom)
+        \node[solution] at (-4.5,-2.2) {\faCheck\\[0.05cm]\textbf{Bridge Loan}\\0\% for 7 days};
+        \node[solution] at (0,-2.2) {\faCheck\\[0.05cm]\textbf{Switch Assist}\\Kotak handles it};
+        \node[solution] at (4.5,-2.2) {\faCheck\\[0.05cm]\textbf{Pre-Approval}\\Instant decision};
+
+        % Arrows
+        \draw[-{Stealth}, kotakgreen, thick] (b1) -- (-4.5,-1);
+        \draw[-{Stealth}, kotakgreen, thick] (b5) -- (0,-1);
+        \draw[-{Stealth}, kotakgreen, thick] (b6) -- (4.5,-1);
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 22: Trust Triggers
+% --------------------------------------------
+\begin{frame}{Trust Triggers: What Makes Them Move}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{\textcolor{kotakred}{Emotional Triggers}}
+            \vspace{0.15cm}
+
+            \begin{tikzpicture}[scale=0.9, transform shape,
+                trigger/.style={draw=kotakred!50, fill=kotakred!5, rounded corners=4pt, minimum width=4.5cm, minimum height=0.7cm, align=left, font=\small}
+            ]
+                \node[trigger] at (0,2.5) {\faAngry~Fear of unfair auction};
+                \node[trigger] at (0,1.6) {\faFrownOpen~Frustration with service};
+                \node[trigger] at (0,0.7) {\faHandHoldingHeart~Family heirloom at risk};
+                \node[trigger] at (0,-0.2) {\faExclamation~News of NBFC fraud};
+                \node[trigger] at (0,-1.1) {\faComments~Peer recommendation};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{\textcolor{kotakblue}{Rational Triggers}}
+            \vspace{0.15cm}
+
+            \begin{tikzpicture}[scale=0.9, transform shape,
+                trigger/.style={draw=kotakblue!50, fill=kotakblue!5, rounded corners=4pt, minimum width=4.5cm, minimum height=0.7cm, align=left, font=\small}
+            ]
+                \node[trigger] at (0,2.5) {\faCalculator~Clear savings calculation};
+                \node[trigger] at (0,1.6) {\faPercentage~Lower interest rate offer};
+                \node[trigger] at (0,0.7) {\faUniversity~Bank safety perception};
+                \node[trigger] at (0,-0.2) {\faFile~Transparent terms};
+                \node[trigger] at (0,-1.1) {\faMobile~Digital convenience};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+\vspace{0.15cm}
+\begin{center}
+    \begin{tikzpicture}
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=4pt, minimum width=11cm, align=center, font=\small] {
+            \textbf{Insight:} Emotional triggers get attention, rational triggers close the deal.
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 23: Friction Journey
+% --------------------------------------------
+\begin{frame}{The Switching Journey: Where Customers Drop Off}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        stage/.style={draw=kotakblue, fill=kotakblue!10, rounded corners=4pt, minimum width=2cm, minimum height=1cm, align=center, font=\scriptsize},
+        drop/.style={font=\tiny, text=kotakdarkred}
+    ]
+        % Funnel stages
+        \node[stage, minimum width=9cm] (s1) at (0,2.6) {\textbf{AWARENESS}: Knows they're paying high interest};
+        \node[stage, minimum width=7cm] (s2) at (0,1.7) {\textbf{INTEREST}: Sees Kotak offers lower rates};
+        \node[stage, minimum width=5.5cm] (s3) at (0,0.8) {\textbf{INTENT}: Decides to switch};
+        \node[stage, minimum width=4cm, draw=kotakdarkred, fill=red!10] (s4) at (0,-0.1) {\textbf{ACTION}: Tries to switch};
+        \node[stage, minimum width=2.5cm, draw=kotakgreen, fill=green!10] (s5) at (0,-1) {\textbf{SUCCESS}};
+
+        % Drop-off arrows
+        \draw[-{Stealth}, kotakdarkred] (4.5,2.2) -- (5.8,2.2);
+        \node[drop, align=left] at (7,2.2) {20\% drop\\``Too much hassle''};
+
+        \draw[-{Stealth}, kotakdarkred, very thick] (3.2,0.4) -- (5.8,0.4);
+        \node[drop, align=left] at (7.5,0.4) {\textbf{60-70\% drop}\\``No money to close\\existing loan first''};
+
+        % Bridge loan callout
+        \node[draw=kotakgold, fill=kotakgold!20, rounded corners=4pt, font=\scriptsize\bfseries, align=center] at (0,-2.3) {
+            \faLightbulb~\textbf{Bridge Loan Solution} -- Eliminates the biggest drop-off point
+        };
+
+        \draw[-{Stealth}, kotakgold, thick] (0,-1.4) -- (0,-1.9);
+    \end{tikzpicture}
+\end{center}
+\end{frame}

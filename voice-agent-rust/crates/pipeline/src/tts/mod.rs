@@ -1,0 +1,27 @@
+//! Streaming Text-to-Speech
+//!
+//! Features:
+//! - Word-level chunking for early audio emission
+//! - Barge-in aware (can stop mid-word)
+//! - Multiple backend support (Piper, IndicF5, Parler)
+
+mod streaming;
+mod chunker;
+
+pub use streaming::{StreamingTts, TtsConfig, TtsEngine, TtsEvent};
+pub use chunker::{WordChunker, ChunkStrategy};
+
+use crate::PipelineError;
+
+/// TTS backend trait
+#[async_trait::async_trait]
+pub trait TtsBackend: Send + Sync {
+    /// Synthesize text to audio
+    async fn synthesize(&self, text: &str) -> Result<Vec<f32>, PipelineError>;
+
+    /// Get sample rate
+    fn sample_rate(&self) -> u32;
+
+    /// Supports streaming word-by-word?
+    fn supports_streaming(&self) -> bool;
+}

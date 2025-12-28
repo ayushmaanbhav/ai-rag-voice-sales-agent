@@ -1,0 +1,110 @@
+% ============================================
+% SECTION 11: RISK & COMPLIANCE
+% ============================================
+\section{Risk \& Compliance}
+
+% --------------------------------------------
+% Slide 56: Compliance Advantage
+% --------------------------------------------
+\begin{frame}{Compliance as Competitive Advantage}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape]
+                \node[draw=kotakdarkred, fill=red!10, rounded corners=8pt, minimum width=4.8cm, minimum height=4cm, align=center] at (0,0) {};
+
+                \node[font=\small\bfseries, text=kotakdarkred] at (0,1.6) {NBFC Issues};
+
+                \node[font=\scriptsize, align=left, anchor=north] at (0,1.2) {
+                    \xmark~LTV breaches\\[0.05cm]
+                    \xmark~Cash limit violations\\[0.05cm]
+                    \xmark~Documentation gaps\\[0.05cm]
+                    \xmark~Auction irregularities\\[0.05cm]
+                    \xmark~NPA evergreening\\[0.05cm]
+                    \xmark~Customer complaints
+                };
+
+                \node[font=\small\bfseries, text=kotakdarkred] at (0,-1.6) {RBI Penalties + Bans};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape]
+                \node[draw=kotakgreen, fill=green!10, rounded corners=8pt, minimum width=4.8cm, minimum height=4cm, align=center] at (0,0) {};
+
+                \node[font=\small\bfseries, text=kotakgreen] at (0,1.6) {Kotak Strength};
+
+                \node[font=\scriptsize, align=left, anchor=north] at (0,1.2) {
+                    \cmark~Strict LTV monitoring\\[0.05cm]
+                    \cmark~Cashless disbursements\\[0.05cm]
+                    \cmark~Complete documentation\\[0.05cm]
+                    \cmark~Transparent auctions\\[0.05cm]
+                    \cmark~Timely NPA recognition\\[0.05cm]
+                    \cmark~0.22\% NPA rate
+                };
+
+                \node[font=\small\bfseries, text=kotakgreen] at (0,-1.6) {Clean Track Record};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+\vspace{0.05cm}
+\begin{center}
+    \colorbox{kotakgold!20}{\parbox{0.65\textwidth}{\centering\footnotesize\textcolor{kotakblue}{\textbf{Message to Customers:} ``What took IIFL 5 months to fix, Kotak already has right.''}}}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 57: Growth Guardrails
+% --------------------------------------------
+\begin{frame}{Growth Guardrails: Responsible Scaling}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        guardrail/.style={draw=kotakblue, fill=white, rounded corners=8pt, minimum width=3.5cm, minimum height=2.3cm, align=center, font=\small}
+    ]
+        % Guardrails
+        \node[guardrail] at (-4.5,1.5) {
+            \faBalanceScale\\[0.2cm]
+            \textbf{LTV Discipline}\\
+            \tiny Max 75\%\\
+            Real-time monitoring
+        };
+
+        \node[guardrail] at (0,1.5) {
+            \faLock\\[0.2cm]
+            \textbf{NPA Control}\\
+            \tiny Target <0.5\%\\
+            Early warning system
+        };
+
+        \node[guardrail] at (4.5,1.5) {
+            \faFile\\[0.2cm]
+            \textbf{Documentation}\\
+            \tiny 100\% digital\\
+            Audit trail
+        };
+
+        \node[guardrail] at (-2.25,-1.5) {
+            \faMoneyBillWave\\[0.2cm]
+            \textbf{Cash Limits}\\
+            \tiny <Rs 20K cash\\
+            All digital above
+        };
+
+        \node[guardrail] at (2.25,-1.5) {
+            \faGavel\\[0.2cm]
+            \textbf{Auction Process}\\
+            \tiny 7-day notice\\
+            Transparent bidding
+        };
+
+        % Phase gates
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, minimum width=12cm, font=\small, align=center] at (0,-4) {
+            \textbf{Phase Gates:} Scale only if NPA <0.5\% and LTV compliance >99\%
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

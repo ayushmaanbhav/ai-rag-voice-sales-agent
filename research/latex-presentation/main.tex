@@ -1,0 +1,125 @@
+% Kotak Mahindra Bank Gold Loan Strategy Presentation
+% Executive Deck for C-Suite / Board
+% December 2024
+
+\documentclass[aspectratio=169,11pt]{beamer}
+
+% ============================================
+% PACKAGES
+% ============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{fontawesome5}
+\usepackage{pifont}
+\usepackage{calc}
+\usepackage{xcolor}
+\usepackage{adjustbox}
+\usepackage{tikz-cd}
+\usepackage{etoolbox}
+
+% TikZ Libraries
+\usetikzlibrary{
+    shapes.geometric,
+    shapes.symbols,
+    shapes.arrows,
+    arrows.meta,
+    positioning,
+    calc,
+    backgrounds,
+    fit,
+    decorations.pathreplacing,
+    decorations.markings,
+    shadows,
+    patterns,
+    chains,
+    matrix,
+    calendar,
+    mindmap,
+    trees
+}
+
+% PGFPlots Settings
+\pgfplotsset{compat=1.18}
+
+% ============================================
+% CUSTOM THEME
+% ============================================
+\usetheme{Kotak}
+
+% ============================================
+% CUSTOM COMMANDS
+% ============================================
+% Checkmark and cross
+\newcommand{\cmark}{\textcolor{kotakgreen}{\ding{51}}}
+\newcommand{\xmark}{\textcolor{kotakdarkred}{\ding{55}}}
+
+% Highlight box
+\newcommand{\highlightbox}[2]{%
+    \begin{tikzpicture}
+        \node[fill=#1!10, draw=#1, rounded corners=3pt, inner sep=5pt] {#2};
+    \end{tikzpicture}
+}
+
+% Stat card
+\newcommand{\statcard}[3]{%
+    \begin{tikzpicture}
+        \node[minimum width=2.8cm, minimum height=1.8cm, fill=kotaklightgray, draw=kotakgold, line width=0.5pt, rounded corners=5pt] (card) {};
+        \node[font=\fontsize{20}{24}\selectfont\bfseries, text=kotakred] at ([yshift=0.25cm]card.center) {#1};
+        \node[font=\footnotesize, text=kotakblue] at ([yshift=-0.25cm]card.center) {#2};
+        \node[font=\tiny, text=kotakgray] at ([yshift=-0.55cm]card.center) {#3};
+    \end{tikzpicture}
+}
+
+% Progress bar
+\newcommand{\progressbar}[3]{%
+    % #1 = label, #2 = percentage, #3 = color
+    \begin{tikzpicture}
+        \node[anchor=east, font=\small, text width=2.5cm, align=right] at (0,0) {#1};
+        \fill[kotaklightgray] (0.2,-0.15) rectangle (5.2,0.15);
+        \fill[#3] (0.2,-0.15) rectangle ({0.2 + #2/100*5},0.15);
+        \node[anchor=west, font=\small\bfseries, text=#3] at (5.4,0) {#2\%};
+    \end{tikzpicture}
+}
+
+% ============================================
+% DOCUMENT INFO
+% ============================================
+\title{Gold Loan Customer Acquisition}
+\subtitle{A Strategic Framework for Kotak Mahindra Bank}
+\author{Strategy \& Product Team}
+\date{December 2024}
+\institute{Kotak Mahindra Bank}
+
+% ============================================
+% DOCUMENT
+% ============================================
+\begin{document}
+
+% Title Page
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% Include sections
+\input{sections/01-opening}
+\input{sections/02-opportunity}
+\input{sections/03-competitor-crisis}
+\input{sections/04-customer-psychology}
+\input{sections/05-target-segments}
+\input{sections/06-switch-save}
+\input{sections/07-personalized-pitch}
+\input{sections/08-ai-acquisition}
+\input{sections/09-doorstep-pilot}
+\input{sections/10-financials}
+\input{sections/11-risk-compliance}
+\input{sections/12-roadmap}
+\input{sections/13-closing}
+
+\end{document}

@@ -1,0 +1,190 @@
+% Kotak Mahindra Bank Custom Beamer Theme
+% Colors: Red #ED1C24, Blue #002B5C, Gold #C9A227
+
+\mode<presentation>
+
+% ============================================
+% COLOR DEFINITIONS
+% ============================================
+\definecolor{kotakred}{HTML}{ED1C24}
+\definecolor{kotakblue}{HTML}{002B5C}
+\definecolor{kotakgold}{HTML}{C9A227}
+\definecolor{kotakgray}{HTML}{666666}
+\definecolor{kotaklightgray}{HTML}{F5F5F5}
+\definecolor{kotakgreen}{HTML}{28A745}
+\definecolor{kotakorange}{HTML}{FD7E14}
+\definecolor{kotakdarkred}{HTML}{DC3545}
+\definecolor{muthootgray}{HTML}{888888}
+\definecolor{manappuramgray}{HTML}{777777}
+\definecolor{iiflgray}{HTML}{555555}
+
+% ============================================
+% THEME SETTINGS
+% ============================================
+\useoutertheme{default}
+\useinnertheme{rectangles}
+\usefonttheme{professionalfonts}
+
+% Remove navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+% ============================================
+% FRAME TITLE
+% ============================================
+\setbeamertemplate{frametitle}{
+    \vspace{0.15cm}
+    \begin{beamercolorbox}[wd=\paperwidth,ht=0.8cm,dp=0.2cm,leftskip=0.5cm]{frametitle}
+        \usebeamerfont{frametitle}\insertframetitle
+        \ifx\insertframesubtitle\empty\else
+            \\[0.05cm]
+            \usebeamerfont{framesubtitle}\usebeamercolor[fg]{framesubtitle}\insertframesubtitle
+        \fi
+    \end{beamercolorbox}
+}
+
+% ============================================
+% COLOR SETTINGS
+% ============================================
+\setbeamercolor{structure}{fg=kotakred}
+\setbeamercolor{frametitle}{fg=kotakblue,bg=white}
+\setbeamercolor{framesubtitle}{fg=kotakgold}
+\setbeamercolor{title}{fg=white,bg=kotakred}
+\setbeamercolor{subtitle}{fg=kotakgold}
+\setbeamercolor{author}{fg=kotakblue}
+\setbeamercolor{date}{fg=kotakgray}
+\setbeamercolor{institute}{fg=kotakblue}
+\setbeamercolor{normal text}{fg=kotakblue,bg=white}
+\setbeamercolor{alerted text}{fg=kotakred}
+\setbeamercolor{example text}{fg=kotakgreen}
+\setbeamercolor{block title}{fg=white,bg=kotakred}
+\setbeamercolor{block body}{fg=kotakblue,bg=kotaklightgray}
+\setbeamercolor{block title alerted}{fg=white,bg=kotakdarkred}
+\setbeamercolor{block body alerted}{fg=kotakblue,bg=red!10}
+\setbeamercolor{block title example}{fg=white,bg=kotakgreen}
+\setbeamercolor{block body example}{fg=kotakblue,bg=green!10}
+\setbeamercolor{itemize item}{fg=kotakred}
+\setbeamercolor{itemize subitem}{fg=kotakgold}
+\setbeamercolor{itemize subsubitem}{fg=kotakblue}
+\setbeamercolor{enumerate item}{fg=kotakred}
+\setbeamercolor{enumerate subitem}{fg=kotakgold}
+
+% ============================================
+% FONT SETTINGS
+% ============================================
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamerfont{subtitle}{size=\large}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{framesubtitle}{size=\normalsize,series=\mdseries}
+\setbeamerfont{author}{size=\normalsize}
+\setbeamerfont{date}{size=\small}
+\setbeamerfont{institute}{size=\small}
+\setbeamerfont{block title}{size=\normalsize,series=\bfseries}
+
+% ============================================
+% ITEMIZE SETTINGS
+% ============================================
+\setbeamertemplate{itemize item}{\color{kotakred}$\blacktriangleright$}
+\setbeamertemplate{itemize subitem}{\color{kotakgold}$\bullet$}
+\setbeamertemplate{itemize subsubitem}{\color{kotakblue}$\circ$}
+
+% ============================================
+% FOOTLINE
+% ============================================
+\setbeamertemplate{footline}{
+    \leavevmode%
+    \hbox{%
+        \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.5ex,dp=1ex,left,leftskip=0.3cm]{author in head/foot}%
+            \usebeamerfont{author in head/foot}\textcolor{kotakgray}{\footnotesize Kotak Mahindra Bank}
+        \end{beamercolorbox}%
+        \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.5ex,dp=1ex,center]{title in head/foot}%
+            \usebeamerfont{title in head/foot}\textcolor{kotakgray}{\footnotesize Gold Loan Strategy}
+        \end{beamercolorbox}%
+        \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.5ex,dp=1ex,right,rightskip=0.3cm]{date in head/foot}%
+            \usebeamerfont{date in head/foot}\textcolor{kotakgray}{\footnotesize\insertframenumber{} / \inserttotalframenumber}
+        \end{beamercolorbox}%
+    }%
+    \vskip0pt%
+}
+
+% ============================================
+% TITLE PAGE TEMPLATE
+% ============================================
+\setbeamertemplate{title page}{
+    \begin{tikzpicture}[remember picture,overlay]
+        % Background gradient
+        \fill[kotakred] (current page.north west) rectangle ([yshift=-4cm]current page.north east);
+        \fill[kotakblue] ([yshift=-4cm]current page.north west) rectangle (current page.south east);
+
+        % Gold accent line
+        \fill[kotakgold] ([yshift=-4cm]current page.north west) rectangle ([yshift=-4.15cm]current page.north east);
+
+        % Title
+        \node[anchor=south west, text=white, font=\Huge\bfseries] at ([xshift=1cm,yshift=-3.5cm]current page.north west) {\inserttitle};
+
+        % Subtitle
+        \node[anchor=north west, text=kotakgold, font=\Large] at ([xshift=1cm,yshift=-4.5cm]current page.north west) {\insertsubtitle};
+
+        % Author and Date
+        \node[anchor=south west, text=white, font=\normalsize] at ([xshift=1cm,yshift=1.5cm]current page.south west) {\insertauthor};
+        \node[anchor=south west, text=kotakgold, font=\small] at ([xshift=1cm,yshift=0.8cm]current page.south west) {\insertdate};
+
+        % Classification
+        \node[anchor=south east, text=white!70, font=\footnotesize] at ([xshift=-1cm,yshift=0.8cm]current page.south east) {Board Confidential};
+    \end{tikzpicture}
+}
+
+% ============================================
+% SECTION PAGE TEMPLATE
+% ============================================
+\AtBeginSection[]{
+    {
+    \setbeamercolor{background canvas}{bg=kotakblue}
+    \begin{frame}[plain,c]
+        \begin{center}
+            \begin{tikzpicture}
+                % Gold triangle accent
+                \fill[kotakgold] (-3,0.5) -- (0,-0.3) -- (3,0.5) -- cycle;
+                % Section number
+                \node[text=white, font=\Huge\bfseries] at (0,1.5) {\insertsectionnumber};
+                % Section title
+                \node[text=white, font=\Large] at (0,-1.2) {\insertsectionhead};
+            \end{tikzpicture}
+        \end{center}
+    \end{frame}
+    }
+}
+
+% ============================================
+% CUSTOM COMMANDS
+% ============================================
+% Big number display
+\newcommand{\bignumber}[2]{%
+    \begin{tikzpicture}
+        \node[font=\fontsize{48}{52}\selectfont\bfseries, text=kotakred] (num) {#1};
+        \node[font=\large, text=kotakblue, below=0.1cm of num] {#2};
+    \end{tikzpicture}
+}
+
+% Metric box
+\newcommand{\metricbox}[3]{%
+    \begin{tikzpicture}
+        \node[draw=kotakgold, line width=1pt, rounded corners=5pt, minimum width=3cm, minimum height=1.5cm, fill=kotaklightgray] (box) {};
+        \node[font=\Large\bfseries, text=kotakred] at ([yshift=0.2cm]box.center) {#1};
+        \node[font=\small, text=kotakblue] at ([yshift=-0.3cm]box.center) {#2};
+        \node[font=\scriptsize, text=kotakgray] at ([yshift=-0.6cm]box.center) {#3};
+    \end{tikzpicture}
+}
+
+% Comparison bar
+\newcommand{\compbar}[4]{%
+    % #1 = label, #2 = value1, #3 = value2, #4 = max
+    \begin{tikzpicture}
+        \node[anchor=east, font=\small] at (0,0) {#1};
+        \fill[kotakred] (0.2,0.15) rectangle ({0.2 + #2/#4*4},-0.15);
+        \fill[kotakgray] (0.2,-0.25) rectangle ({0.2 + #3/#4*4},-0.55);
+        \node[anchor=west, font=\scriptsize, text=kotakred] at ({0.3 + #2/#4*4},0) {#2};
+        \node[anchor=west, font=\scriptsize, text=kotakgray] at ({0.3 + #3/#4*4},-0.4) {#3};
+    \end{tikzpicture}
+}
+
+\mode<all>

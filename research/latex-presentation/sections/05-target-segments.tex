@@ -1,0 +1,301 @@
+% ============================================
+% SECTION 5: TARGET SEGMENTS
+% ============================================
+\section{Target Segments}
+
+% --------------------------------------------
+% Slide 24: Segment Overview
+% --------------------------------------------
+\begin{frame}{Four Priority Segments: Precision Targeting}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        seg/.style={draw=kotakblue, fill=white, rounded corners=10pt, minimum width=3.3cm, minimum height=3cm, align=center, drop shadow},
+        priority/.style={circle, fill=#1, text=white, font=\scriptsize\bfseries, minimum size=0.6cm}
+    ]
+        % Segment 1 - P1
+        \node[seg] (p1) at (-5,0) {
+            \fontsize{24}{28}\selectfont\faBusinessTime\\[0.2cm]
+            \textbf{P1: High-Value}\\
+            \textbf{Switchers}\\[0.1cm]
+            \footnotesize Rs 5L-25L loans\\
+            MSME owners\\[0.1cm]
+            \scriptsize\textcolor{kotakgreen}{8-12\% conversion}
+        };
+        \node[priority=kotakred] at (-5,2.2) {1};
+
+        % Segment 2 - P2
+        \node[seg] (p2) at (-1.5,0) {
+            \fontsize{24}{28}\selectfont\faLock\\[0.2cm]
+            \textbf{P2: Trust}\\
+            \textbf{Seekers}\\[0.1cm]
+            \footnotesize Post-IIFL crisis\\
+            Safety-focused\\[0.1cm]
+            \scriptsize\textcolor{kotakgreen}{10-15\% conversion}
+        };
+        \node[priority=kotakred] at (-1.5,2.2) {2};
+
+        % Segment 3 - P3
+        \node[seg] (p3) at (2,0) {
+            \fontsize{24}{28}\selectfont\faFemale\\[0.2cm]
+            \textbf{P3: Shakti}\\
+            \textbf{Gold}\\[0.1cm]
+            \footnotesize Women\\
+            entrepreneurs\\[0.1cm]
+            \scriptsize\textcolor{kotakgreen}{6-8\% conversion}
+        };
+        \node[priority=kotakgold] at (2,2.2) {3};
+
+        % Segment 4 - P4
+        \node[seg] (p4) at (5.5,0) {
+            \fontsize{24}{28}\selectfont\faMobile\\[0.2cm]
+            \textbf{P4: Young}\\
+            \textbf{Professionals}\\[0.1cm]
+            \footnotesize Digital-first\\
+            25-35 years\\[0.1cm]
+            \scriptsize\textcolor{kotakgreen}{4-6\% conversion}
+        };
+        \node[priority=kotakblue] at (5.5,2.2) {4};
+    \end{tikzpicture}
+\end{center}
+
+\vspace{0.1cm}
+\begin{center}
+    \begin{tikzpicture}
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\small] {
+            \textbf{Combined TAM:} 4-5 million identifiable customers within Kotak ecosystem
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 25: P1 High-Value Switchers
+% --------------------------------------------
+\begin{frame}{P1: High-Value Rational Switchers}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[scale=0.9, transform shape,
+            attr/.style={draw=kotakblue!30, fill=white, rounded corners=3pt, minimum width=4.8cm, minimum height=0.5cm, align=left, font=\footnotesize}
+        ]
+            \node[draw=kotakred, fill=kotakred, text=white, rounded corners=6pt, minimum width=5cm, font=\small\bfseries] at (0,3.2) {SEGMENT PROFILE};
+            \node[attr] at (0,2.4) {\faRupeeSign~Loan Size: Rs 5L - Rs 25L};
+            \node[attr] at (0,1.7) {\faUser~MSME Owners, Traders};
+            \node[attr] at (0,1) {\faMapMarker~Tier 1-2 Cities};
+            \node[attr] at (0,0.3) {\faCalendar~Age: 35-55 years};
+            \node[attr] at (0,-0.4) {\faCalculator~Highly price-sensitive};
+            \node[attr] at (0,-1.1) {\faBriefcase~Gold for business liquidity};
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Why They Switch}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Clear ROI understanding
+                \item Rs 40K-2L annual savings
+                \item Business-minded decision
+                \item Less emotional attachment
+            \end{itemize}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Approach}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Lead with \textbf{savings calculator}
+                \item RM-led outreach
+                \item Business relationship focus
+                \item Pre-approved bridge loan
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\vspace{-0.1cm}
+\begin{flushright}
+\scriptsize\colorbox{kotakgold!20}{\textbf{Conversion: 8-12\%} (Highest Value)}
+\end{flushright}
+\end{frame}
+
+% --------------------------------------------
+% Slide 26: P2 Trust Seekers
+% --------------------------------------------
+\begin{frame}{P2: Trust-Seekers (Post-Crisis Converts)}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[scale=0.9, transform shape,
+            attr/.style={draw=kotakblue!30, fill=white, rounded corners=3pt, minimum width=4.8cm, minimum height=0.5cm, align=left, font=\footnotesize}
+        ]
+            \node[draw=kotakred, fill=kotakred, text=white, rounded corners=6pt, minimum width=5cm, font=\small\bfseries] at (0,3.2) {SEGMENT PROFILE};
+            \node[attr] at (0,2.4) {\faRupeeSign~Loan Size: Rs 2L - Rs 10L};
+            \node[attr] at (0,1.7) {\faUser~IIFL/NBFC affected customers};
+            \node[attr] at (0,1) {\faLock~Safety-over-price mentality};
+            \node[attr] at (0,0.3) {\faNewspaper~Aware of NBFC scandals};
+            \node[attr] at (0,-0.4) {\faHeart~Emotional about gold safety};
+            \node[attr] at (0,-1.1) {\faUniversity~Seeking bank security};
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{alertblock}{Trigger Events}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item IIFL ban news
+                \item Muthoot/Manappuram fraud stories
+                \item Personal bad experience
+                \item Aggressive auction threat
+            \end{itemize}
+        \end{alertblock}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Approach}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Lead with \textbf{safety \& trust}
+                \item ``Gold Deserves a Bank''
+                \item Vault security messaging
+                \item 0.22\% NPA track record
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\vspace{-0.1cm}
+\begin{flushright}
+\scriptsize\colorbox{kotakgold!20}{\textbf{Conversion: 10-15\%} (Highest Rate)}
+\end{flushright}
+\end{frame}
+
+% --------------------------------------------
+% Slide 27: P3 Shakti Gold (Women)
+% --------------------------------------------
+\begin{frame}{P3: Shakti Gold -- Women Entrepreneurs}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[scale=0.9, transform shape,
+            attr/.style={draw=kotakgold!50, fill=kotakgold!5, rounded corners=3pt, minimum width=4.8cm, minimum height=0.5cm, align=left, font=\footnotesize}
+        ]
+            \node[draw=kotakgold, fill=kotakgold, text=white, rounded corners=6pt, minimum width=5cm, font=\small\bfseries] at (0,3.2) {SHAKTI GOLD};
+            \node[attr] at (0,2.4) {\faRupeeSign~Loan Size: Rs 1L - Rs 5L};
+            \node[attr] at (0,1.7) {\faFemale~Women business owners};
+            \node[attr] at (0,1) {\faHome~Home-based enterprises};
+            \node[attr] at (0,0.3) {\faStore~Retail, tailoring, food};
+            \node[attr] at (0,-0.4) {\faHandHoldingHeart~Streedhan (inherited gold)};
+            \node[attr] at (0,-1.1) {\faLock~Highly safety-conscious};
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Special Offer: Shakti Gold}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item \textbf{9.0\%} interest rate (lowest)
+                \item Zero processing fee
+                \item \textbf{Free insurance} on gold
+                \item Female RM preference
+                \item Doorstep service option
+            \end{itemize}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Why This Segment}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Lower default rates
+                \item Strong word-of-mouth
+                \item Community influence
+                \item CSR alignment
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\vspace{-0.1cm}
+\begin{flushright}
+\scriptsize\colorbox{kotakgold!20}{\textbf{Conversion: 6-8\%} (Lower Default)}
+\end{flushright}
+\end{frame}
+
+% --------------------------------------------
+% Slide 28: P4 Young Professionals
+% --------------------------------------------
+\begin{frame}{P4: Young Professionals -- Digital-First}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[scale=0.9, transform shape,
+            attr/.style={draw=kotakblue!30, fill=white, rounded corners=3pt, minimum width=4.8cm, minimum height=0.5cm, align=left, font=\footnotesize}
+        ]
+            \node[draw=kotakblue, fill=kotakblue, text=white, rounded corners=6pt, minimum width=5cm, font=\small\bfseries] at (0,3.2) {DIGITAL NATIVES};
+            \node[attr] at (0,2.4) {\faRupeeSign~Loan Size: Rs 50K - Rs 3L};
+            \node[attr] at (0,1.7) {\faUser~25-35 years old};
+            \node[attr] at (0,1) {\faMobile~App-first preference};
+            \node[attr] at (0,0.3) {\faBriefcase~Salaried / Gig workers};
+            \node[attr] at (0,-0.4) {\faRing~Wedding/inherited gold};
+            \node[attr] at (0,-1.1) {\faClock~Speed over relationship};
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Digital Journey}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Kotak 811 app integration
+                \item Video KYC enabled
+                \item Instant pre-approval
+                \item Same-day disbursement
+            \end{itemize}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Offer: Gold in Clicks}
+            \footnotesize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item \textbf{10.5\%} interest rate
+                \item Rs 500 instant cashback
+                \item Zero branch visits (post-pledge)
+                \item UPI-based repayments
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\vspace{-0.1cm}
+\begin{flushright}
+\scriptsize\colorbox{kotakgold!20}{\textbf{Conversion: 4-6\%} (High Volume)}
+\end{flushright}
+\end{frame}
+
+% --------------------------------------------
+% Slide 29: Propensity Scoring
+% --------------------------------------------
+\begin{frame}{Propensity Scoring: Precision Targeting Engine}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.75, transform shape,
+        input/.style={draw=kotakblue, fill=kotakblue!10, rounded corners=5pt, minimum width=2.3cm, minimum height=0.8cm, align=center, font=\scriptsize},
+        process/.style={draw=kotakred, fill=kotakred, text=white, rounded corners=8pt, minimum width=3cm, minimum height=1.5cm, align=center, font=\small},
+        output/.style={draw=kotakgreen, fill=green!10, rounded corners=5pt, minimum width=2.3cm, minimum height=0.8cm, align=center, font=\scriptsize}
+    ]
+        % Inputs
+        \node[input] (i1) at (-5,2) {\faUser~Demographics};
+        \node[input] (i2) at (-5,0.8) {\faExchangeAlt~Transactions};
+        \node[input] (i3) at (-5,-0.4) {\faCreditCard~Credit Bureau};
+        \node[input] (i4) at (-5,-1.6) {\faHistory~Holdings};
+
+        % Central process
+        \node[process] (p) at (0,0.2) {\faRobot\\[0.1cm]\textbf{ML Model}\\Propensity Score};
+
+        % Outputs
+        \node[output] (o1) at (5,2) {\faChartLine~Conversion};
+        \node[output] (o2) at (5,0.8) {\faTag~Optimal Offer};
+        \node[output] (o3) at (5,-0.4) {\faBullseye~Best Channel};
+        \node[output] (o4) at (5,-1.6) {\faClock~Right Timing};
+
+        % Arrows
+        \foreach \i in {i1,i2,i3,i4} {
+            \draw[-{Stealth}, kotakblue] (\i) -- (p);
+        }
+        \foreach \o in {o1,o2,o3,o4} {
+            \draw[-{Stealth}, kotakgreen] (p) -- (\o);
+        }
+
+        % Key Signal box at bottom
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\scriptsize, align=center] at (0,-3.2) {
+            \textbf{Key Signal:} Recurring payments to Muthoot/Manappuram/IIFL = Active NBFC gold loan
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

@@ -1,0 +1,4 @@
+[submodule "voice-agent/backend/ai4bharat-nemo"]
+	path = voice-agent/backend/ai4bharat-nemo
+	url = https://github.com/AI4Bharat/NeMo.git
+	branch = nemo-v2

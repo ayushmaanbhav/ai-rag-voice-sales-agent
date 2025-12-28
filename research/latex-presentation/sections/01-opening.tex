@@ -1,0 +1,187 @@
+% ============================================
+% SECTION 1: OPENING
+% ============================================
+
+% --------------------------------------------
+% Slide 2: Opening Story
+% --------------------------------------------
+\begin{frame}{The Gold Loan Customer's Hidden Pain}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[
+            box/.style={draw=kotakblue, fill=kotaklightgray, rounded corners=5pt, minimum width=5cm, minimum height=1.2cm, align=center, font=\small},
+            arrow/.style={-{Stealth[length=3mm]}, thick, kotakgold}
+        ]
+            \node[box] (a) at (0,4.5) {Rajesh Kumar, Mumbai\\MSME Owner, Rs 6.5L Gold Loan};
+            \node[box] (b) at (0,3) {Paying \textbf{18\% p.a.} to Manappuram\\Monthly Interest: Rs 9,750};
+            \node[box, draw=kotakdarkred] (c) at (0,1.5) {\textcolor{kotakdarkred}{Knows} Kotak offers 10\%\\Could save Rs 4,300/month};
+            \node[box, draw=kotakred, fill=red!10] (d) at (0,0) {\textcolor{kotakred}{\textbf{STUCK!}} No Rs 6.5L to close first\\60-70\% fail at this step};
+
+            \draw[arrow] (a) -- (b);
+            \draw[arrow] (b) -- (c);
+            \draw[arrow] (c) -- (d);
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{alertblock}{The Customer Trap}
+            \textbf{Rs 51,600} annual savings lost because customers can't bridge the cash flow gap.
+        \end{alertblock}
+        \vspace{0.3cm}
+        \begin{block}{Our Opportunity}
+            \begin{itemize}
+                \item 60-70\% want to switch but can't
+                \item NBFC customers paying 15-24\%
+                \item Kotak offers 9-12\%
+                \item \textbf{Rs 7.1 Lakh Crore} market
+            \end{itemize}
+        \end{block}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 3: Research Depth
+% --------------------------------------------
+\begin{frame}{Research Foundation: 18 Reports Across 7 Threads}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        thread/.style={draw=kotakblue, fill=kotakblue!10, rounded corners=3pt, minimum width=2.8cm, minimum height=0.7cm, font=\footnotesize, align=center},
+        global/.style={draw=kotakgold, fill=kotakgold!20, circle, minimum size=0.8cm, font=\tiny}
+    ]
+        % Central node
+        \node[draw=kotakred, fill=kotakred, text=white, circle, minimum size=1.8cm, font=\small\bfseries] (center) at (0,0) {18\\Reports};
+
+        % Thread nodes
+        \node[thread] (t1) at (-4,1.8) {Thread 1\\Market Demographics};
+        \node[thread] (t2) at (-4,0) {Thread 2\\Strategy Framework};
+        \node[thread] (t3) at (-4,-1.8) {Thread 3\\COVID Case Studies};
+        \node[thread] (t4) at (0,2.8) {Thread 4\\RBI Compliance};
+        \node[thread] (t5) at (4,1.8) {Thread 5\\Kotak Analysis};
+        \node[thread] (t6) at (4,0) {Thread 6\\Balance Transfer};
+        \node[thread] (t7) at (4,-1.8) {Thread 7\\Synthesis};
+
+        % Connect to center
+        \foreach \t in {t1,t2,t3,t4,t5,t6,t7} {
+            \draw[kotakgold, thick] (center) -- (\t);
+        }
+
+        % Global coverage - inline
+        \node[global] at (-4.5,-3) {\faGlobeAsia};
+        \node[font=\tiny] at (-4.5,-3.5) {Indonesia};
+        \node[global] at (-2.7,-3) {\faGlobeAsia};
+        \node[font=\tiny] at (-2.7,-3.5) {Philippines};
+        \node[global] at (-0.9,-3) {\faGlobeAsia};
+        \node[font=\tiny] at (-0.9,-3.5) {Thailand};
+        \node[global] at (0.9,-3) {\faGlobeAsia};
+        \node[font=\tiny] at (0.9,-3.5) {UAE};
+        \node[global] at (2.7,-3) {\faGlobeAmericas};
+        \node[font=\tiny] at (2.7,-3.5) {Brazil};
+        \node[global] at (4.5,-3) {\faGlobeAsia};
+        \node[font=\tiny] at (4.5,-3.5) {Malaysia};
+    \end{tikzpicture}
+\end{center}
+\vspace{-0.2cm}
+\begin{columns}
+    \column{0.33\textwidth}
+    \centering
+    \statcard{17,525}{Lines of Analysis}{Deep Research}
+
+    \column{0.33\textwidth}
+    \centering
+    \statcard{6}{Countries}{Global Insights}
+
+    \column{0.33\textwidth}
+    \centering
+    \statcard{7}{Research Threads}{Comprehensive}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 4: Three Strategic Questions
+% --------------------------------------------
+\begin{frame}{Three Questions This Strategy Answers}
+\begin{center}
+    \begin{tikzpicture}[
+        qbox/.style={draw=kotakblue, fill=white, rounded corners=8pt, minimum width=4.5cm, minimum height=2.5cm, align=center, font=\normalsize, drop shadow},
+        num/.style={circle, fill=kotakred, text=white, font=\Large\bfseries, minimum size=0.8cm}
+    ]
+        % Question 1
+        \node[qbox] (q1) at (-5,0) {\textbf{WHO}\\[0.2cm]are the right\\customers to target?};
+        \node[num] at (-5,1.8) {1};
+
+        % Question 2
+        \node[qbox] (q2) at (0,0) {\textbf{HOW}\\[0.2cm]do we remove\\switching friction?};
+        \node[num] at (0,1.8) {2};
+
+        % Question 3
+        \node[qbox] (q3) at (5,0) {\textbf{WHAT}\\[0.2cm]message makes\\them act?};
+        \node[num] at (5,1.8) {3};
+
+        % Answers below
+        \node[font=\footnotesize, text=kotakgold] at (-5,-1.8) {4 Priority Segments};
+        \node[font=\footnotesize, text=kotakgold] at (0,-1.8) {7-Day Bridge Loan};
+        \node[font=\footnotesize, text=kotakgold] at (5,-1.8) {Personalized Pitch};
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 5: Agenda
+% --------------------------------------------
+\begin{frame}{Today's Agenda}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[
+            item/.style={draw=kotakblue!30, fill=white, rounded corners=3pt, minimum width=5cm, minimum height=0.7cm, font=\small, align=left},
+            num/.style={circle, fill=kotakred, text=white, font=\scriptsize\bfseries, minimum size=0.5cm}
+        ]
+            \node[item] (a1) at (0,4.5) {\hspace{0.8cm}Market Opportunity};
+            \node[num] at (-2,4.5) {1};
+
+            \node[item] (a2) at (0,3.6) {\hspace{0.8cm}Competitor Crisis};
+            \node[num] at (-2,3.6) {2};
+
+            \node[item] (a3) at (0,2.7) {\hspace{0.8cm}Customer Psychology};
+            \node[num] at (-2,2.7) {3};
+
+            \node[item] (a4) at (0,1.8) {\hspace{0.8cm}Target Segments};
+            \node[num] at (-2,1.8) {4};
+
+            \node[item, fill=kotakgold!20, draw=kotakgold] (a5) at (0,0.9) {\hspace{0.8cm}\textbf{Switch \& Save Product}};
+            \node[num, fill=kotakgold] at (-2,0.9) {5};
+
+            \node[item] (a6) at (0,0) {\hspace{0.8cm}Personalized Pitch};
+            \node[num] at (-2,0) {6};
+        \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{tikzpicture}[
+            item/.style={draw=kotakblue!30, fill=white, rounded corners=3pt, minimum width=5cm, minimum height=0.7cm, font=\small, align=left},
+            num/.style={circle, fill=kotakred, text=white, font=\scriptsize\bfseries, minimum size=0.5cm}
+        ]
+            \node[item] (b1) at (0,4.5) {\hspace{0.8cm}AI-Powered Acquisition};
+            \node[num] at (-2,4.5) {7};
+
+            \node[item, fill=kotakgold!20, draw=kotakgold] (b2) at (0,3.6) {\hspace{0.8cm}\textbf{Doorstep Pilot}};
+            \node[num, fill=kotakgold] at (-2,3.6) {8};
+
+            \node[item] (b3) at (0,2.7) {\hspace{0.8cm}Financial Projections};
+            \node[num] at (-2,2.7) {9};
+
+            \node[item] (b4) at (0,1.8) {\hspace{0.8cm}Risk \& Compliance};
+            \node[num] at (-2,1.8) {10};
+
+            \node[item] (b5) at (0,0.9) {\hspace{0.8cm}Implementation Roadmap};
+            \node[num] at (-2,0.9) {11};
+
+            \node[item] (b6) at (0,0) {\hspace{0.8cm}Call to Action};
+            \node[num] at (-2,0) {12};
+        \end{tikzpicture}
+    \end{column}
+\end{columns}
+\vspace{0.3cm}
+\begin{center}
+    \textcolor{kotakgold}{\faLightbulb} \textit{Highlighted items represent key innovations}
+\end{center}
+\end{frame}

@@ -1,0 +1,352 @@
+//! MCP (Model Context Protocol) Tool Interface
+//!
+//! Provides a standardized tool interface compatible with MCP specification.
+
+use std::collections::HashMap;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+/// Tool error with MCP error codes
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolError {
+    /// Error code (MCP compatible)
+    pub code: ErrorCode,
+    /// Human-readable message
+    pub message: String,
+    /// Additional error data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+}
+
+impl ToolError {
+    pub fn invalid_params(message: impl Into<String>) -> Self {
+        Self {
+            code: ErrorCode::InvalidParams,
+            message: message.into(),
+            data: None,
+        }
+    }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self {
+            code: ErrorCode::InternalError,
+            message: message.into(),
+            data: None,
+        }
+    }
+
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Self {
+            code: ErrorCode::MethodNotFound,
+            message: message.into(),
+            data: None,
+        }
+    }
+
+    /// P1 FIX: Timeout error for tool execution
+    pub fn timeout(tool_name: &str, timeout_secs: u64) -> Self {
+        Self {
+            code: ErrorCode::InternalError,
+            message: format!("Tool '{}' timed out after {}s", tool_name, timeout_secs),
+            data: None,
+        }
+    }
+}
+
+impl std::fmt::Display for ToolError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{:?}] {}", self.code, self.message)
+    }
+}
+
+impl std::error::Error for ToolError {}
+
+/// MCP Error codes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(into = "i32", try_from = "i32")]
+pub enum ErrorCode {
+    ParseError,
+    InvalidRequest,
+    MethodNotFound,
+    InvalidParams,
+    InternalError,
+    /// Custom error range
+    Custom(i32),
+}
+
+impl From<ErrorCode> for i32 {
+    fn from(code: ErrorCode) -> Self {
+        match code {
+            ErrorCode::ParseError => -32700,
+            ErrorCode::InvalidRequest => -32600,
+            ErrorCode::MethodNotFound => -32601,
+            ErrorCode::InvalidParams => -32602,
+            ErrorCode::InternalError => -32603,
+            ErrorCode::Custom(c) => c,
+        }
+    }
+}
+
+impl TryFrom<i32> for ErrorCode {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Ok(match value {
+            -32700 => ErrorCode::ParseError,
+            -32600 => ErrorCode::InvalidRequest,
+            -32601 => ErrorCode::MethodNotFound,
+            -32602 => ErrorCode::InvalidParams,
+            -32603 => ErrorCode::InternalError,
+            c => ErrorCode::Custom(c),
+        })
+    }
+}
+
+/// Tool input
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolInput {
+    /// Tool name
+    pub name: String,
+    /// Input arguments
+    pub arguments: Value,
+}
+
+/// Tool output
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolOutput {
+    /// Output content
+    pub content: Vec<ContentBlock>,
+    /// Is this an error response?
+    #[serde(default)]
+    pub is_error: bool,
+}
+
+impl ToolOutput {
+    pub fn text(text: impl Into<String>) -> Self {
+        Self {
+            content: vec![ContentBlock::Text { text: text.into() }],
+            is_error: false,
+        }
+    }
+
+    pub fn json(value: impl Serialize) -> Self {
+        let text = serde_json::to_string_pretty(&value).unwrap_or_default();
+        Self {
+            content: vec![ContentBlock::Text { text }],
+            is_error: false,
+        }
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self {
+            content: vec![ContentBlock::Text { text: message.into() }],
+            is_error: true,
+        }
+    }
+}
+
+/// Content block types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentBlock {
+    Text { text: String },
+    Image { data: String, mime_type: String },
+    Resource { uri: String, mime_type: Option<String> },
+}
+
+/// Tool schema (JSON Schema format)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolSchema {
+    /// Tool name
+    pub name: String,
+    /// Tool description
+    pub description: String,
+    /// Input schema (JSON Schema)
+    pub input_schema: InputSchema,
+}
+
+/// Input schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InputSchema {
+    #[serde(rename = "type")]
+    pub schema_type: String,
+    #[serde(default)]
+    pub properties: HashMap<String, PropertySchema>,
+    #[serde(default)]
+    pub required: Vec<String>,
+}
+
+impl InputSchema {
+    pub fn object() -> Self {
+        Self {
+            schema_type: "object".to_string(),
+            properties: HashMap::new(),
+            required: Vec::new(),
+        }
+    }
+
+    pub fn property(mut self, name: &str, schema: PropertySchema, required: bool) -> Self {
+        self.properties.insert(name.to_string(), schema);
+        if required {
+            self.required.push(name.to_string());
+        }
+        self
+    }
+}
+
+/// Property schema
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PropertySchema {
+    #[serde(rename = "type")]
+    pub prop_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<Value>,
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimum: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum: Option<f64>,
+}
+
+impl PropertySchema {
+    pub fn string(description: impl Into<String>) -> Self {
+        Self {
+            prop_type: "string".to_string(),
+            description: Some(description.into()),
+            default: None,
+            enum_values: None,
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn number(description: impl Into<String>) -> Self {
+        Self {
+            prop_type: "number".to_string(),
+            description: Some(description.into()),
+            default: None,
+            enum_values: None,
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn integer(description: impl Into<String>) -> Self {
+        Self {
+            prop_type: "integer".to_string(),
+            description: Some(description.into()),
+            default: None,
+            enum_values: None,
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn boolean(description: impl Into<String>) -> Self {
+        Self {
+            prop_type: "boolean".to_string(),
+            description: Some(description.into()),
+            default: None,
+            enum_values: None,
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn enum_type(description: impl Into<String>, values: Vec<String>) -> Self {
+        Self {
+            prop_type: "string".to_string(),
+            description: Some(description.into()),
+            default: None,
+            enum_values: Some(values),
+            minimum: None,
+            maximum: None,
+        }
+    }
+
+    pub fn with_default(mut self, default: Value) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    pub fn with_range(mut self, min: f64, max: f64) -> Self {
+        self.minimum = Some(min);
+        self.maximum = Some(max);
+        self
+    }
+}
+
+/// Tool trait
+#[async_trait]
+pub trait Tool: Send + Sync {
+    /// Get tool name
+    fn name(&self) -> &str;
+
+    /// Get tool description
+    fn description(&self) -> &str;
+
+    /// Get input schema
+    fn schema(&self) -> ToolSchema;
+
+    /// Execute the tool
+    async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError>;
+
+    /// Validate input (optional, default uses schema)
+    fn validate(&self, input: &Value) -> Result<(), ToolError> {
+        // Basic validation - check required fields
+        let schema = self.schema();
+
+        if let Value::Object(obj) = input {
+            for required in &schema.input_schema.required {
+                if !obj.contains_key(required) {
+                    return Err(ToolError::invalid_params(format!(
+                        "Missing required field: {}",
+                        required
+                    )));
+                }
+            }
+            Ok(())
+        } else if schema.input_schema.properties.is_empty() {
+            // No properties required
+            Ok(())
+        } else {
+            Err(ToolError::invalid_params("Input must be an object"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_input_schema() {
+        let schema = InputSchema::object()
+            .property("name", PropertySchema::string("Customer name"), true)
+            .property("amount", PropertySchema::number("Loan amount"), true)
+            .property("city", PropertySchema::string("City"), false);
+
+        assert_eq!(schema.properties.len(), 3);
+        assert_eq!(schema.required.len(), 2);
+    }
+
+    #[test]
+    fn test_tool_output() {
+        let output = ToolOutput::text("Hello world");
+        assert!(!output.is_error);
+        assert_eq!(output.content.len(), 1);
+
+        let error = ToolOutput::error("Something went wrong");
+        assert!(error.is_error);
+    }
+
+    #[test]
+    fn test_tool_error() {
+        let err = ToolError::invalid_params("Bad input");
+        assert_eq!(err.code, ErrorCode::InvalidParams);
+    }
+}

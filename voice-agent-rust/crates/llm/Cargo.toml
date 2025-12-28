@@ -1,0 +1,33 @@
+[package]
+name = "voice-agent-llm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "LLM integration with speculative execution and streaming"
+
+[dependencies]
+voice-agent-core.workspace = true
+voice-agent-config.workspace = true
+
+# Async
+tokio = { workspace = true, features = ["sync", "time"] }
+tokio-stream.workspace = true
+async-stream.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# HTTP client
+reqwest = { workspace = true, features = ["json", "stream"] }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Utilities
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

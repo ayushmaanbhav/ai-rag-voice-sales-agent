@@ -1,0 +1,377 @@
+% ============================================
+% SECTION 6: SWITCH & SAVE PRODUCT
+% ============================================
+\section{Switch \& Save}
+
+% --------------------------------------------
+% Slide 30: Product Design Overview
+% --------------------------------------------
+\begin{frame}{Switch \& Save: Product Design}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.72, transform shape,
+        component/.style={draw=kotakblue, fill=white, rounded corners=6pt, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\scriptsize, drop shadow},
+        hero/.style={draw=kotakgold, fill=kotakgold!20, rounded corners=6pt, minimum width=3.2cm, minimum height=1.6cm, align=center, font=\scriptsize, drop shadow, line width=2pt}
+    ]
+        % Center - Product name
+        \node[draw=kotakred, fill=kotakred, text=white, rounded corners=8pt, minimum width=3.5cm, minimum height=1.2cm, font=\normalsize\bfseries] at (0,0) {SWITCH \& SAVE};
+
+        % Components around
+        \node[hero] (bridge) at (-4.5,1.8) {\faHandHoldingUsd\\[0.05cm]\textbf{Bridge Loan}\\0\% for 7 days};
+        \node[component] (assist) at (0,2.8) {\faHeadset\\[0.05cm]\textbf{Switch Assist}\\Concierge Service};
+        \node[component] (pre) at (4.5,1.8) {\faCheckCircle\\[0.05cm]\textbf{Pre-Approval}\\Instant Decision};
+        \node[component] (transit) at (-4.5,-1.8) {\faTruck\\[0.05cm]\textbf{Insured Transit}\\Gold Protection};
+        \node[component] (rate) at (0,-2.8) {\faPercentage\\[0.05cm]\textbf{Special Rates}\\9-10.5\% p.a.};
+        \node[component] (incent) at (4.5,-1.8) {\faGift\\[0.05cm]\textbf{Incentives}\\Cashback + Waiver};
+
+        % Connecting lines
+        \draw[kotakgold, thick] (0,0.6) -- (bridge);
+        \draw[kotakblue, thick] (0,0.6) -- (assist);
+        \draw[kotakblue, thick] (0,0.6) -- (pre);
+        \draw[kotakblue, thick] (0,-0.6) -- (transit);
+        \draw[kotakblue, thick] (0,-0.6) -- (rate);
+        \draw[kotakblue, thick] (0,-0.6) -- (incent);
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 31: Bridge Loan HERO
+% --------------------------------------------
+\begin{frame}{The 7-Day Bridge: Zero-Interest Switching Power}
+\vspace{-0.3cm}
+\begin{center}
+    {\footnotesize\bfseries\textcolor{kotakred}{THE INNOVATION THAT CHANGES EVERYTHING}}
+\end{center}
+\vspace{-0.1cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \footnotesize\textbf{\textcolor{kotakdarkred}{WITHOUT Bridge Loan}}
+            \vspace{0.05cm}
+            \begin{tikzpicture}[scale=0.9, transform shape,
+                step/.style={draw=kotakgray, fill=gray!5, rounded corners=2pt, minimum width=4cm, minimum height=0.45cm, align=center, font=\tiny}
+            ]
+                \node[step] at (0,3.5) {Customer wants to switch};
+                \node[step] at (0,2.9) {Needs Rs 3-10L to close NBFC};
+                \node[step, draw=kotakdarkred, fill=red!10] at (0,2.3) {\textbf{DOESN'T HAVE CASH}};
+                \node[step] at (0,1.7) {Try family/credit cards};
+                \node[step, draw=kotakdarkred, fill=red!10] at (0,1.1) {\textbf{60-70\% GIVE UP}};
+                \node[draw=kotakdarkred, fill=red!5, rounded corners=3pt, font=\tiny, align=center] at (0,0.2) {
+                    \textbf{10-14 days} | 40-50\% success
+                };
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \footnotesize\textbf{\textcolor{kotakgreen}{WITH Kotak Bridge Loan}}
+            \vspace{0.05cm}
+            \begin{tikzpicture}[scale=0.9, transform shape,
+                step/.style={draw=kotakgreen, fill=green!5, rounded corners=2pt, minimum width=4cm, minimum height=0.45cm, align=center, font=\tiny}
+            ]
+                \node[step] at (0,3.5) {Customer shows interest};
+                \node[step] at (0,2.9) {Pre-approved instantly};
+                \node[step, draw=kotakgold, fill=kotakgold!20, font=\tiny\bfseries] at (0,2.3) {KOTAK BRIDGE LOAN};
+                \node[step] at (0,1.7) {NBFC closed, gold redeemed};
+                \node[step, draw=kotakgreen, fill=green!20] at (0,1.1) {\textbf{SWITCH COMPLETE!}};
+                \node[draw=kotakgreen, fill=green!5, rounded corners=3pt, font=\tiny, align=center] at (0,0.2) {
+                    \textbf{3 days} | 75-85\% success
+                };
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+\vspace{0.05cm}
+\begin{center}
+    \colorbox{kotakgold!30}{\parbox{0.65\textwidth}{\centering\footnotesize\textbf{Customer pays ZERO out-of-pocket during entire switch}}}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 32: Bridge Loan Flow
+% --------------------------------------------
+\begin{frame}{Bridge Loan: How It Works}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.72, transform shape,
+        day/.style={circle, draw=kotakblue, fill=kotakblue, text=white, minimum size=1cm, font=\scriptsize\bfseries},
+        action/.style={draw=kotakblue!30, fill=white, rounded corners=4pt, minimum width=2.7cm, minimum height=1.1cm, align=center, font=\tiny},
+        arrow/.style={-{Stealth[length=3mm]}, kotakgold, line width=1.5pt}
+    ]
+        % Day 0
+        \node[day] (d0) at (-5.5,1.2) {Day 0};
+        \node[action, below=0.2cm of d0] (a0) {Customer shows interest\\via app/branch\\[0.05cm]\cmark~Pre-approved instantly};
+
+        % Day 1
+        \node[day] (d1) at (-1.8,1.2) {Day 1};
+        \node[action, below=0.2cm of d1] (a1) {Bridge loan sanctioned\\[0.05cm]\faArrowRight~Funds to NBFC\\[0.05cm]\cmark~Customer pays \textbf{Rs 0}};
+
+        % Day 2-3
+        \node[day] (d2) at (1.9,1.2) {Day 2-3};
+        \node[action, below=0.2cm of d2] (a2) {Gold redeemed\\from NBFC\\[0.05cm]\faTruck~Insured transit};
+
+        % Day 3
+        \node[day, fill=kotakgreen] (d3) at (5.6,1.2) {Day 3};
+        \node[action, draw=kotakgreen, below=0.2cm of d3] (a3) {Gold pledged at Kotak\\[0.05cm]\faExchangeAlt~Bridge replaced\\[0.05cm]\cmark~\textbf{DONE!}};
+
+        % Arrows
+        \draw[arrow] (d0) -- (d1);
+        \draw[arrow] (d1) -- (d2);
+        \draw[arrow] (d2) -- (d3);
+
+        % Bottom terms box
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, align=center, font=\scriptsize] at (0,-2.5) {
+            \textbf{Bridge Loan Terms:} 0\% for 7 days | Amount = exact NBFC closure | Auto-replaced by gold loan
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 33: Three Friction Points Solved
+% --------------------------------------------
+\begin{frame}{Three Friction Points SOLVED}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+        \begin{center}
+            \begin{tikzpicture}
+                \node[circle, draw=kotakred, fill=kotakred, text=white, minimum size=1.5cm, font=\Large] at (0,3) {\faLock};
+                \node[font=\small\bfseries, text=kotakblue] at (0,1.8) {Cash Flow Gap};
+            \end{tikzpicture}
+        \end{center}
+
+        \vspace{0.1cm}
+        \footnotesize
+        \textbf{\textcolor{kotakdarkred}{Problem:}}\\
+        ``Need Rs 5L to close Muthoot loan, don't have it''
+
+        \vspace{0.1cm}
+        \textbf{\textcolor{kotakgreen}{Solution:}}\\
+        Kotak provides Rs 5L bridge loan at \textbf{0\%} for 7 days
+    \end{column}
+    \begin{column}{0.32\textwidth}
+        \begin{center}
+            \begin{tikzpicture}
+                \node[circle, draw=kotakred, fill=kotakred, text=white, minimum size=1.5cm, font=\Large] at (0,3) {\faLock};
+                \node[font=\small\bfseries, text=kotakblue] at (0,1.8) {Gold Transit Risk};
+            \end{tikzpicture}
+        \end{center}
+
+        \vspace{0.1cm}
+        \footnotesize
+        \textbf{\textcolor{kotakdarkred}{Problem:}}\\
+        ``What if my Rs 5L gold gets lost during transfer?''
+
+        \vspace{0.1cm}
+        \textbf{\textcolor{kotakgreen}{Solution:}}\\
+        Kotak-insured professional transit service, \textbf{zero liability}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+        \begin{center}
+            \begin{tikzpicture}
+                \node[circle, draw=kotakred, fill=kotakred, text=white, minimum size=1.5cm, font=\Large] at (0,3) {\faClock};
+                \node[font=\small\bfseries, text=kotakblue] at (0,1.8) {Multiple Visits};
+            \end{tikzpicture}
+        \end{center}
+
+        \vspace{0.1cm}
+        \footnotesize
+        \textbf{\textcolor{kotakdarkred}{Problem:}}\\
+        ``4-6 visits over 10-14 days, can't take leave''
+
+        \vspace{0.1cm}
+        \textbf{\textcolor{kotakgreen}{Solution:}}\\
+        Pre-approved + Kotak handles NBFC closure = \textbf{2 visits max}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 34: Conversion Impact Metrics
+% --------------------------------------------
+\begin{frame}{Bridge Loan Impact: The Numbers}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{Conversion Impact}
+            \vspace{0.1cm}
+
+            \begin{tikzpicture}
+                \begin{axis}[
+                    ybar,
+                    width=6cm,
+                    height=4.5cm,
+                    bar width=0.8cm,
+                    ymin=0,
+                    ymax=100,
+                    ylabel={Success Rate (\%)},
+                    symbolic x coords={Without,With},
+                    xtick=data,
+                    nodes near coords,
+                    nodes near coords style={font=\small\bfseries},
+                    axis lines=left,
+                    ylabel style={font=\small},
+                    tick label style={font=\small}
+                ]
+                    \addplot[fill=kotakgray!60] coordinates {(Without,45)};
+                    \addplot[fill=kotakgreen] coordinates {(With,80)};
+                \end{axis}
+
+                % Arrow
+                \draw[-{Stealth}, kotakgold, very thick] (2,2.5) to[bend left=20] node[above, font=\small\bfseries, text=kotakgold] {1.7x} (4,4);
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{Time Reduction}
+            \vspace{0.1cm}
+
+            \begin{tikzpicture}
+                \begin{axis}[
+                    ybar,
+                    width=6cm,
+                    height=4.5cm,
+                    bar width=0.8cm,
+                    ymin=0,
+                    ymax=16,
+                    ylabel={Days to Complete},
+                    symbolic x coords={Without,With},
+                    xtick=data,
+                    nodes near coords,
+                    nodes near coords style={font=\small\bfseries},
+                    axis lines=left,
+                    ylabel style={font=\small},
+                    tick label style={font=\small}
+                ]
+                    \addplot[fill=kotakdarkred!70] coordinates {(Without,12)};
+                    \addplot[fill=kotakgreen] coordinates {(With,3)};
+                \end{axis}
+
+                % Arrow
+                \draw[-{Stealth}, kotakgold, very thick] (2,3.5) to[bend right=20] node[below, font=\small\bfseries, text=kotakgold] {75\% faster} (4,1.5);
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+
+\vspace{0.1cm}
+\begin{center}
+    \begin{tikzpicture}
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\small] {
+            \textbf{Customer Drop-off:} 60\% $\rightarrow$ 20\% | \textbf{Anxiety:} HIGH $\rightarrow$ LOW
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 35: Bridge Loan ROI
+% --------------------------------------------
+\begin{frame}{Bridge Loan Economics: 100-150x ROI}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Cost Per Switch}
+            \scriptsize
+            \begin{tabular}{lr}
+                \toprule
+                \textbf{Component} & \textbf{Cost (Rs)} \\
+                \midrule
+                Bridge Loan Float (7 days) & 200 \\
+                Transit Insurance & 100-200 \\
+                Staff Time & 100 \\
+                \midrule
+                \rowcolor{red!10} \textbf{Total Cost} & \textbf{400-500} \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Value Per Customer}
+            \scriptsize
+            \begin{tabular}{lr}
+                \toprule
+                \textbf{Component} & \textbf{Value (Rs)} \\
+                \midrule
+                Interest Income (3 yr) & 1,50,000 \\
+                Less: Cost of Funds & (1,05,000) \\
+                Net Interest Margin & 45,000 \\
+                Cross-sell Revenue & 5,000-15,000 \\
+                \midrule
+                \rowcolor{green!10} \textbf{Customer LTV} & \textbf{50,000-60,000} \\
+                \bottomrule
+            \end{tabular}
+        \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.85, transform shape]
+                % ROI Display
+                \node[draw=kotakgreen, fill=green!10, rounded corners=12pt, minimum width=5cm, minimum height=3.5cm] at (0,0.5) {};
+
+                \node[font=\small, text=kotakblue] at (0,1.7) {Return on Investment};
+                \node[font=\fontsize{36}{40}\selectfont\bfseries, text=kotakgreen] at (0,0.5) {100-150x};
+                \node[font=\small, text=kotakblue] at (0,-0.6) {Per Bridge Loan Issued};
+
+                % Formula
+                \node[draw=kotakblue!30, fill=white, rounded corners=3pt, font=\tiny, align=center] at (0,-1.8) {
+                    LTV: Rs 50K-60K~$\div$~Cost: Rs 400-500~=~\textbf{100-150x ROI}
+                };
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 35b: Incentive Matrix
+% --------------------------------------------
+\begin{frame}{Incentive Matrix by Segment}
+\vspace{-0.2cm}
+\begin{center}
+    \footnotesize
+    \begin{tabular}{>{\raggedright}p{2.5cm}cccc}
+        \toprule
+        \textbf{Segment} & \textbf{Rate} & \textbf{Fee} & \textbf{Special Offer} & \textbf{Theme} \\
+        \midrule
+        \rowcolor{kotakred!10}
+        P1: MSME Owner & 9.5\% & Zero & Top-up facility & ``Fuel Growth'' \\
+        \rowcolor{kotakblue!10}
+        P2: Trust-Seeker & 9.25\% & Zero & Rs 3,000 cashback & ``Safety + Savings'' \\
+        \rowcolor{kotakgold!10}
+        P3: Women (Shakti) & 9.0\% & Zero & Free insurance & ``Your Power'' \\
+        \rowcolor{kotaklightgray}
+        P4: Young Prof & 10.5\% & 0.5\% & Rs 500 instant & ``Gold in Clicks'' \\
+        \rowcolor{green!10}
+        Agricultural & 8.5\% & Zero & Harvest EMI & ``Farm Support'' \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+\vspace{0.1cm}
+
+\begin{columns}
+    \column{0.48\textwidth}
+    \begin{block}{All Segments Get}
+        \begin{itemize}
+            \item[\cmark] 7-day 0\% bridge loan
+            \item[\cmark] Insured gold transit
+            \item[\cmark] Pre-approval guarantee
+            \item[\cmark] Switch Assist service
+        \end{itemize}
+    \end{block}
+
+    \column{0.48\textwidth}
+    \begin{exampleblock}{Competitive Edge}
+        \begin{itemize}
+            \item Lowest rates: 8.5-10.5\%
+            \item vs NBFC: 16-26\%
+            \item Savings: 40-60\%
+            \item Transparent terms
+        \end{itemize}
+    \end{exampleblock}
+\end{columns}
+\end{frame}

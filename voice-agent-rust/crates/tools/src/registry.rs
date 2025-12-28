@@ -1,0 +1,235 @@
+//! Tool Registry
+//!
+//! Manages tool registration, discovery, and execution.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+use async_trait::async_trait;
+use serde_json::Value;
+
+use crate::mcp::{Tool, ToolSchema, ToolOutput, ToolError};
+
+/// Default timeout for tool execution (30 seconds)
+const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 30;
+
+/// Tool executor trait
+#[async_trait]
+pub trait ToolExecutor: Send + Sync {
+    /// Execute a tool by name
+    async fn execute(&self, name: &str, arguments: Value) -> Result<ToolOutput, ToolError>;
+
+    /// List available tools
+    fn list_tools(&self) -> Vec<ToolSchema>;
+
+    /// Get tool schema by name
+    fn get_tool(&self, name: &str) -> Option<ToolSchema>;
+}
+
+/// Tool registry
+pub struct ToolRegistry {
+    tools: HashMap<String, Arc<dyn Tool>>,
+}
+
+impl ToolRegistry {
+    /// Create a new empty registry
+    pub fn new() -> Self {
+        Self {
+            tools: HashMap::new(),
+        }
+    }
+
+    /// Register a tool
+    pub fn register<T: Tool + 'static>(&mut self, tool: T) {
+        let name = tool.name().to_string();
+        self.tools.insert(name, Arc::new(tool));
+    }
+
+    /// Register a boxed tool
+    pub fn register_boxed(&mut self, tool: Arc<dyn Tool>) {
+        let name = tool.name().to_string();
+        self.tools.insert(name, tool);
+    }
+
+    /// Get tool by name
+    pub fn get(&self, name: &str) -> Option<&Arc<dyn Tool>> {
+        self.tools.get(name)
+    }
+
+    /// Check if tool exists
+    pub fn has(&self, name: &str) -> bool {
+        self.tools.contains_key(name)
+    }
+
+    /// Remove a tool
+    pub fn remove(&mut self, name: &str) -> Option<Arc<dyn Tool>> {
+        self.tools.remove(name)
+    }
+
+    /// Get number of registered tools
+    pub fn len(&self) -> usize {
+        self.tools.len()
+    }
+
+    /// Check if registry is empty
+    pub fn is_empty(&self) -> bool {
+        self.tools.is_empty()
+    }
+
+    /// Get all tool names
+    pub fn tool_names(&self) -> Vec<String> {
+        self.tools.keys().cloned().collect()
+    }
+}
+
+impl Default for ToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl ToolExecutor for ToolRegistry {
+    /// Execute a tool with timeout protection
+    ///
+    /// P1 FIX: Wraps tool execution in a timeout to prevent indefinite blocking.
+    async fn execute(&self, name: &str, arguments: Value) -> Result<ToolOutput, ToolError> {
+        let tool = self.tools.get(name)
+            .ok_or_else(|| ToolError::not_found(format!("Tool not found: {}", name)))?;
+
+        // Validate input
+        tool.validate(&arguments)?;
+
+        // Execute with timeout
+        let timeout_duration = Duration::from_secs(DEFAULT_TOOL_TIMEOUT_SECS);
+        match tokio::time::timeout(timeout_duration, tool.execute(arguments)).await {
+            Ok(result) => result,
+            Err(_elapsed) => Err(ToolError::timeout(name, DEFAULT_TOOL_TIMEOUT_SECS)),
+        }
+    }
+
+    fn list_tools(&self) -> Vec<ToolSchema> {
+        self.tools.values()
+            .map(|t| t.schema())
+            .collect()
+    }
+
+    fn get_tool(&self, name: &str) -> Option<ToolSchema> {
+        self.tools.get(name).map(|t| t.schema())
+    }
+}
+
+/// Tool call result for conversation tracking
+#[derive(Debug, Clone)]
+pub struct ToolCall {
+    /// Tool name
+    pub name: String,
+    /// Input arguments
+    pub arguments: Value,
+    /// Output result
+    pub output: ToolOutput,
+    /// Execution duration (ms)
+    pub duration_ms: u64,
+    /// Timestamp
+    pub timestamp: std::time::Instant,
+}
+
+/// Tool call tracker
+pub struct ToolCallTracker {
+    calls: Vec<ToolCall>,
+    max_history: usize,
+}
+
+impl ToolCallTracker {
+    pub fn new(max_history: usize) -> Self {
+        Self {
+            calls: Vec::with_capacity(max_history),
+            max_history,
+        }
+    }
+
+    /// Record a tool call
+    pub fn record(&mut self, call: ToolCall) {
+        if self.calls.len() >= self.max_history {
+            self.calls.remove(0);
+        }
+        self.calls.push(call);
+    }
+
+    /// Get recent calls
+    pub fn recent(&self, n: usize) -> &[ToolCall] {
+        let start = self.calls.len().saturating_sub(n);
+        &self.calls[start..]
+    }
+
+    /// Get all calls
+    pub fn all(&self) -> &[ToolCall] {
+        &self.calls
+    }
+
+    /// Get calls by tool name
+    pub fn by_name(&self, name: &str) -> Vec<&ToolCall> {
+        self.calls.iter()
+            .filter(|c| c.name == name)
+            .collect()
+    }
+
+    /// Clear history
+    pub fn clear(&mut self) {
+        self.calls.clear();
+    }
+}
+
+/// Create default registry with gold loan tools
+pub fn create_default_registry() -> ToolRegistry {
+    let mut registry = ToolRegistry::new();
+
+    // Register gold loan tools
+    registry.register(crate::gold_loan::EligibilityCheckTool::new());
+    registry.register(crate::gold_loan::SavingsCalculatorTool::new());
+    registry.register(crate::gold_loan::LeadCaptureTool::new());
+    registry.register(crate::gold_loan::AppointmentSchedulerTool::new());
+    registry.register(crate::gold_loan::BranchLocatorTool::new());
+
+    registry
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::gold_loan::EligibilityCheckTool;
+
+    #[test]
+    fn test_registry_basic() {
+        let mut registry = ToolRegistry::new();
+        assert!(registry.is_empty());
+
+        registry.register(EligibilityCheckTool::new());
+        assert_eq!(registry.len(), 1);
+        assert!(registry.has("check_eligibility"));
+    }
+
+    #[test]
+    fn test_registry_list_tools() {
+        let registry = create_default_registry();
+        let tools = registry.list_tools();
+
+        assert!(!tools.is_empty());
+        assert!(tools.iter().any(|t| t.name == "check_eligibility"));
+    }
+
+    #[test]
+    fn test_tool_call_tracker() {
+        let mut tracker = ToolCallTracker::new(100);
+
+        tracker.record(ToolCall {
+            name: "test".to_string(),
+            arguments: serde_json::json!({}),
+            output: ToolOutput::text("result"),
+            duration_ms: 10,
+            timestamp: std::time::Instant::now(),
+        });
+
+        assert_eq!(tracker.all().len(), 1);
+    }
+}

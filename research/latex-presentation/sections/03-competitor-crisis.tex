@@ -1,0 +1,366 @@
+% ============================================
+% SECTION 3: COMPETITOR CRISIS
+% ============================================
+\section{Competitor Crisis}
+
+% --------------------------------------------
+% Slide 11: NBFC Dominance Overview
+% --------------------------------------------
+\begin{frame}{The NBFC Gold Loan Empire: Cracks Appearing}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.9, transform shape,
+        company/.style={draw=#1, fill=#1!10, rounded corners=5pt, minimum width=3.3cm, minimum height=1.8cm, align=center}
+    ]
+        % Muthoot
+        \node[company=kotakgray] (muthoot) at (-4.2,0) {
+            \textbf{Muthoot Finance}\\[0.05cm]
+            \fontsize{14}{16}\selectfont 38\%\\[-0.1cm]
+            \tiny Market Share\\[0.05cm]
+            \scriptsize Rs 1.09L Cr AUM\\
+            \textcolor{kotakdarkred}{\scriptsize \faExclamationTriangle~Multiple Penalties}
+        };
+
+        % IIFL
+        \node[company=kotakdarkred] (iifl) at (0,0) {
+            \textbf{IIFL Finance}\\[0.05cm]
+            \fontsize{14}{16}\selectfont 13\%\\[-0.1cm]
+            \tiny Market Share\\[0.05cm]
+            \scriptsize Rs 27,000 Cr AUM\\
+            \textcolor{kotakdarkred}{\scriptsize \faBan~BANNED 6 Months}
+        };
+
+        % Manappuram
+        \node[company=kotakgray] (manap) at (4.2,0) {
+            \textbf{Manappuram}\\[0.05cm]
+            \fontsize{14}{16}\selectfont 12\%\\[-0.1cm]
+            \tiny Market Share\\[0.05cm]
+            \scriptsize Rs 20,800 Cr AUM\\
+            \textcolor{kotakdarkred}{\scriptsize \faSkull~Fraud Cases}
+        };
+
+        % Customer rating
+        \node[draw=kotakdarkred, fill=red!10, rounded corners=3pt, font=\scriptsize] at (-4.2,-1.6) {\faStar~2.19/5 on MouthShut};
+
+        % Subtitle
+        \node[font=\footnotesize, text=kotakblue] at (0,-2.3) {\textbf{Combined:} 63\% of organized gold loan market facing regulatory \& trust challenges};
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 12: IIFL Crisis Timeline
+% --------------------------------------------
+\begin{frame}{IIFL Finance: The Complete Regulatory Shutdown}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        event/.style={draw=kotakblue, fill=white, rounded corners=3pt, minimum width=2cm, align=center, font=\tiny},
+        crisis/.style={draw=kotakdarkred, fill=red!10, rounded corners=3pt, minimum width=2cm, align=center, font=\tiny}
+    ]
+        % Timeline base
+        \draw[kotakgray, very thick] (-6,0) -- (6,0);
+
+        % Timeline markers
+        \foreach \x/\month in {-5.5/Mar,-2.5/May,0.5/Jul,3.5/Sep,6/Dec} {
+            \fill[kotakgray] (\x,0) circle (3pt);
+            \node[below, font=\scriptsize] at (\x,-0.25) {\month '24};
+        }
+
+        % Events
+        \node[crisis] at (-5.5,1.3) {RBI Orders\\IIFL to STOP\\Gold Loans};
+        \draw[kotakdarkred, thick] (-5.5,0) -- (-5.5,0.9);
+
+        \node[event] at (-4,2.2) {Stock Crashes\\20\%+\\in Single Day};
+        \draw[kotakblue] (-4,0) -- (-4,1.8);
+
+        \node[crisis] at (-2.5,1.3) {Rs 27,000 Cr\\Portfolio\\Frozen};
+        \draw[kotakdarkred, thick] (-2.5,0) -- (-2.5,0.9);
+
+        \node[event] at (0.5,-1.2) {Remediation\\Begins\\5+ Months};
+        \draw[kotakblue] (0.5,0) -- (0.5,-0.8);
+
+        \node[event] at (3.5,1.3) {Partial\\Business\\Resumption};
+        \draw[kotakgreen, thick] (3.5,0) -- (3.5,0.9);
+
+        \node[event] at (6,1.3) {Full Ops\\Restored\\Dec 2024};
+        \draw[kotakgreen, thick] (6,0) -- (6,0.9);
+
+        % Violations box
+        \node[draw=kotakdarkred, fill=red!5, rounded corners=5pt, align=left, font=\scriptsize] at (0,-2.8) {
+            \textbf{Key Violations:} \xmark~LTV breaches (>75\%) \xmark~Cash disbursements >Rs 20K \xmark~Valuation without customer \xmark~NPA evergreening
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 13: RBI 11 Deficiencies
+% --------------------------------------------
+\begin{frame}{September 2024: RBI's Industry Wake-Up Call}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+        \textbf{\textcolor{kotakred}{11 Deficiencies Identified}}
+        \vspace{0.1cm}
+        \footnotesize
+        \textbf{Valuation Issues}
+        \begin{itemize}
+            \item[\xmark] Third-party valuation without customer
+            \item[\xmark] Inadequate LTV monitoring
+            \item[\xmark] Missing fresh appraisal on renewal
+        \end{itemize}
+        \textbf{Disbursement Issues}
+        \begin{itemize}
+            \item[\xmark] Cash disbursement violations (>Rs 20K)
+            \item[\xmark] Disbursement without documentation
+        \end{itemize}
+        \textbf{Operations Issues}
+        \begin{itemize}
+            \item[\xmark] Auction transparency gaps
+            \item[\xmark] Notice period violations
+        \end{itemize}
+        \textbf{Evergreening}
+        \begin{itemize}
+            \item[\xmark] NPA classification delays
+            \item[\xmark] Interest capitalization issues
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape]
+                \node[draw=kotakgreen, fill=green!5, rounded corners=8pt, minimum width=5cm, minimum height=5cm, align=center] (box) {};
+
+                \node[font=\normalsize\bfseries, text=kotakgreen] at (0,2) {\cmark~KOTAK STATUS};
+
+                \node[font=\small, align=left] at (0,0.5) {
+                    \cmark~LTV monitoring: \textbf{Compliant}\\[0.15cm]
+                    \cmark~Cash limits: \textbf{Compliant}\\[0.15cm]
+                    \cmark~Documentation: \textbf{Complete}\\[0.15cm]
+                    \cmark~Auction process: \textbf{Transparent}\\[0.15cm]
+                    \cmark~NPA recognition: \textbf{Timely}
+                };
+
+                \node[font=\footnotesize\bfseries, text=kotakblue] at (0,-1.5) {11 Industry Failures};
+                \node[font=\Large\bfseries, text=kotakgreen] at (0,-2.1) {0 at Kotak};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 14: Muthoot Crisis
+% --------------------------------------------
+\begin{frame}{Muthoot Finance: Behind the Market Leader Brand}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+        \textbf{\textcolor{kotakred}{RBI Penalties (Documented)}}
+        \vspace{0.1cm}
+        \footnotesize
+        \begin{tikzpicture}[
+            penalty/.style={draw=kotakdarkred!50, fill=red!5, rounded corners=2pt, minimum width=4.8cm, minimum height=0.5cm, align=left, font=\tiny}
+        ]
+            \node[penalty] at (0,2.4) {\faRupeeSign~10 lakh - LTV breaches + PAN violations};
+            \node[penalty] at (0,1.7) {\faRupeeSign~1.90 lakh - Multiple UCIC (KYC failure)};
+            \node[penalty] at (0,1) {\faRupeeSign~2.7 lakh - Complaint escalation failure};
+            \node[penalty] at (0,0.3) {\faRupeeSign~7.9 lakh - LCR + credit bureau violations};
+            \node[penalty] at (0,-0.4) {\faRupeeSign~5 lakh - Governance violations (HF)};
+        \end{tikzpicture}
+
+        \vspace{0.15cm}
+        \textbf{\textcolor{kotakred}{Internal Fraud Cases}}
+        \vspace{0.05cm}
+        \footnotesize
+        \begin{itemize}
+            \item \faSkull~Rs 11.92 Cr Gift Card Fraud - CEO suspended
+            \item \faSkull~Rs 10.2 Cr ED Investigation
+            \item \faSkull~Rs 50+ lakh Kerala Branch Scam
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape]
+                % Rating display
+                \node[draw=kotakdarkred, fill=red!10, rounded corners=8pt, minimum width=4cm, minimum height=2cm] at (0,1.2) {};
+                \node[font=\small, text=kotakblue] at (0,1.8) {MouthShut Rating};
+                \node[font=\fontsize{28}{32}\selectfont\bfseries, text=kotakdarkred] at (0,0.9) {2.19/5};
+                \node[font=\scriptsize] at (0,0.3) {\textcolor{kotakgold}{\faStar\faStar}\textcolor{kotakgray!50}{\faStar\faStar\faStar}};
+            \end{tikzpicture}
+        \end{center}
+        \vspace{0.1cm}
+        \begin{alertblock}{\footnotesize Customer Complaint Themes}
+            \footnotesize
+            \begin{itemize}
+                \item ``Sold gold for \textbf{one day} delay''
+                \item ``Excessive penalty charges''
+                \item ``Dismissive attitude''
+            \end{itemize}
+        \end{alertblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 15: Manappuram Crisis
+% --------------------------------------------
+\begin{frame}{Manappuram Finance: Fraud \& Failures Exposed}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+        \textbf{\textcolor{kotakred}{RBI Penalties}}
+        \footnotesize
+        \begin{itemize}
+            \item Rs 20 lakh - NPA classification failure
+            \item Rs 5 lakh - Gold ownership verification failure
+            \item \textbf{Asirvad Microfinance - BANNED Oct 2024}
+        \end{itemize}
+        \vspace{0.1cm}
+        \textbf{\textcolor{kotakred}{Major Fraud Cases}}
+        \footnotesize
+        \begin{itemize}
+            \item \faSkull~Rs 43.34 lakh Fake Gold Scam (UP, 2025)
+            \item \faSkull~Rs 20 Cr Tech Fraud (Thrissur, 2024)
+            \item \faSkull~Rs 5.50 Cr Betting Scam (Bhopal, 2024)
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.9, transform shape]
+                \node[draw=kotakdarkred, fill=red!10, rounded corners=6pt, minimum width=4.5cm, minimum height=2cm, align=center] at (0,1.5) {
+                    \textbf{\small Sambalpur Security Failure}\\
+                    \tiny (January 2025)\\[0.05cm]
+                    \footnotesize 30 kg gold at risk\\
+                    \small \textcolor{kotakdarkred}{\textbf{ZERO security guards!}}
+                };
+            \end{tikzpicture}
+        \end{center}
+        \vspace{0.1cm}
+        \begin{alertblock}{\footnotesize Customer Complaints}
+            \tiny
+            \begin{itemize}
+                \item ``Cannot update mobile through app''
+                \item ``Payment deducted but didn't reflect''
+                \item ``Gold chain went missing from locker''
+            \end{itemize}
+        \end{alertblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 16: Customer Pain Verbatim (Part 1)
+% --------------------------------------------
+\begin{frame}{Real Customer Voices: The Pain They Endure}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.9, transform shape,
+        quote/.style={draw=#1, fill=#1!5, rounded corners=4pt, minimum width=6cm, align=left, font=\scriptsize, inner sep=6pt}
+    ]
+        % Quote 1
+        \node[quote=kotakdarkred] at (-3.5,1.8) {
+            \faQuoteLeft~``Sold my gold jewelry for \textbf{ONE DAY} delay.\\
+            No warning, no grace period.''\\
+            \textit{\tiny -- Muthoot Customer, MouthShut}
+        };
+
+        % Quote 2
+        \node[quote=kotakdarkred] at (3.5,1.8) {
+            \faQuoteLeft~``Paid through app - amount deducted but\\
+            payment didn't reflect. \textbf{Can't retrieve my gold.}''\\
+            \textit{\tiny -- Manappuram Customer}
+        };
+
+        % Quote 3
+        \node[quote=kotakgray] at (-3.5,-0.3) {
+            \faQuoteLeft~``Part payment feature \textbf{totally useless}.\\
+            Dismissive attitude when raising complaints.''\\
+            \textit{\tiny -- Muthoot Customer, MouthShut}
+        };
+
+        % Quote 4
+        \node[quote=kotakgray] at (3.5,-0.3) {
+            \faQuoteLeft~``37-gram gold chain went \textbf{missing from locker}.\\
+            Family heirloom - offered only market price.''\\
+            \textit{\tiny -- Manappuram Customer}
+        };
+
+        % Quote 5
+        \node[quote=kotakdarkred] at (0,-2.3) {
+            \faQuoteLeft~``Agents \textbf{torturing, abusing and harassing} when asked for time.''\\
+            \textit{\tiny -- Manappuram Customer, ConsumerComplaints}
+        };
+    \end{tikzpicture}
+\end{center}
+\vspace{-0.1cm}
+\begin{center}
+    \colorbox{kotakgold!20}{\parbox{0.55\textwidth}{\centering\small\textcolor{kotakblue}{\textbf{These are THEIR customers. Tomorrow, they could be OURS.}}}}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 17: Trust Vacuum
+% --------------------------------------------
+\begin{frame}{The Trust Vacuum: Customers Are Ready to Switch}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        pain/.style={draw=kotakdarkred, fill=red!5, rounded corners=4pt, minimum width=2.8cm, minimum height=1.1cm, align=center, font=\scriptsize},
+        want/.style={draw=kotakgreen, fill=green!5, rounded corners=4pt, minimum width=2.8cm, minimum height=1.1cm, align=center, font=\scriptsize}
+    ]
+        % Left side - Pain
+        \node[font=\normalsize\bfseries, text=kotakdarkred] at (-4,2.5) {What They HATE};
+        \node[pain] at (-5.3,1.3) {High Interest\\16-24\% p.a.};
+        \node[pain] at (-2.7,1.3) {Aggressive\\Auction};
+        \node[pain] at (-5.3,0) {Hidden\\Charges};
+        \node[pain] at (-2.7,0) {Poor\\Service};
+
+        % Right side - Want
+        \node[font=\normalsize\bfseries, text=kotakgreen] at (4,2.5) {What They WANT};
+        \node[want] at (2.7,1.3) {Lower\\Rates};
+        \node[want] at (5.3,1.3) {Fair\\Treatment};
+        \node[want] at (2.7,0) {Transparent\\Process};
+        \node[want] at (5.3,0) {Bank\\Safety};
+
+        % Center arrow
+        \draw[-{Stealth}, kotakgold, line width=2.5pt] (-0.5,0.65) -- (0.5,0.65);
+
+        % Bottom stats
+        \node[draw=kotakblue, fill=kotakblue!10, rounded corners=6pt, minimum width=9cm, minimum height=1.2cm] at (0,-1.8) {};
+        \node[font=\large\bfseries, text=kotakblue] at (-2.8,-1.8) {60-70\%};
+        \node[font=\tiny, text=kotakblue] at (-2.8,-2.2) {want to switch};
+        \node[font=\large\bfseries, text=kotakdarkred] at (0,-1.8) {BUT};
+        \node[font=\large\bfseries, text=kotakblue] at (2.8,-1.8) {Cash Gap};
+        \node[font=\tiny, text=kotakblue] at (2.8,-2.2) {blocks them};
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 18: Kotak Advantage
+% --------------------------------------------
+\begin{frame}{Kotak's Competitive Advantage: Built for This Moment}
+\vspace{-0.3cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.75, transform shape,
+        adv/.style={draw=kotakblue!50, fill=white, rounded corners=6pt, minimum width=3cm, minimum height=1.5cm, align=center, font=\scriptsize}
+    ]
+        % Connecting lines (drawn FIRST so they appear behind)
+        \foreach \angle in {60,90,120,240,270,300} {
+            \draw[kotakgold, thick] (0,0) -- (\angle:2.2);
+        }
+
+        % Center Kotak logo area (drawn AFTER lines so it appears on top)
+        \node[draw=kotakred, fill=kotakred, text=white, circle, minimum size=1.8cm, font=\small\bfseries] at (0,0) {KOTAK};
+
+        % Advantages around
+        \node[adv] at (-4,1.8) {\faUniversity\\[0.02cm]\textbf{Bank Trust}\\Regulated, Safe};
+        \node[adv] at (0,3.2) {\faPercentage\\[0.02cm]\textbf{Lower Rates}\\9-12\% vs 16-24\%};
+        \node[adv] at (4,1.8) {\faUsers\\[0.02cm]\textbf{53M Customers}\\Existing Base};
+        \node[adv] at (-4,-1.8) {\faLock\\[0.02cm]\textbf{0.22\% NPA}\\vs 2.14\% NBFC};
+        \node[adv] at (0,-3.2) {\faMobile\\[0.02cm]\textbf{Digital Ready}\\Kotak 811};
+        \node[adv] at (4,-1.8) {\faBalanceScale\\[0.02cm]\textbf{Compliant}\\RBI Standards};
+    \end{tikzpicture}
+\end{center}
+\end{frame}

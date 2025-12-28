@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kotak Gold Loan Strategy - Executive Presentation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --kotak-red: #E31837;
+            --kotak-dark: #1a1a2e;
+            --kotak-gradient: linear-gradient(135deg, #E31837 0%, #8B0000 100%);
+            --gold: #FFD700;
+            --gold-dark: #B8860B;
+            --success: #00C853;
+            --white: #ffffff;
+            --gray-light: #f5f5f5;
+            --gray: #666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--kotak-dark);
+            color: var(--white);
+            overflow: hidden;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--kotak-gradient);
+            transition: width 0.3s ease;
+        }
+
+        /* Slide Container */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(100px);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .slide.exit {
+            opacity: 0;
+            transform: translateX(-100px);
+        }
+
+        /* Title Slide */
+        .slide-title {
+            background: var(--kotak-gradient);
+            text-align: center;
+        }
+
+        .slide-title .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 40px;
+            letter-spacing: 3px;
+        }
+
+        .slide-title h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            animation: fadeInUp 1s ease;
+        }
+
+        .slide-title .subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+
+        .slide-title .gold-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .slide-title .date {
+            font-size: 1rem;
+            opacity: 0.7;
+            margin-top: 40px;
+        }
+
+        /* Content Slides */
+        .slide-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        .slide-content h2 {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            color: var(--white);
+            position: relative;
+            display: inline-block;
+        }
+
+        .slide-content h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 80px;
+            height: 4px;
+            background: var(--kotak-red);
+            border-radius: 2px;
+        }
+
+        .content-wrapper {
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        /* Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            width: 100%;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease forwards;
+            opacity: 0;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: var(--kotak-red);
+            box-shadow: 0 20px 40px rgba(227, 24, 55, 0.2);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: var(--white);
+        }
+
+        .card p {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .card .stat {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--kotak-red);
+            margin-bottom: 10px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 15px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .data-table th {
+            background: rgba(227, 24, 55, 0.2);
+            color: var(--white);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .data-table td {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .data-table tr:hover td {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .highlight-cell {
+            color: var(--success) !important;
+            font-weight: 600;
+        }
+
+        /* Charts Container */
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            margin: 20px auto;
+        }
+
+        .charts-row {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+        }
+
+        .chart-box {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        .chart-box h4 {
+            margin-bottom: 20px;
+            color: var(--white);
+        }
+
+        /* Big Numbers */
+        .big-number {
+            font-size: 5rem;
+            font-weight: 800;
+            background: var(--kotak-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .number-label {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 10px;
+        }
+
+        /* Timeline */
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            position: relative;
+            margin-top: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .timeline-item {
+            text-align: center;
+            position: relative;
+            flex: 1;
+        }
+
+        .timeline-dot {
+            width: 60px;
+            height: 60px;
+            background: var(--kotak-gradient);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .timeline-content h4 {
+            margin-bottom: 10px;
+            color: var(--white);
+        }
+
+        .timeline-content p {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* Navigation */
+        .nav-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            color: var(--white);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .nav-btn:hover {
+            background: var(--kotak-red);
+            border-color: var(--kotak-red);
+            transform: scale(1.1);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Stagger animations for cards */
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(6) { animation-delay: 0.6s; }
+
+        /* Two Column Layout */
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            width: 100%;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Comparison Section */
+        .comparison {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+        }
+
+        .comparison-item {
+            flex: 1;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .comparison-item.nbfc {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .comparison-item.kotak {
+            background: linear-gradient(135deg, rgba(227,24,55,0.2) 0%, rgba(139,0,0,0.2) 100%);
+            border: 2px solid var(--kotak-red);
+        }
+
+        .comparison-item h3 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        .comparison-item .rate {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .comparison-item.nbfc .rate {
+            color: #ff6b6b;
+        }
+
+        .comparison-item.kotak .rate {
+            color: var(--success);
+        }
+
+        /* Quote Block */
+        .quote-block {
+            background: rgba(227,24,55,0.1);
+            border-left: 4px solid var(--kotak-red);
+            padding: 30px;
+            margin: 30px 0;
+            font-style: italic;
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* Pain Point Pills */
+        .pain-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .pill {
+            background: rgba(255,107,107,0.2);
+            border: 1px solid #ff6b6b;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            color: #ff6b6b;
+        }
+
+        .pill.solution {
+            background: rgba(0,200,83,0.2);
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        /* AI Feature Box */
+        .ai-feature {
+            background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(184,134,11,0.1) 100%);
+            border: 1px solid var(--gold);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .ai-feature h3 {
+            color: var(--gold);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* KPI Dashboard */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 100%;
+        }
+
+        .kpi-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--kotak-red);
+        }
+
+        .kpi-label {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 10px;
+        }
+
+        /* CTA Slide */
+        .slide-cta {
+            background: var(--kotak-gradient);
+            text-align: center;
+        }
+
+        .cta-list {
+            list-style: none;
+            text-align: left;
+            max-width: 600px;
+        }
+
+        .cta-list li {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            font-size: 1.2rem;
+        }
+
+        .cta-number {
+            width: 40px;
+            height: 40px;
+            background: var(--white);
+            color: var(--kotak-red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* ROI Highlight */
+        .roi-highlight {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 60px;
+            margin: 40px 0;
+        }
+
+        .roi-box {
+            text-align: center;
+        }
+
+        .roi-arrow {
+            font-size: 3rem;
+            color: var(--success);
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .fullscreen-btn:hover {
+            background: var(--kotak-red);
+        }
+
+        /* Keyboard hints */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.3);
+        }
+
+        /* Section Divider Slides */
+        .slide-section {
+            background: var(--kotak-dark);
+            text-align: center;
+        }
+
+        .section-number {
+            font-size: 8rem;
+            font-weight: 800;
+            opacity: 0.1;
+            position: absolute;
+        }
+
+        .slide-section h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .slide-section p {
+            font-size: 1.3rem;
+            opacity: 0.7;
+        }
+
+        /* Animated counter */
+        .counter {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">Fullscreen (F)</button>
+
+    <div class="presentation" id="presentation">
+
+        <!-- Slide 1: Title -->
+        <div class="slide slide-title active" data-slide="1">
+            <div class="gold-icon">&#9733;</div>
+            <div class="logo">KOTAK MAHINDRA BANK</div>
+            <h1>Gold Loan Acquisition Strategy</h1>
+            <p class="subtitle">Capturing the Rs 7.1 Lakh Crore Opportunity</p>
+            <p class="date">Executive Presentation | December 2025</p>
+        </div>
+
+        <!-- Slide 2: Executive Summary -->
+        <div class="slide slide-content" data-slide="2">
+            <div class="content-wrapper">
+                <h2>Executive Summary</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon">&#128200;</div>
+                        <div class="stat">Rs 7.1L Cr</div>
+                        <h3>Market Opportunity</h3>
+                        <p>Growing at 14.85% CAGR with only 5.6% of household gold monetized</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#128176;</div>
+                        <div class="stat">40-50%</div>
+                        <h3>Customer Savings</h3>
+                        <p>Interest rate advantage vs NBFCs (10% vs 18-24%)</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#128101;</div>
+                        <div class="stat">53M</div>
+                        <h3>Existing Customers</h3>
+                        <p>Ready for cross-sell with known credit behavior</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#128202;</div>
+                        <div class="stat">2.45x</div>
+                        <h3>3-Year ROI</h3>
+                        <p>Rs 363 Cr PAT on Rs 148 Cr investment</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: The Opportunity -->
+        <div class="slide slide-section" data-slide="3">
+            <span class="section-number">01</span>
+            <h2>The Market Opportunity</h2>
+            <p>Why Gold Loans, Why Now?</p>
+        </div>
+
+        <!-- Slide 4: Market Size -->
+        <div class="slide slide-content" data-slide="4">
+            <div class="content-wrapper">
+                <h2>Market Size & Growth</h2>
+                <div class="two-columns">
+                    <div class="column">
+                        <div class="chart-box">
+                            <h4>Gold Loan Market Growth</h4>
+                            <canvas id="marketGrowthChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="cards-grid" style="grid-template-columns: 1fr;">
+                            <div class="card">
+                                <div class="stat">Rs 7.1L Cr</div>
+                                <p>Current Market Size (2024)</p>
+                            </div>
+                            <div class="card">
+                                <div class="stat">Rs 14.2L Cr</div>
+                                <p>Projected by 2028</p>
+                            </div>
+                            <div class="card">
+                                <div class="stat">14.85%</div>
+                                <p>CAGR Growth Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Customer Demographics -->
+        <div class="slide slide-content" data-slide="5">
+            <div class="content-wrapper">
+                <h2>Customer Demographics</h2>
+                <div class="charts-row">
+                    <div class="chart-box">
+                        <h4>Age Distribution</h4>
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h4>Geographic Split</h4>
+                        <canvas id="geoChart"></canvas>
+                    </div>
+                </div>
+                <div class="kpi-grid" style="margin-top: 30px;">
+                    <div class="kpi-card">
+                        <div class="kpi-value">43%</div>
+                        <div class="kpi-label">Age 31-40 (Primary)</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">36%</div>
+                        <div class="kpi-label">Women Borrowers</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">80%</div>
+                        <div class="kpi-label">South India Market</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">55%</div>
+                        <div class="kpi-label">First-Time Borrowers</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: The Problem -->
+        <div class="slide slide-section" data-slide="6">
+            <span class="section-number">02</span>
+            <h2>Customer Pain Points</h2>
+            <p>Why Customers Are Ready to Switch</p>
+        </div>
+
+        <!-- Slide 7: Pain Points -->
+        <div class="slide slide-content" data-slide="7">
+            <div class="content-wrapper">
+                <h2>Documented Customer Pain Points</h2>
+                <div class="quote-block">
+                    "Sold our valuable gold jewelry just for one day delay in the long repayment"
+                    <br><small style="opacity: 0.7;">- MouthShut Review, Muthoot Finance (Rating: 2.19/5)</small>
+                </div>
+                <div class="two-columns">
+                    <div class="column">
+                        <h3 style="color: #ff6b6b; margin-bottom: 20px;">Pain Points</h3>
+                        <div class="pain-pills">
+                            <span class="pill">High Interest (18-27%)</span>
+                            <span class="pill">Excessive Penalties</span>
+                            <span class="pill">Auction Fear</span>
+                            <span class="pill">Hidden Charges</span>
+                            <span class="pill">Poor App Experience</span>
+                            <span class="pill">Dismissive Staff</span>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <h3 style="color: var(--success); margin-bottom: 20px;">Kotak Solutions</h3>
+                        <div class="pain-pills">
+                            <span class="pill solution">9-10% Interest Rate</span>
+                            <span class="pill solution">Grace Period + Capped Penalties</span>
+                            <span class="pill solution">30-Day Notice, Transparent Auction</span>
+                            <span class="pill solution">All-Inclusive Pricing</span>
+                            <span class="pill solution">Seamless Digital Experience</span>
+                            <span class="pill solution">Premium Service Training</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Rate Comparison -->
+        <div class="slide slide-content" data-slide="8">
+            <div class="content-wrapper">
+                <h2>The Interest Rate Advantage</h2>
+                <div class="comparison">
+                    <div class="comparison-item nbfc">
+                        <h3>NBFCs (Muthoot/Manappuram)</h3>
+                        <div class="rate">18-24%</div>
+                        <p>per annum</p>
+                        <p style="margin-top: 20px; opacity: 0.7;">On Rs 5 Lakh loan = Rs 90,000+ annual interest</p>
+                    </div>
+                    <div class="comparison-item kotak">
+                        <h3>Kotak Mahindra Bank</h3>
+                        <div class="rate">9-10%</div>
+                        <p>per annum</p>
+                        <p style="margin-top: 20px; color: var(--success);">On Rs 5 Lakh loan = Rs 50,000 annual interest</p>
+                        <p style="font-size: 1.5rem; color: var(--success); margin-top: 10px;"><strong>Save Rs 40,000/year!</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: The Solution -->
+        <div class="slide slide-section" data-slide="9">
+            <span class="section-number">03</span>
+            <h2>The Solution: "Switch & Save"</h2>
+            <p>Balance Transfer Product Strategy</p>
+        </div>
+
+        <!-- Slide 10: Target Segments -->
+        <div class="slide slide-content" data-slide="10">
+            <div class="content-wrapper">
+                <h2>Target Customer Segments</h2>
+                <div class="cards-grid">
+                    <div class="card" style="border-left: 4px solid var(--kotak-red);">
+                        <div class="card-icon">&#128188;</div>
+                        <h3>P1: High-Value Switchers</h3>
+                        <p><strong>Rs 5-25 Lakh loans</strong><br>MSME owners, urban professionals<br>Highest savings potential</p>
+                    </div>
+                    <div class="card" style="border-left: 4px solid var(--gold);">
+                        <div class="card-icon">&#128274;</div>
+                        <h3>P2: Trust-Seekers</h3>
+                        <p><strong>Affected by regulatory actions</strong><br>Seeking bank-grade security<br>Willing to pay for safety</p>
+                    </div>
+                    <div class="card" style="border-left: 4px solid #9c27b0;">
+                        <div class="card-icon">&#128105;</div>
+                        <h3>P3: Women Entrepreneurs</h3>
+                        <p><strong>Shakti Gold scheme</strong><br>36% of market, 4 Cr new borrowers<br>Special rates & benefits</p>
+                    </div>
+                    <div class="card" style="border-left: 4px solid #00bcd4;">
+                        <div class="card-icon">&#128241;</div>
+                        <h3>P4: Young Professionals</h3>
+                        <p><strong>Kotak 811 users</strong><br>Digital-first, emergency needs<br>2.2x fastest growing segment</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: AI Solutions -->
+        <div class="slide slide-section" data-slide="11">
+            <span class="section-number">04</span>
+            <h2>AI-Driven Innovation</h2>
+            <p>Three High-Impact AI Solutions</p>
+        </div>
+
+        <!-- Slide 12: AI Solution 1 -->
+        <div class="slide slide-content" data-slide="12">
+            <div class="content-wrapper">
+                <h2>AI Solution 1: Computer Vision Appraisal</h2>
+                <div class="two-columns">
+                    <div class="column">
+                        <div class="ai-feature">
+                            <h3>&#129302; How It Works</h3>
+                            <p style="color: rgba(255,255,255,0.8); line-height: 1.8;">
+                                1. Customer opens Kotak App<br>
+                                2. Captures multi-angle images of gold<br>
+                                3. AI estimates purity & value (97% accuracy)<br>
+                                4. Shows instant loan range<br>
+                                5. Books branch appointment<br>
+                                6. Final XRF verification at branch
+                            </p>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="kpi-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="kpi-card">
+                                <div class="kpi-value">+80%</div>
+                                <div class="kpi-label">Conversion Lift</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">-62%</div>
+                                <div class="kpi-label">Drop-off Reduction</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">Rs 5 Cr</div>
+                                <div class="kpi-label">Investment</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">12 mo</div>
+                                <div class="kpi-label">Implementation</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: AI Solution 2 -->
+        <div class="slide slide-content" data-slide="13">
+            <div class="content-wrapper">
+                <h2>AI Solution 2: Predictive Acquisition</h2>
+                <div class="two-columns">
+                    <div class="column">
+                        <div class="ai-feature">
+                            <h3>&#128202; Identifying Hidden Gold Loan Customers</h3>
+                            <p style="color: rgba(255,255,255,0.8); line-height: 1.8;">
+                                Analyzes 53M Kotak customers' transactions to detect:<br><br>
+                                &#10003; Recurring payments to gold lenders<br>
+                                &#10003; Payment descriptions with GL keywords<br>
+                                &#10003; UPI patterns to gold loan merchants<br>
+                                &#10003; Amount patterns (Rs 2K-50K recurring)
+                            </p>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="kpi-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="kpi-card">
+                                <div class="kpi-value">16x</div>
+                                <div class="kpi-label">Campaign Conversion Lift</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">-75%</div>
+                                <div class="kpi-label">Lower CAC</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">Rs 2.5 Cr</div>
+                                <div class="kpi-label">Investment</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-value">6 mo</div>
+                                <div class="kpi-label">Implementation</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 14: Investment Summary -->
+        <div class="slide slide-section" data-slide="14">
+            <span class="section-number">05</span>
+            <h2>Investment & Returns</h2>
+            <p>Financial Projections</p>
+        </div>
+
+        <!-- Slide 15: Investment Breakdown -->
+        <div class="slide slide-content" data-slide="15">
+            <div class="content-wrapper">
+                <h2>Year 1 Investment: Rs 53 Cr</h2>
+                <div class="two-columns">
+                    <div class="column">
+                        <div class="chart-box">
+                            <h4>Investment Allocation</h4>
+                            <canvas id="investmentChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th>Priority</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>AI/Technology</td>
+                                    <td>Rs 14.5 Cr</td>
+                                    <td>Critical</td>
+                                </tr>
+                                <tr>
+                                    <td>Marketing</td>
+                                    <td>Rs 15 Cr</td>
+                                    <td>Critical</td>
+                                </tr>
+                                <tr>
+                                    <td>Compliance</td>
+                                    <td>Rs 10 Cr</td>
+                                    <td>Mandatory</td>
+                                </tr>
+                                <tr>
+                                    <td>Doorstep Pilot</td>
+                                    <td>Rs 5 Cr</td>
+                                    <td>Experimental</td>
+                                </tr>
+                                <tr>
+                                    <td>Training</td>
+                                    <td>Rs 5 Cr</td>
+                                    <td>Critical</td>
+                                </tr>
+                                <tr>
+                                    <td>Contingency</td>
+                                    <td>Rs 3.5 Cr</td>
+                                    <td>Buffer</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 16: 3-Year Projections -->
+        <div class="slide slide-content" data-slide="16">
+            <div class="content-wrapper">
+                <h2>3-Year Financial Projections</h2>
+                <div class="chart-box" style="max-width: 100%; margin-bottom: 30px;">
+                    <canvas id="revenueChart" style="max-height: 350px;"></canvas>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-value">Rs 8,500 Cr</div>
+                        <div class="kpi-label">Y3 AUM</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">Rs 1,497 Cr</div>
+                        <div class="kpi-label">3-Year Revenue</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">Rs 532 Cr</div>
+                        <div class="kpi-label">3-Year EBITDA</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">Rs 363 Cr</div>
+                        <div class="kpi-label">3-Year PAT</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 17: ROI Analysis -->
+        <div class="slide slide-content" data-slide="17">
+            <div class="content-wrapper">
+                <h2>ROI Analysis</h2>
+                <div class="roi-highlight">
+                    <div class="roi-box">
+                        <div class="big-number">Rs 148 Cr</div>
+                        <div class="number-label">Total Investment (3 Years)</div>
+                    </div>
+                    <div class="roi-arrow">&#10132;</div>
+                    <div class="roi-box">
+                        <div class="big-number">Rs 363 Cr</div>
+                        <div class="number-label">Total PAT (3 Years)</div>
+                    </div>
+                    <div class="roi-arrow">&#10132;</div>
+                    <div class="roi-box">
+                        <div class="big-number" style="color: var(--success);">2.45x</div>
+                        <div class="number-label">Return on Investment</div>
+                    </div>
+                </div>
+                <div class="kpi-grid" style="margin-top: 40px;">
+                    <div class="kpi-card">
+                        <div class="kpi-value">~20 mo</div>
+                        <div class="kpi-label">Payback Period</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">~75%</div>
+                        <div class="kpi-label">IRR</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">Rs 900 Cr</div>
+                        <div class="kpi-label">Break-even AUM</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">LOW</div>
+                        <div class="kpi-label">Risk Profile</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 18: Investment Context -->
+        <div class="slide slide-content" data-slide="18">
+            <div class="content-wrapper">
+                <h2>Investment in Context</h2>
+                <p style="margin-bottom: 30px; opacity: 0.7;">Our ask is minimal relative to Kotak's investment capacity</p>
+                <div class="chart-box" style="max-width: 100%;">
+                    <canvas id="contextChart" style="max-height: 400px;"></canvas>
+                </div>
+                <p style="margin-top: 20px; text-align: center; font-size: 1.2rem;">
+                    <strong style="color: var(--success);">Rs 53 Cr = Just 3.2% of annual IT spend</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 19: Risk Mitigation -->
+        <div class="slide slide-section" data-slide="19">
+            <span class="section-number">06</span>
+            <h2>Risk & Compliance</h2>
+            <p>Built-in Guardrails</p>
+        </div>
+
+        <!-- Slide 20: Compliance -->
+        <div class="slide slide-content" data-slide="20">
+            <div class="content-wrapper">
+                <h2>Compliance-First Approach</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon">&#128274;</div>
+                        <h3>7-Day Gold Return SLA</h3>
+                        <p>Rs 5,000/day penalty if exceeded - exceeds RBI June 2025 requirements</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#127909;</div>
+                        <h3>Video-Recorded Valuations</h3>
+                        <p>Complete transparency, customer-visible XRF testing</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#128200;</div>
+                        <h3>Real-Time LTV Monitoring</h3>
+                        <p>AI-powered daily tracking with automatic alerts</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">&#128176;</div>
+                        <h3>30-Day Auction Notice</h3>
+                        <p>Transparent process with customer communication</p>
+                    </div>
+                </div>
+                <div class="quote-block" style="margin-top: 30px; border-color: var(--success); background: rgba(0,200,83,0.1);">
+                    <strong>Kotak's Gold Loan Compliance Record: ZERO RBI violations</strong><br>
+                    Already meeting 2026 standards today
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 21: Implementation Timeline -->
+        <div class="slide slide-content" data-slide="21">
+            <div class="content-wrapper">
+                <h2>Implementation Roadmap</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot">Q1</div>
+                        <div class="timeline-content">
+                            <h4>Foundation</h4>
+                            <p>LTV System, BIS Certification, Staff Training</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot">Q2</div>
+                        <div class="timeline-content">
+                            <h4>Launch</h4>
+                            <p>Switch & Save Product, Marketing Campaign</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot">Q3</div>
+                        <div class="timeline-content">
+                            <h4>Scale</h4>
+                            <p>AI Models Live, 25,000 Customers</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot">Q4</div>
+                        <div class="timeline-content">
+                            <h4>Expand</h4>
+                            <p>50,000 Customers, Rs 1,500 Cr AUM</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="kpi-grid" style="margin-top: 60px;">
+                    <div class="kpi-card">
+                        <div class="kpi-value">50K</div>
+                        <div class="kpi-label">Y1 Customers</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">125K</div>
+                        <div class="kpi-label">Y2 Customers</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">250K</div>
+                        <div class="kpi-label">Y3 Customers</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">425K</div>
+                        <div class="kpi-label">Total (3 Years)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 22: Success Metrics -->
+        <div class="slide slide-content" data-slide="22">
+            <div class="content-wrapper">
+                <h2>Success Metrics Dashboard</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Year 1</th>
+                            <th>Year 2</th>
+                            <th>Year 3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>New Customers</td>
+                            <td>50,000</td>
+                            <td>125,000</td>
+                            <td class="highlight-cell">250,000</td>
+                        </tr>
+                        <tr>
+                            <td>Gold Loan AUM</td>
+                            <td>Rs 1,500 Cr</td>
+                            <td>Rs 4,000 Cr</td>
+                            <td class="highlight-cell">Rs 8,500 Cr</td>
+                        </tr>
+                        <tr>
+                            <td>Revenue</td>
+                            <td>Rs 162 Cr</td>
+                            <td>Rs 430 Cr</td>
+                            <td class="highlight-cell">Rs 905 Cr</td>
+                        </tr>
+                        <tr>
+                            <td>PPOP (EBITDA)</td>
+                            <td>Rs 36 Cr</td>
+                            <td>Rs 145 Cr</td>
+                            <td class="highlight-cell">Rs 351 Cr</td>
+                        </tr>
+                        <tr>
+                            <td>PAT</td>
+                            <td>Rs 23 Cr</td>
+                            <td>Rs 99 Cr</td>
+                            <td class="highlight-cell">Rs 241 Cr</td>
+                        </tr>
+                        <tr>
+                            <td>NPA Rate</td>
+                            <td>&lt;0.5%</td>
+                            <td>&lt;0.4%</td>
+                            <td class="highlight-cell">&lt;0.3%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Slide 23: Why Now -->
+        <div class="slide slide-content" data-slide="23">
+            <div class="content-wrapper">
+                <h2>Why Act Now?</h2>
+                <div class="cards-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="card" style="border-top: 4px solid var(--kotak-red);">
+                        <div class="card-icon">&#9888;</div>
+                        <h3>Regulatory Disruption</h3>
+                        <p>IIFL ban displaced 1.9M customers. Industry uncertainty creating switching momentum.</p>
+                    </div>
+                    <div class="card" style="border-top: 4px solid var(--gold);">
+                        <div class="card-icon">&#128200;</div>
+                        <h3>Market Growth</h3>
+                        <p>14.85% CAGR, only 5.6% gold monetized. Massive untapped opportunity.</p>
+                    </div>
+                    <div class="card" style="border-top: 4px solid var(--success);">
+                        <div class="card-icon">&#127942;</div>
+                        <h3>First-Mover Advantage</h3>
+                        <p>Banks with strong compliance can capture trust-seeking customers now.</p>
+                    </div>
+                </div>
+                <div class="quote-block" style="margin-top: 40px;">
+                    "The window for capturing market share is time-bound. Early movers will establish lasting relationships."
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 24: Call to Action -->
+        <div class="slide slide-cta" data-slide="24">
+            <h2 style="font-size: 2.5rem; margin-bottom: 40px;">Immediate Approvals Required</h2>
+            <ul class="cta-list">
+                <li>
+                    <span class="cta-number">1</span>
+                    <span><strong>Investment Approval:</strong> Rs 53 Cr for Year 1</span>
+                </li>
+                <li>
+                    <span class="cta-number">2</span>
+                    <span><strong>Product Launch:</strong> "Switch & Save" by Q1 2025</span>
+                </li>
+                <li>
+                    <span class="cta-number">3</span>
+                    <span><strong>AI Development:</strong> Initiate CV + Predictive Model</span>
+                </li>
+                <li>
+                    <span class="cta-number">4</span>
+                    <span><strong>Marketing Campaign:</strong> Launch by Q2 2025</span>
+                </li>
+                <li>
+                    <span class="cta-number">5</span>
+                    <span><strong>Doorstep Pilot:</strong> 5-city pilot authorization</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Slide 25: Thank You -->
+        <div class="slide slide-title" data-slide="25">
+            <div class="gold-icon">&#128170;</div>
+            <h1>Thank You</h1>
+            <p class="subtitle">Ready to capture the Rs 7.1 Lakh Crore opportunity</p>
+            <div style="margin-top: 60px; display: flex; gap: 40px; justify-content: center;">
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 700;">Rs 53 Cr</div>
+                    <div style="opacity: 0.7;">Investment</div>
+                </div>
+                <div style="font-size: 3rem;">&#10132;</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 700;">Rs 363 Cr</div>
+                    <div style="opacity: 0.7;">3-Year PAT</div>
+                </div>
+                <div style="font-size: 3rem;">&#10132;</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 700;">2.45x ROI</div>
+                    <div style="opacity: 0.7;">Return</div>
+                </div>
+            </div>
+            <p class="date" style="margin-top: 60px;">Questions & Discussion</p>
+        </div>
+
+    </div>
+
+    <div class="nav-controls">
+        <button class="nav-btn" onclick="prevSlide()">&#8592;</button>
+        <button class="nav-btn" onclick="nextSlide()">&#8594;</button>
+    </div>
+
+    <div class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">25</span>
+    </div>
+
+    <div class="keyboard-hint">
+        Use arrow keys or click to navigate | Press F for fullscreen
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 25;
+        let chartsInitialized = false;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+
+            if (n > totalSlides) currentSlide = 1;
+            if (n < 1) currentSlide = totalSlides;
+
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active', 'exit');
+                if (index + 1 === currentSlide) {
+                    slide.classList.add('active');
+                } else if (index + 1 < currentSlide) {
+                    slide.classList.add('exit');
+                }
+            });
+
+            document.getElementById('currentSlide').textContent = currentSlide;
+            document.getElementById('progressBar').style.width = ((currentSlide / totalSlides) * 100) + '%';
+
+            // Initialize charts when their slides are shown
+            if (!chartsInitialized && currentSlide >= 4) {
+                initCharts();
+                chartsInitialized = true;
+            }
+        }
+
+        function nextSlide() {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+
+        function prevSlide() {
+            currentSlide--;
+            showSlide(currentSlide);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            }
+        });
+
+        // Click navigation
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.nav-btn') && !e.target.closest('.fullscreen-btn')) {
+                const x = e.clientX;
+                if (x > window.innerWidth / 2) {
+                    nextSlide();
+                } else {
+                    prevSlide();
+                }
+            }
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Initialize Charts
+        function initCharts() {
+            // Market Growth Chart
+            const marketCtx = document.getElementById('marketGrowthChart');
+            if (marketCtx) {
+                new Chart(marketCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['2022', '2023', '2024', '2025E', '2026E', '2027E', '2028E'],
+                        datasets: [{
+                            label: 'Market Size (Rs Lakh Cr)',
+                            data: [4.8, 5.6, 7.1, 8.2, 9.5, 11.0, 14.2],
+                            backgroundColor: 'rgba(227, 24, 55, 0.8)',
+                            borderColor: '#E31837',
+                            borderWidth: 2,
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Age Distribution Chart
+            const ageCtx = document.getElementById('ageChart');
+            if (ageCtx) {
+                new Chart(ageCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['31-40 years', '41-50 years', '21-30 years', '50+ years'],
+                        datasets: [{
+                            data: [43, 37, 15, 5],
+                            backgroundColor: ['#E31837', '#FFD700', '#00C853', '#9c27b0'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: 'rgba(255,255,255,0.8)', padding: 15 }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Geographic Chart
+            const geoCtx = document.getElementById('geoChart');
+            if (geoCtx) {
+                new Chart(geoCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['South India', 'West India', 'North India', 'East India'],
+                        datasets: [{
+                            data: [80, 10, 7, 3],
+                            backgroundColor: ['#E31837', '#FFD700', '#00C853', '#00bcd4'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: 'rgba(255,255,255,0.8)', padding: 15 }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Investment Allocation Chart
+            const investCtx = document.getElementById('investmentChart');
+            if (investCtx) {
+                new Chart(investCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['AI/Tech (Rs 14.5 Cr)', 'Marketing (Rs 15 Cr)', 'Compliance (Rs 10 Cr)', 'Doorstep (Rs 5 Cr)', 'Training (Rs 5 Cr)', 'Buffer (Rs 3.5 Cr)'],
+                        datasets: [{
+                            data: [14.5, 15, 10, 5, 5, 3.5],
+                            backgroundColor: ['#E31837', '#FFD700', '#00C853', '#00bcd4', '#9c27b0', '#666'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: 'rgba(255,255,255,0.8)', padding: 10, font: { size: 11 } }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Revenue & PAT Chart
+            const revCtx = document.getElementById('revenueChart');
+            if (revCtx) {
+                new Chart(revCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Year 1', 'Year 2', 'Year 3'],
+                        datasets: [
+                            {
+                                label: 'Revenue (Rs Cr)',
+                                data: [162, 430, 905],
+                                backgroundColor: 'rgba(227, 24, 55, 0.8)',
+                                borderRadius: 5
+                            },
+                            {
+                                label: 'EBITDA (Rs Cr)',
+                                data: [36, 145, 351],
+                                backgroundColor: 'rgba(255, 215, 0, 0.8)',
+                                borderRadius: 5
+                            },
+                            {
+                                label: 'PAT (Rs Cr)',
+                                data: [23, 99, 241],
+                                backgroundColor: 'rgba(0, 200, 83, 0.8)',
+                                borderRadius: 5
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: 'rgba(255,255,255,0.8)', padding: 20 }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Context Chart
+            const contextCtx = document.getElementById('contextChart');
+            if (contextCtx) {
+                new Chart(contextCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Our Ask (Y1)', 'Sonata Acquisition', 'Digital Investment (2yr)', 'Annual ICT Spend', 'Quarterly PAT'],
+                        datasets: [{
+                            label: 'Amount (Rs Cr)',
+                            data: [53, 537, 1000, 1650, 3305],
+                            backgroundColor: ['#00C853', '#FFD700', '#E31837', '#E31837', '#E31837'],
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: 'rgba(255,255,255,0.7)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Initialize
+        document.getElementById('totalSlides').textContent = totalSlides;
+        showSlide(currentSlide);
+
+        // Initialize charts after a short delay
+        setTimeout(initCharts, 500);
+    </script>
+</body>
+</html>

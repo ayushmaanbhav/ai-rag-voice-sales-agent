@@ -1,0 +1,281 @@
+% ============================================
+% SECTION 9: DOORSTEP PILOT
+% ============================================
+\section{Doorstep Pilot}
+
+% --------------------------------------------
+% Slide 46: Doorstep Opportunity
+% --------------------------------------------
+\begin{frame}{Doorstep Gold Loans: The Convenience Frontier}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Why Doorstep Matters}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item 30\% cite ``branch visits'' as pain point
+                \item Working professionals can't visit during hours
+                \item Women prefer home-based transactions
+                \item Premium service perception
+            \end{itemize}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Regulatory Status}
+            \scriptsize
+            \textbf{\cmark~ALLOWED} with restrictions:
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Gold must reach vault same day
+                \item Bank staff or authorized BC
+                \item Customer presence mandatory
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}
+                \node[draw=kotakgreen, fill=green!10, rounded corners=8pt, minimum width=4.5cm, minimum height=2.5cm, align=center] at (0,0.8) {
+                    \fontsize{24}{28}\selectfont\faHome\\[0.15cm]
+                    \textbf{Doorstep Model}\\[0.05cm]
+                    \scriptsize Gold collected at home\\
+                    Professional appraisal\\
+                    Same-day disbursement
+                };
+            \end{tikzpicture}
+        \end{center}
+        \vspace{-0.1cm}
+        \begin{alertblock}{Competitors Active}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item Rupeek: 500K+ customers, 30-min
+                \item Indiagold: 12 cities, locker services
+                \item Federal Bank: Rupeek partnership
+            \end{itemize}
+        \end{alertblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 47: Doorstep Economics
+% --------------------------------------------
+\begin{frame}{Doorstep Economics: Per-Transaction Breakdown}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \textbf{Cost Structure}~~{\small\textcolor{kotakred}{Total: Rs 850}}
+            \vspace{0.05cm}
+
+            \begin{tikzpicture}
+                \begin{axis}[
+                    ybar stacked,
+                    width=6cm,
+                    height=4.2cm,
+                    bar width=1.3cm,
+                    ymin=0,
+                    ymax=950,
+                    ylabel={Cost (Rs)},
+                    xtick={1},
+                    xticklabels={Doorstep},
+                    nodes near coords,
+                    nodes near coords style={font=\tiny, anchor=south},
+                    axis lines=left,
+                    ylabel style={font=\scriptsize},
+                    tick label style={font=\scriptsize},
+                    legend style={at={(1.05,0.5)}, anchor=west, font=\tiny, legend columns=1}
+                ]
+                    \addplot[fill=kotakred!70] coordinates {(1,400)};
+                    \addplot[fill=kotakblue!70] coordinates {(1,200)};
+                    \addplot[fill=kotakgold!70] coordinates {(1,100)};
+                    \addplot[fill=kotakgreen!70] coordinates {(1,50)};
+                    \addplot[fill=kotakgray!70] coordinates {(1,100)};
+                    \legend{Field Exec, Vehicle, XRF, Insurance, Tech}
+                \end{axis}
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Cost Components}
+            \scriptsize
+            \begin{tabular}{lr}
+                \toprule
+                \textbf{Component} & \textbf{Cost (Rs)} \\
+                \midrule
+                Field Executive & 400 \\
+                Vehicle + Fuel & 200 \\
+                XRF Device (amort.) & 100 \\
+                Transit Insurance & 50 \\
+                Technology/App & 100 \\
+                \midrule
+                \rowcolor{red!10} \textbf{Total} & \textbf{850} \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{alertblock}{Key Insight}
+            \scriptsize
+            Rs 850 fixed cost regardless of loan size\\
+            $\rightarrow$ Only viable for larger tickets
+        \end{alertblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 48: Viability Matrix
+% --------------------------------------------
+\begin{frame}{Doorstep Viability: When It Makes Sense}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape]
+        % Traffic light matrix
+        \node[draw=kotakdarkred, fill=red!20, rounded corners=8pt, minimum width=2.8cm, minimum height=2cm, align=center] at (-4.5,1.5) {
+            \fontsize{20}{24}\selectfont\faTimesCircle\\[0.1cm]
+            \textbf{Rs 25,000}\\
+            \footnotesize 3.4\% of loan\\
+            \tiny NOT VIABLE
+        };
+
+        \node[draw=kotakorange, fill=orange!20, rounded corners=8pt, minimum width=2.8cm, minimum height=2cm, align=center] at (-1.5,1.5) {
+            \fontsize{20}{24}\selectfont\faExclamationCircle\\[0.1cm]
+            \textbf{Rs 50,000}\\
+            \footnotesize 1.7\% of loan\\
+            \tiny MARGINAL
+        };
+
+        \node[draw=kotakgreen, fill=green!20, rounded corners=8pt, minimum width=2.8cm, minimum height=2cm, align=center] at (1.5,1.5) {
+            \fontsize{20}{24}\selectfont\faCheckCircle\\[0.1cm]
+            \textbf{Rs 1,00,000}\\
+            \footnotesize 0.85\% of loan\\
+            \tiny VIABLE
+        };
+
+        \node[draw=kotakgreen!80, fill=green!30, rounded corners=8pt, minimum width=2.8cm, minimum height=2cm, align=center] at (4.5,1.5) {
+            \fontsize{20}{24}\selectfont\faCheckDouble\\[0.1cm]
+            \textbf{Rs 2,00,000+}\\
+            \footnotesize 0.4\% of loan\\
+            \tiny HIGHLY VIABLE
+        };
+
+        % Decision box
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=8pt, minimum width=12cm, align=center, font=\small] at (0,-1.2) {
+            \textbf{Pilot Decision:} Doorstep for Rs 50,000+ loans only\\
+            Below threshold $\rightarrow$ Incentivize branch/digital channels
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 49: Pilot Cities
+% --------------------------------------------
+\begin{frame}{5-City Doorstep Pilot Plan}
+\vspace{-0.2cm}
+\begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[scale=0.8]
+                % Simplified India map shape
+                \draw[kotakblue, thick, fill=kotakblue!10] (0,0) -- (1,2) -- (2,3) -- (3,3.5) -- (4,3) -- (5,2.5) -- (5.5,1) -- (5,0) -- (4,-1) -- (3,-1.5) -- (2,-1) -- (1,-0.5) -- cycle;
+
+                % City markers
+                \fill[kotakred] (2,1.5) circle (0.2); % Mumbai
+                \node[font=\tiny, right] at (2.2,1.5) {Mumbai};
+
+                \fill[kotakred] (3,-0.5) circle (0.2); % Chennai
+                \node[font=\tiny, right] at (3.2,-0.5) {Chennai};
+
+                \fill[kotakred] (3.5,0.5) circle (0.2); % Hyderabad
+                \node[font=\tiny, right] at (3.7,0.5) {Hyderabad};
+
+                \fill[kotakred] (2.5,1) circle (0.2); % Pune
+                \node[font=\tiny, left] at (2.3,1) {Pune};
+
+                \fill[kotakred] (4,0) circle (0.2); % Bangalore
+                \node[font=\tiny, right] at (4.2,0) {Bangalore};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+        \begin{block}{Pilot Parameters}
+            \footnotesize
+            \begin{tabular}{ll}
+                \toprule
+                \textbf{Parameter} & \textbf{Value} \\
+                \midrule
+                Duration & 6 months \\
+                Target & 500 loans \\
+                Min ticket & Rs 50,000 \\
+                Cities & 5 (Tier 1) \\
+                \bottomrule
+            \end{tabular}
+        \end{block}
+
+        \vspace{0.1cm}
+
+        \begin{exampleblock}{City Selection Logic}
+            \footnotesize
+            \begin{itemize}
+                \item Mumbai: Kotak HQ, high ATV
+                \item Chennai: Gold loan hub
+                \item Hyderabad: Growing market
+                \item Pune: Tech professionals
+                \item Bangalore: Young affluent
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 50: Success Metrics
+% --------------------------------------------
+\begin{frame}{Doorstep Pilot: Success Metrics}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        metric/.style={draw=kotakblue, fill=white, rounded corners=8pt, minimum width=3.5cm, minimum height=2.3cm, align=center, font=\small}
+    ]
+        % Metrics
+        \node[metric] at (-4.5,1.5) {
+            \faMoneyBillWave\\[0.2cm]
+            \textbf{CAC}\\
+            Target: <Rs 10,000\\
+            \tiny per customer
+        };
+
+        \node[metric] at (0,1.5) {
+            \faSmile\\[0.2cm]
+            \textbf{NPS}\\
+            Target: 4+/5\\
+            \tiny customer satisfaction
+        };
+
+        \node[metric] at (4.5,1.5) {
+            \faPercentage\\[0.2cm]
+            \textbf{Conversion}\\
+            Target: 60\%+\\
+            \tiny of leads
+        };
+
+        \node[metric] at (-2.25,-1.5) {
+            \faClock\\[0.2cm]
+            \textbf{TAT}\\
+            Target: 4 hours\\
+            \tiny end-to-end
+        };
+
+        \node[metric] at (2.25,-1.5) {
+            \faChartLine\\[0.2cm]
+            \textbf{ATV}\\
+            Target: Rs 1.5L+\\
+            \tiny average ticket
+        };
+
+        % Scale criteria
+        \node[draw=kotakgreen, fill=green!10, rounded corners=5pt, minimum width=12cm, font=\small, align=center] at (0,-4) {
+            \textbf{Scale Criteria:} Hit 4/5 metrics $\rightarrow$ Expand to 15 cities in Phase 2
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

@@ -1,0 +1,34 @@
+[package]
+name = "voice-agent-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Conversational agent framework with stage-based dialog management"
+
+[dependencies]
+voice-agent-core.workspace = true
+voice-agent-config.workspace = true
+voice-agent-pipeline.workspace = true
+voice-agent-rag.workspace = true
+voice-agent-llm.workspace = true
+voice-agent-tools.workspace = true
+
+# Async
+tokio = { workspace = true, features = ["sync", "time"] }
+tokio-stream.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Utilities
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

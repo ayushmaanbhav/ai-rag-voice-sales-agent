@@ -1,0 +1,33 @@
+[package]
+name = "voice-agent-tools"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "MCP tool interface and gold loan tools"
+
+[dependencies]
+voice-agent-core.workspace = true
+voice-agent-config.workspace = true
+
+# Async
+tokio = { workspace = true, features = ["sync", "time"] }
+async-trait.workspace = true
+futures.workspace = true
+
+# HTTP client
+reqwest = { workspace = true, features = ["json"] }
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Utilities
+thiserror.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

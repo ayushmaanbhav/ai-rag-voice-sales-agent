@@ -1,0 +1,261 @@
+% ============================================
+% SECTION 8: AI-POWERED ACQUISITION
+% ============================================
+\section{AI-Powered Acquisition}
+
+% --------------------------------------------
+% Slide 41: AI Strategy Overview
+% --------------------------------------------
+\begin{frame}{AI Strategy: Three Pillars}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        pillar/.style={draw=kotakblue, fill=white, rounded corners=10pt, minimum width=3.8cm, minimum height=3.5cm, align=center, drop shadow}
+    ]
+        % Three pillars
+        \node[pillar] (p1) at (-4.5,0) {
+            \fontsize{28}{32}\selectfont\faCamera\\[0.3cm]
+            \textbf{Computer Vision}\\[0.1cm]
+            \footnotesize Instant Gold\\Appraisal\\[0.2cm]
+            \tiny XRF + AI valuation\\
+            30-sec assessment
+        };
+
+        \node[pillar] (p2) at (0,0) {
+            \fontsize{28}{32}\selectfont\faRobot\\[0.3cm]
+            \textbf{Predictive Model}\\[0.1cm]
+            \footnotesize Customer\\Propensity\\[0.2cm]
+            \tiny ML scoring\\
+            Intent prediction
+        };
+
+        \node[pillar] (p3) at (4.5,0) {
+            \fontsize{28}{32}\selectfont\faBullseye\\[0.3cm]
+            \textbf{Personalization}\\[0.1cm]
+            \footnotesize Dynamic\\Offers\\[0.2cm]
+            \tiny Right message\\
+            Right time
+        };
+
+        % Foundation
+        \node[draw=kotakgold, fill=kotakgold!20, rounded corners=5pt, minimum width=13cm, minimum height=0.8cm, font=\small\bfseries] at (0,-3) {
+            DATA FOUNDATION: Kotak 53M customers + Transaction patterns + Credit bureau
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 42: Computer Vision Appraisal
+% --------------------------------------------
+\begin{frame}{AI Appraisal: From Hours to Seconds}
+\vspace{-0.3cm}
+\begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \begin{center}
+            \begin{tikzpicture}[
+                step/.style={draw=kotakblue!50, fill=white, rounded corners=3pt, minimum width=4.2cm, align=center, font=\scriptsize}
+            ]
+                \node[font=\small\bfseries, text=kotakred] at (0,3.5) {AI APPRAISAL FLOW};
+
+                \node[step] at (0,2.7) {\faCamera~Customer captures gold image};
+                \node[step] at (0,1.95) {\faRobot~AI analyzes purity markers};
+                \node[step] at (0,1.2) {\faBalanceScale~Weight estimation via scale};
+                \node[step] at (0,0.45) {\faCalculator~Instant valuation generated};
+                \node[step, draw=kotakgreen, fill=green!10] at (0,-0.3) {\faCheckCircle~Pre-approval in 30 seconds};
+            \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \begin{block}{Technology Stack}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item \textbf{XRF Spectroscopy}: Purity analysis
+                \item \textbf{Computer Vision}: Pattern recognition
+                \item \textbf{ML Models}: 95\%+ accuracy
+                \item \textbf{Mobile App}: Customer self-service
+            \end{itemize}
+        \end{block}
+        \vspace{-0.1cm}
+        \begin{exampleblock}{Benefits}
+            \scriptsize
+            \begin{itemize}\setlength{\itemsep}{0pt}
+                \item 30-second pre-approval
+                \item Reduced branch dependency
+                \item Consistent valuation
+                \item Fraud detection capability
+            \end{itemize}
+        \end{exampleblock}
+    \end{column}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 43: Predictive Model
+% --------------------------------------------
+\begin{frame}{Predictive Acquisition Model}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        input/.style={draw=kotakblue!50, fill=kotakblue!10, rounded corners=3pt, minimum width=2.2cm, minimum height=0.7cm, align=center, font=\tiny},
+        model/.style={draw=kotakred, fill=kotakred, text=white, rounded corners=10pt, minimum width=3cm, minimum height=2.2cm, align=center, font=\small},
+        output/.style={draw=kotakgreen!50, fill=green!10, rounded corners=3pt, minimum width=2.5cm, minimum height=0.7cm, align=center, font=\tiny}
+    ]
+        % Input signals
+        \node[input] (i1) at (-5,2) {Transaction\\Patterns};
+        \node[input] (i2) at (-5,1) {NBFC\\Payments};
+        \node[input] (i3) at (-5,0) {Credit\\Score};
+        \node[input] (i4) at (-5,-1) {Demographics};
+        \node[input] (i5) at (-5,-2) {Life\\Events};
+
+        % Model
+        \node[model] at (0,0) {\faRobot\\[0.2cm]\textbf{ML Model}\\Gradient Boosting\\+ Neural Net};
+
+        % Outputs
+        \node[output] (o1) at (5,2) {Conversion\\Probability: 73\%};
+        \node[output] (o2) at (5,1) {Best Offer:\\9.5\% + Cashback};
+        \node[output] (o3) at (5,0) {Channel:\\RM Outreach};
+        \node[output] (o4) at (5,-1) {Timing:\\Loan Renewal};
+        \node[output] (o5) at (5,-2) {Segment:\\P1 High-Value};
+
+        % Arrows
+        \foreach \i in {i1,i2,i3,i4,i5} {
+            \draw[-{Stealth}, kotakblue] (\i) -- (-1.5,0);
+        }
+        \foreach \o in {o1,o2,o3,o4,o5} {
+            \draw[-{Stealth}, kotakgreen] (1.5,0) -- (\o);
+        }
+    \end{tikzpicture}
+\end{center}
+
+\vspace{0.1cm}
+\begin{center}
+    \begin{tikzpicture}
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=5pt, font=\small] {
+            \textbf{Key Signal:} Recurring payments to Muthoot/Manappuram/IIFL = Active NBFC gold loan holder
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}
+
+% --------------------------------------------
+% Slide 44: Personalization Engine
+% --------------------------------------------
+\begin{frame}{Personalization Engine: Dynamic Offer Optimization}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        phase/.style={draw=kotakblue, fill=kotakblue!10, rounded corners=8pt, minimum width=3.5cm, minimum height=2.2cm, align=center, font=\scriptsize}
+    ]
+        % Three phases
+        \node[phase] (ph1) at (-4.5,0) {
+            \textbf{PHASE 1}\\[0.1cm]
+            \faDatabase~Data Collection\\[0.1cm]
+            \tiny Customer profile\\
+            Transaction history\\
+            Behavioral signals
+        };
+
+        \node[phase] (ph2) at (0,0) {
+            \textbf{PHASE 2}\\[0.1cm]
+            \faRobot~ML Processing\\[0.1cm]
+            \tiny Propensity scoring\\
+            Segment assignment\\
+            Offer optimization
+        };
+
+        \node[phase] (ph3) at (4.5,0) {
+            \textbf{PHASE 3}\\[0.1cm]
+            \faBullseye~Delivery\\[0.1cm]
+            \tiny Right channel\\
+            Right time\\
+            Personalized message
+        };
+
+        % Arrows
+        \draw[-{Stealth}, kotakgold, thick] (ph1) -- (ph2);
+        \draw[-{Stealth}, kotakgold, thick] (ph2) -- (ph3);
+
+        % Feedback loop
+        \draw[-{Stealth}, kotakgreen, dashed] (4.5,-1.5) to[bend right=30] node[below, font=\tiny] {Feedback Loop} (-4.5,-1.5);
+    \end{tikzpicture}
+\end{center}
+
+\vspace{0.1cm}
+
+\begin{columns}
+    \column{0.48\textwidth}
+    \begin{block}{Personalization Variables}
+        \footnotesize
+        \begin{itemize}
+            \item Interest rate (8.5-10.5\%)
+            \item Processing fee (0-0.5\%)
+            \item Cashback amount (Rs 0-5K)
+            \item Special benefits
+            \item Message tone
+        \end{itemize}
+    \end{block}
+
+    \column{0.48\textwidth}
+    \begin{exampleblock}{Expected Lift}
+        \footnotesize
+        \begin{itemize}
+            \item Conversion: +35-50\%
+            \item Response rate: +40\%
+            \item CAC reduction: 20-30\%
+            \item Customer satisfaction: +25\%
+        \end{itemize}
+    \end{exampleblock}
+\end{columns}
+\end{frame}
+
+% --------------------------------------------
+% Slide 45: Global Tech Benchmarks
+% --------------------------------------------
+\begin{frame}{Global Innovation Benchmarks}
+\vspace{-0.2cm}
+\begin{center}
+    \begin{tikzpicture}[scale=0.85, transform shape,
+        company/.style={draw=kotakblue!50, fill=white, rounded corners=5pt, minimum width=3.2cm, minimum height=2.3cm, align=center, font=\scriptsize}
+    ]
+        % Companies
+        \node[company] at (-5,1.5) {
+            \faGlobeAsia~\textbf{Pegadaian}\\
+            \tiny Indonesia\\[0.1cm]
+            \footnotesize Cloud + Mobile\\
+            Digital-first approach\\
+            40M customers
+        };
+
+        \node[company] at (-1.5,1.5) {
+            \faGlobeAsia~\textbf{GoldPe}\\
+            \tiny India\\[0.1cm]
+            \footnotesize APM Technology\\
+            Atomic valuation\\
+            Instant pricing
+        };
+
+        \node[company] at (2,1.5) {
+            \faGlobeAsia~\textbf{PawnHero}\\
+            \tiny Philippines\\[0.1cm]
+            \footnotesize Online pawnshop\\
+            2.99\% monthly rate\\
+            100\% digital
+        };
+
+        \node[company] at (5.5,1.5) {
+            \faGlobeAsia~\textbf{Muthoot}\\
+            \tiny India\\[0.1cm]
+            \footnotesize Loan@Home\\
+            Doorstep service\\
+            Video KYC
+        };
+
+        % Key learnings
+        \node[draw=kotakgold, fill=kotakgold!10, rounded corners=8pt, minimum width=13cm, align=center, font=\small] at (0,-1.5) {
+            \textbf{Key Insights:}\\
+            \scriptsize 21\% global digital transactions | Cloud transformation critical | Mobile-first wins | AI valuation is the future
+        };
+    \end{tikzpicture}
+\end{center}
+\end{frame}

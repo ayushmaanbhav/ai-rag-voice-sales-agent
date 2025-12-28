@@ -1,0 +1,11 @@
+Deep dive case study on IIFL Finance gold loan crisis 2024. Cover:
+1. Timeline of events from RBI inspection to ban and lifting
+2. Specific violations identified by RBI
+3. LTV breaches and their magnitude
+4. Operational and governance failures
+5. Stock price and financial impact
+6. Remediation measures implemented
+7. Management response and organizational changes
+8. Lessons for the industry
+9. Comparison with similar regulatory actions
+Search for RBI orders, company filings, analyst reports, and news coverage.

@@ -1,0 +1,45 @@
+[package]
+name = "voice-agent-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "WebSocket and HTTP server for voice agent"
+
+[[bin]]
+name = "voice-agent"
+path = "src/main.rs"
+
+[dependencies]
+voice-agent-core.workspace = true
+voice-agent-config.workspace = true
+voice-agent-pipeline.workspace = true
+voice-agent-rag.workspace = true
+voice-agent-llm.workspace = true
+voice-agent-tools.workspace = true
+voice-agent-agent.workspace = true
+
+# Web framework
+axum = { workspace = true, features = ["ws", "macros"] }
+tower = { workspace = true, features = ["timeout", "limit"] }
+tower-http = { workspace = true, features = ["cors", "trace", "compression-gzip"] }
+
+# Async
+tokio = { workspace = true, features = ["full"] }
+tokio-stream.workspace = true
+futures.workspace = true
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+# Utilities
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+parking_lot.workspace = true
+uuid = { version = "1.6", features = ["v4", "serde"] }
+base64 = "0.21"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
