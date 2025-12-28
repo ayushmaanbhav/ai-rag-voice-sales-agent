@@ -6,6 +6,8 @@
 //! - Hybrid fusion with RRF
 //! - Early-exit cross-encoder reranking
 //! - Candle BERT embeddings (native Rust inference)
+//! - FP16/BF16 quantization for reduced memory and faster inference
+//! - LRU embedding cache for repeated queries
 
 pub mod embeddings;
 pub mod vector_store;
@@ -13,9 +15,14 @@ pub mod sparse_search;
 pub mod reranker;
 pub mod retriever;
 pub mod candle_embeddings;
+pub mod cache;
 
 pub use embeddings::{Embedder, EmbeddingConfig, SimpleEmbedder};
-pub use candle_embeddings::{CandleBertEmbedder, CandleEmbeddingConfig, PoolingStrategy, UnifiedEmbedder};
+pub use candle_embeddings::{
+    CandleBertEmbedder, CandleEmbeddingConfig, PoolingStrategy,
+    UnifiedEmbedder, QuantizationMode,
+};
+pub use cache::{EmbeddingCache, CachedEmbedder, CacheStats};
 pub use vector_store::{VectorStore, VectorStoreConfig};
 pub use sparse_search::{SparseIndex, SparseConfig};
 pub use reranker::{EarlyExitReranker, RerankerConfig, ExitStrategy};

@@ -31,7 +31,7 @@ pub mod mel;
 pub mod indicf5;
 
 // Re-export main types
-pub use config::{IndicF5Config, VocosConfig, FlowMatchingConfig};
+pub use config::{IndicF5Config, VocosConfig, FlowMatchingConfig, TtsQuantization};
 pub use modules::*;
 
 #[cfg(feature = "candle")]

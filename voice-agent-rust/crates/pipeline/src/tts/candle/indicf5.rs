@@ -72,10 +72,19 @@ impl IndicF5Model {
         config: IndicF5Config,
         device: Device,
     ) -> Result<Self> {
-        // Load SafeTensors weights
+        // Get dtype from quantization config
+        let dtype = config.quantization.to_dtype();
+
+        // Load SafeTensors weights with specified dtype
         let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], DType::F32, &device)?
+            VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], dtype, &device)?
         };
+
+        tracing::info!(
+            "Loading IndicF5 model with {:?} quantization (est. memory: {} MB)",
+            config.quantization,
+            config.estimated_memory() / 1024 / 1024
+        );
 
         // Load backbone
         let backbone = DiTBackbone::load(config.clone(), vb.pp("backbone"))?;

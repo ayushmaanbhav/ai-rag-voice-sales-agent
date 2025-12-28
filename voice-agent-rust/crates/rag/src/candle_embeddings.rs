@@ -24,6 +24,49 @@ use std::path::Path;
 
 use crate::RagError;
 
+/// Quantization mode for inference
+#[derive(Debug, Clone, Copy, Default)]
+pub enum QuantizationMode {
+    /// Full precision (FP32) - most accurate, slowest
+    #[default]
+    F32,
+    /// Half precision (FP16) - 2x faster, minimal quality loss
+    F16,
+    /// Brain float (BF16) - good for training, slightly less accurate than F16
+    BF16,
+}
+
+impl QuantizationMode {
+    /// Get the Candle DType for this quantization mode
+    #[cfg(feature = "candle")]
+    pub fn to_dtype(&self) -> DType {
+        match self {
+            QuantizationMode::F32 => DType::F32,
+            QuantizationMode::F16 => DType::F16,
+            QuantizationMode::BF16 => DType::BF16,
+        }
+    }
+
+    /// Memory reduction factor compared to F32
+    pub fn memory_factor(&self) -> f32 {
+        match self {
+            QuantizationMode::F32 => 1.0,
+            QuantizationMode::F16 | QuantizationMode::BF16 => 0.5,
+        }
+    }
+
+    /// Approximate speedup factor on CPU (varies by hardware)
+    pub fn cpu_speedup(&self) -> f32 {
+        match self {
+            QuantizationMode::F32 => 1.0,
+            // FP16 on CPU can be slower due to lack of native support
+            // But memory bandwidth reduction can help
+            QuantizationMode::F16 => 1.2,
+            QuantizationMode::BF16 => 1.1,
+        }
+    }
+}
+
 /// Configuration for Candle BERT embedder
 #[derive(Debug, Clone)]
 pub struct CandleEmbeddingConfig {
@@ -39,6 +82,8 @@ pub struct CandleEmbeddingConfig {
     pub pooling: PoolingStrategy,
     /// Device to run on
     pub device: DeviceConfig,
+    /// Quantization mode for weights and activations
+    pub quantization: QuantizationMode,
 }
 
 /// Pooling strategy for sentence embeddings
@@ -73,6 +118,7 @@ impl Default for CandleEmbeddingConfig {
             batch_size: 32,
             pooling: PoolingStrategy::Mean,
             device: DeviceConfig::Cpu,
+            quantization: QuantizationMode::F32,
         }
     }
 }
@@ -87,6 +133,20 @@ impl CandleEmbeddingConfig {
             batch_size: 32,
             pooling: PoolingStrategy::Mean,
             device: DeviceConfig::Cpu,
+            quantization: QuantizationMode::F32,
+        }
+    }
+
+    /// Configuration for multilingual-e5-small with FP16 quantization
+    pub fn e5_small_fp16() -> Self {
+        Self {
+            embedding_dim: 384,
+            max_seq_len: 512,
+            normalize: true,
+            batch_size: 32,
+            pooling: PoolingStrategy::Mean,
+            device: DeviceConfig::Cpu,
+            quantization: QuantizationMode::F16,
         }
     }
 
@@ -99,7 +159,33 @@ impl CandleEmbeddingConfig {
             batch_size: 16,
             pooling: PoolingStrategy::Mean,
             device: DeviceConfig::Cpu,
+            quantization: QuantizationMode::F32,
         }
+    }
+
+    /// Configuration for mBERT with FP16 quantization
+    pub fn mbert_fp16() -> Self {
+        Self {
+            embedding_dim: 768,
+            max_seq_len: 512,
+            normalize: true,
+            batch_size: 16,
+            pooling: PoolingStrategy::Mean,
+            device: DeviceConfig::Cpu,
+            quantization: QuantizationMode::F16,
+        }
+    }
+
+    /// Enable FP16 quantization on this config
+    pub fn with_fp16(mut self) -> Self {
+        self.quantization = QuantizationMode::F16;
+        self
+    }
+
+    /// Enable BF16 quantization on this config
+    pub fn with_bf16(mut self) -> Self {
+        self.quantization = QuantizationMode::BF16;
+        self
     }
 }
 
@@ -131,15 +217,18 @@ impl CandleBertEmbedder {
                 .map_err(|e| RagError::Model(format!("Failed to create Metal device: {}", e)))?,
         };
 
+        // Get dtype from quantization config
+        let dtype = embed_config.quantization.to_dtype();
+
         // Load BERT config
         let config_data = std::fs::read_to_string(config_path.as_ref())
             .map_err(|e| RagError::Model(format!("Failed to read config: {}", e)))?;
         let bert_config: BertConfig = serde_json::from_str(&config_data)
             .map_err(|e| RagError::Model(format!("Failed to parse config: {}", e)))?;
 
-        // Load model weights
+        // Load model weights with specified dtype
         let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], DType::F32, &device)
+            VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], dtype, &device)
                 .map_err(|e| RagError::Model(format!("Failed to load weights: {}", e)))?
         };
 
@@ -149,6 +238,12 @@ impl CandleBertEmbedder {
         // Load tokenizer
         let tokenizer = Tokenizer::from_file(tokenizer_path.as_ref())
             .map_err(|e| RagError::Model(format!("Failed to load tokenizer: {}", e)))?;
+
+        tracing::info!(
+            "Loaded BERT embedder with {:?} quantization (memory reduction: {:.0}%)",
+            embed_config.quantization,
+            (1.0 - embed_config.quantization.memory_factor()) * 100.0
+        );
 
         Ok(Self {
             model,
@@ -173,6 +268,9 @@ impl CandleBertEmbedder {
                 .map_err(|e| RagError::Model(format!("Failed to create Metal device: {}", e)))?,
         };
 
+        // Get dtype from quantization config
+        let dtype = embed_config.quantization.to_dtype();
+
         let api = Api::new().map_err(|e| RagError::Model(e.to_string()))?;
         let repo = api.repo(Repo::new(repo_id.to_string(), RepoType::Model));
 
@@ -190,9 +288,9 @@ impl CandleBertEmbedder {
         let bert_config: BertConfig = serde_json::from_str(&config_data)
             .map_err(|e| RagError::Model(format!("Failed to parse config: {}", e)))?;
 
-        // Load model
+        // Load model with specified dtype
         let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[weights_path.as_path()], DType::F32, &device)
+            VarBuilder::from_mmaped_safetensors(&[weights_path.as_path()], dtype, &device)
                 .map_err(|e| RagError::Model(format!("Failed to load weights: {}", e)))?
         };
 
@@ -202,6 +300,11 @@ impl CandleBertEmbedder {
         // Load tokenizer
         let tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| RagError::Model(format!("Failed to load tokenizer: {}", e)))?;
+
+        tracing::info!(
+            "Loaded BERT embedder from hub with {:?} quantization",
+            embed_config.quantization
+        );
 
         Ok(Self {
             model,

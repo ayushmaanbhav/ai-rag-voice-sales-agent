@@ -2,6 +2,38 @@
 //!
 //! Defines hyperparameters for the F5-TTS architecture.
 
+/// Quantization mode for TTS inference
+#[derive(Debug, Clone, Copy, Default)]
+pub enum TtsQuantization {
+    /// Full precision (FP32) - most accurate
+    #[default]
+    F32,
+    /// Half precision (FP16) - 2x memory reduction, faster on some hardware
+    F16,
+    /// Brain float (BF16) - good balance of range and precision
+    BF16,
+}
+
+impl TtsQuantization {
+    /// Get the Candle DType for this quantization mode
+    #[cfg(feature = "candle")]
+    pub fn to_dtype(&self) -> candle_core::DType {
+        match self {
+            TtsQuantization::F32 => candle_core::DType::F32,
+            TtsQuantization::F16 => candle_core::DType::F16,
+            TtsQuantization::BF16 => candle_core::DType::BF16,
+        }
+    }
+
+    /// Memory reduction factor compared to F32
+    pub fn memory_factor(&self) -> f32 {
+        match self {
+            TtsQuantization::F32 => 1.0,
+            TtsQuantization::F16 | TtsQuantization::BF16 => 0.5,
+        }
+    }
+}
+
 /// Configuration for the IndicF5 TTS model
 #[derive(Debug, Clone)]
 pub struct IndicF5Config {
@@ -58,6 +90,9 @@ pub struct IndicF5Config {
 
     /// Audio segment length for training
     pub audio_segment_length: usize,
+
+    /// Quantization mode for inference
+    pub quantization: TtsQuantization,
 }
 
 impl Default for IndicF5Config {
@@ -82,6 +117,7 @@ impl Default for IndicF5Config {
             sample_rate: 24000,
             hop_length: 256,
             audio_segment_length: 24000 * 30,  // 30 seconds
+            quantization: TtsQuantization::F32,
         }
     }
 }
@@ -108,6 +144,7 @@ impl IndicF5Config {
             sample_rate: 24000,
             hop_length: 256,
             audio_segment_length: 24000 * 10,
+            quantization: TtsQuantization::F32,
         }
     }
 
@@ -132,7 +169,28 @@ impl IndicF5Config {
             sample_rate: 24000,
             hop_length: 256,
             audio_segment_length: 24000 * 30,
+            quantization: TtsQuantization::F32,
         }
+    }
+
+    /// Create configuration with FP16 quantization for faster inference
+    pub fn indicf5_hindi_fp16() -> Self {
+        Self {
+            quantization: TtsQuantization::F16,
+            ..Self::indicf5_hindi()
+        }
+    }
+
+    /// Enable FP16 quantization on this config
+    pub fn with_fp16(mut self) -> Self {
+        self.quantization = TtsQuantization::F16;
+        self
+    }
+
+    /// Enable BF16 quantization on this config
+    pub fn with_bf16(mut self) -> Self {
+        self.quantization = TtsQuantization::BF16;
+        self
     }
 
     /// Compute intermediate dimension for feedforward
@@ -143,6 +201,17 @@ impl IndicF5Config {
     /// Compute number of audio frames for given duration in seconds
     pub fn frames_for_duration(&self, duration_secs: f32) -> usize {
         ((duration_secs * self.sample_rate as f32) / self.hop_length as f32).ceil() as usize
+    }
+
+    /// Estimated model memory in bytes
+    pub fn estimated_memory(&self) -> usize {
+        // Rough estimate: params * bytes_per_param
+        let params = self.dim * self.dim * self.depth * 12; // Rough transformer param count
+        let bytes_per_param = match self.quantization {
+            TtsQuantization::F32 => 4,
+            TtsQuantization::F16 | TtsQuantization::BF16 => 2,
+        };
+        params * bytes_per_param
     }
 }
 
