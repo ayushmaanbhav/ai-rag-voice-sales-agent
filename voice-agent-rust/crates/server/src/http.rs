@@ -174,6 +174,16 @@ async fn call_tool(
                     voice_agent_tools::mcp::ContentBlock::Resource { uri, mime_type } => {
                         serde_json::json!({ "type": "resource", "uri": uri, "mime_type": mime_type })
                     }
+                    // P2 FIX: Handle Audio content block for voice responses
+                    voice_agent_tools::mcp::ContentBlock::Audio { data, mime_type, sample_rate, duration_ms } => {
+                        serde_json::json!({
+                            "type": "audio",
+                            "data": data,
+                            "mime_type": mime_type,
+                            "sample_rate": sample_rate,
+                            "duration_ms": duration_ms
+                        })
+                    }
                 })
                 .collect();
 

@@ -1,6 +1,8 @@
 //! Conversation types including stages and turns
 
+use std::collections::HashMap;
 use chrono::{DateTime, Utc};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 /// Conversation stages for sales flow
@@ -25,40 +27,27 @@ pub enum ConversationStage {
     Farewell,
 }
 
+/// P2 FIX: Static transition map using once_cell::Lazy for O(1) lookup.
+/// Previously, allowed_transitions() created a new Vec on every call.
+static STAGE_TRANSITIONS: Lazy<HashMap<ConversationStage, &'static [ConversationStage]>> = Lazy::new(|| {
+    use ConversationStage::*;
+    let mut map = HashMap::new();
+    map.insert(Greeting, &[Discovery, Farewell] as &[_]);
+    map.insert(Discovery, &[Qualification, Presentation, Farewell] as &[_]);
+    map.insert(Qualification, &[Presentation, Discovery, Farewell] as &[_]);
+    map.insert(Presentation, &[ObjectionHandling, Closing, Farewell] as &[_]);
+    map.insert(ObjectionHandling, &[Presentation, Closing, Farewell] as &[_]);
+    map.insert(Closing, &[ObjectionHandling, Farewell] as &[_]);
+    map.insert(Farewell, &[] as &[_]);
+    map
+});
+
 impl ConversationStage {
     /// Get allowed transitions from current stage
-    pub fn allowed_transitions(&self) -> Vec<ConversationStage> {
-        match self {
-            ConversationStage::Greeting => vec![
-                ConversationStage::Discovery,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::Discovery => vec![
-                ConversationStage::Qualification,
-                ConversationStage::Presentation,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::Qualification => vec![
-                ConversationStage::Presentation,
-                ConversationStage::Discovery,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::Presentation => vec![
-                ConversationStage::ObjectionHandling,
-                ConversationStage::Closing,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::ObjectionHandling => vec![
-                ConversationStage::Presentation,
-                ConversationStage::Closing,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::Closing => vec![
-                ConversationStage::ObjectionHandling,
-                ConversationStage::Farewell,
-            ],
-            ConversationStage::Farewell => vec![],
-        }
+    ///
+    /// P2 FIX: Now uses static lookup table instead of creating Vec on each call
+    pub fn allowed_transitions(&self) -> &'static [ConversationStage] {
+        STAGE_TRANSITIONS.get(self).copied().unwrap_or(&[])
     }
 
     /// Check if transition to target stage is allowed

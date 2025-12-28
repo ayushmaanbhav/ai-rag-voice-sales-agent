@@ -47,10 +47,8 @@ impl Settings {
 
     /// Validate settings
     pub fn validate(&self) -> Result<(), ConfigError> {
-        // Validate model paths exist
-        if !self.models.vad.is_empty() && !Path::new(&self.models.vad).exists() {
-            tracing::warn!("VAD model not found: {}", self.models.vad);
-        }
+        // P2 FIX: Improved model path validation - check all paths and extensions
+        self.validate_model_paths()?;
 
         // Validate latency budget
         if self.pipeline.latency_budget_ms < 200 {
@@ -58,6 +56,53 @@ impl Settings {
                 field: "pipeline.latency_budget_ms".to_string(),
                 message: "Latency budget too low (minimum 200ms)".to_string(),
             });
+        }
+
+        Ok(())
+    }
+
+    /// P2 FIX: Validate all model paths with proper extension checking
+    fn validate_model_paths(&self) -> Result<(), ConfigError> {
+        let model_checks = [
+            ("models.vad", &self.models.vad, Some(".onnx")),
+            ("models.turn_detection", &self.models.turn_detection, Some(".onnx")),
+            ("models.turn_detection_tokenizer", &self.models.turn_detection_tokenizer, Some(".json")),
+            ("models.stt", &self.models.stt, Some(".onnx")),
+            ("models.stt_tokens", &self.models.stt_tokens, Some(".txt")),
+            ("models.tts", &self.models.tts, Some(".onnx")),
+            ("models.reranker", &self.models.reranker, Some(".onnx")),
+            ("models.embeddings", &self.models.embeddings, Some(".onnx")),
+        ];
+
+        let mut warnings = Vec::new();
+
+        for (field, path, expected_ext) in model_checks {
+            if path.is_empty() {
+                continue;
+            }
+
+            // Check file extension
+            if let Some(ext) = expected_ext {
+                if !path.ends_with(ext) {
+                    warnings.push(format!(
+                        "{}: expected {} extension, got '{}'",
+                        field, ext, path
+                    ));
+                }
+            }
+
+            // Check path exists (warn only, don't error - models may be downloaded later)
+            let path_obj = Path::new(path);
+            if !path_obj.exists() {
+                tracing::warn!("Model not found: {} = {}", field, path);
+            } else if !path_obj.is_file() {
+                warnings.push(format!("{}: path exists but is not a file: {}", field, path));
+            }
+        }
+
+        // Report all warnings together
+        if !warnings.is_empty() {
+            tracing::warn!("Model path validation warnings:\n  - {}", warnings.join("\n  - "));
         }
 
         Ok(())

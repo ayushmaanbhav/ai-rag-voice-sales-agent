@@ -28,6 +28,10 @@ pub struct RetrieverConfig {
     pub min_score: f32,
     /// Enable reranking
     pub reranking_enabled: bool,
+    /// P2 FIX: Minimum confidence threshold for prefetch (0.0 - 1.0)
+    pub prefetch_confidence_threshold: f32,
+    /// P2 FIX: Number of results to prefetch
+    pub prefetch_top_k: usize,
 }
 
 impl Default for RetrieverConfig {
@@ -40,6 +44,8 @@ impl Default for RetrieverConfig {
             rrf_k: 60.0,
             min_score: 0.3,
             reranking_enabled: true,
+            prefetch_confidence_threshold: 0.7,
+            prefetch_top_k: 3,
         }
     }
 }
@@ -323,14 +329,16 @@ impl HybridRetriever {
     }
 
     /// Prefetch results based on partial transcript
+    ///
+    /// P2 FIX: Now uses configurable prefetch_confidence_threshold and prefetch_top_k
     pub async fn prefetch(
         &self,
         partial_transcript: &str,
         confidence: f32,
         vector_store: &VectorStore,
     ) -> Result<Vec<SearchResult>, RagError> {
-        // Only prefetch if confidence is high enough
-        if confidence < 0.7 {
+        // P2 FIX: Use configurable confidence threshold
+        if confidence < self.config.prefetch_confidence_threshold {
             return Ok(Vec::new());
         }
 
@@ -355,8 +363,9 @@ impl HybridRetriever {
         .await
         .map_err(|e| RagError::Embedding(format!("Embedding task failed: {}", e)))?;
 
+        // P2 FIX: Use configurable prefetch_top_k
         let results = vector_store
-            .search(&embedding, 3, None) // Just top 3 for prefetch
+            .search(&embedding, self.config.prefetch_top_k, None)
             .await?;
 
         Ok(results

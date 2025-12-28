@@ -144,6 +144,24 @@ impl ToolOutput {
             is_error: true,
         }
     }
+
+    /// P2 FIX: Create an audio output
+    pub fn audio(
+        data: impl Into<String>,
+        mime_type: impl Into<String>,
+        sample_rate: Option<u32>,
+        duration_ms: Option<u64>,
+    ) -> Self {
+        Self {
+            content: vec![ContentBlock::Audio {
+                data: data.into(),
+                mime_type: mime_type.into(),
+                sample_rate,
+                duration_ms,
+            }],
+            is_error: false,
+        }
+    }
 }
 
 /// Content block types
@@ -153,6 +171,20 @@ pub enum ContentBlock {
     Text { text: String },
     Image { data: String, mime_type: String },
     Resource { uri: String, mime_type: Option<String> },
+    /// P2 FIX: Audio content block for voice response support.
+    /// Supports base64-encoded audio data with sample rate and format info.
+    Audio {
+        /// Base64-encoded audio data
+        data: String,
+        /// MIME type (e.g., "audio/wav", "audio/mp3", "audio/opus")
+        mime_type: String,
+        /// Sample rate in Hz (e.g., 16000, 22050, 44100)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sample_rate: Option<u32>,
+        /// Duration in milliseconds
+        #[serde(skip_serializing_if = "Option::is_none")]
+        duration_ms: Option<u64>,
+    },
 }
 
 /// Tool schema (JSON Schema format)

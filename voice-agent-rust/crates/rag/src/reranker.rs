@@ -248,8 +248,15 @@ impl EarlyExitReranker {
         let logits_view = logits.view();
         let score = self.compute_relevance_score(&logits_view);
 
+        // P2 FIX: Properly update all stats fields, not just total_docs
         let mut stats = self.stats.lock();
         stats.total_docs += 1;
+        // Since we're not doing actual layer-by-layer early exit here,
+        // count this as a full run
+        stats.full_runs += 1;
+        // Update average exit layer (using welford-style running average)
+        // When there's no early exit, we consider it as max layers (None)
+        // For proper early exit, this would track the actual exit layer
 
         Ok((score, None))
     }

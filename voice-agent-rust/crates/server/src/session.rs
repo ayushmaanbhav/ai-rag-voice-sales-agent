@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use parking_lot::RwLock;
+use tokio::sync::watch;
 
 use voice_agent_agent::{GoldLoanAgent, AgentConfig};
 
@@ -64,6 +65,8 @@ pub struct SessionManager {
     sessions: RwLock<HashMap<String, Arc<Session>>>,
     max_sessions: usize,
     session_timeout: Duration,
+    /// P2 FIX: Cleanup interval for passive session cleanup
+    cleanup_interval: Duration,
 }
 
 impl SessionManager {
@@ -73,7 +76,59 @@ impl SessionManager {
             sessions: RwLock::new(HashMap::new()),
             max_sessions,
             session_timeout: Duration::from_secs(3600), // 1 hour
+            cleanup_interval: Duration::from_secs(300), // 5 minutes
         }
+    }
+
+    /// Create a new session manager with custom timeout and cleanup interval
+    pub fn with_config(max_sessions: usize, session_timeout: Duration, cleanup_interval: Duration) -> Self {
+        Self {
+            sessions: RwLock::new(HashMap::new()),
+            max_sessions,
+            session_timeout,
+            cleanup_interval,
+        }
+    }
+
+    /// P2 FIX: Start a background task that periodically cleans up expired sessions.
+    ///
+    /// Returns a shutdown sender that can be used to stop the cleanup task.
+    /// The task runs every `cleanup_interval` and removes sessions that have
+    /// exceeded `session_timeout` since their last activity.
+    pub fn start_cleanup_task(self: &Arc<Self>) -> watch::Sender<bool> {
+        let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
+        let manager = Arc::clone(self);
+        let interval = manager.cleanup_interval;
+
+        tokio::spawn(async move {
+            let mut interval_timer = tokio::time::interval(interval);
+            interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+            loop {
+                tokio::select! {
+                    _ = interval_timer.tick() => {
+                        let before = manager.count();
+                        manager.cleanup_expired();
+                        let after = manager.count();
+                        if before != after {
+                            tracing::info!(
+                                "Session cleanup: removed {} expired sessions ({} remaining)",
+                                before - after,
+                                after
+                            );
+                        }
+                    }
+                    _ = shutdown_rx.changed() => {
+                        if *shutdown_rx.borrow() {
+                            tracing::info!("Session cleanup task shutting down");
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        shutdown_tx
     }
 
     /// Create a new session

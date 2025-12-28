@@ -24,6 +24,9 @@ pub struct EmbeddingConfig {
     pub normalize: bool,
     /// Batch size for bulk embedding
     pub batch_size: usize,
+    /// P2 FIX: ONNX output tensor name for embeddings
+    /// Different models use different names: "last_hidden_state", "sentence_embedding", "output", etc.
+    pub output_name: String,
 }
 
 impl Default for EmbeddingConfig {
@@ -33,6 +36,7 @@ impl Default for EmbeddingConfig {
             embedding_dim: 384,
             normalize: true,
             batch_size: 32,
+            output_name: "last_hidden_state".to_string(),
         }
     }
 }
@@ -166,9 +170,10 @@ impl Embedder {
         ].map_err(|e| RagError::Model(e.to_string()))?)
         .map_err(|e| RagError::Model(e.to_string()))?;
 
+        // P2 FIX: Use configurable output name instead of hardcoded "last_hidden_state"
         let last_hidden = outputs
-            .get("last_hidden_state")
-            .ok_or_else(|| RagError::Model("Missing last_hidden_state".to_string()))?
+            .get(&self.config.output_name)
+            .ok_or_else(|| RagError::Model(format!("Missing output tensor: {}", self.config.output_name)))?
             .try_extract_tensor::<f32>()
             .map_err(|e| RagError::Model(e.to_string()))?;
 

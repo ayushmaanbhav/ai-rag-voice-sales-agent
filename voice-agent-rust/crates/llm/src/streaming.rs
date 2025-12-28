@@ -130,13 +130,20 @@ impl TokenBuffer {
 
         let mut words = Vec::new();
 
-        // Check for word boundaries
-        while let Some(space_idx) = self.partial_word.find(|c: char| c.is_whitespace() || c == '.' || c == ',' || c == '!' || c == '?') {
-            let word = self.partial_word[..=space_idx].to_string();
+        // P2 FIX: Unicode-aware word boundary detection
+        // Include Hindi/Indic punctuation marks (danda ।, double danda ॥) for multilingual support
+        while let Some(space_idx) = self.partial_word.find(|c: char| {
+            c.is_whitespace() || matches!(c, '.' | ',' | '!' | '?' | ';' | '।' | '॥')
+        }) {
+            // Get the character at the found position to determine its UTF-8 byte length
+            let ch = self.partial_word[space_idx..].chars().next().unwrap();
+            let ch_len = ch.len_utf8();
+
+            let word = self.partial_word[..space_idx + ch_len].to_string();
             if !word.trim().is_empty() {
                 words.push(word);
             }
-            self.partial_word = self.partial_word[space_idx + 1..].to_string();
+            self.partial_word = self.partial_word[space_idx + ch_len..].to_string();
         }
 
         words

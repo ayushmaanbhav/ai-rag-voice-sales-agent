@@ -64,8 +64,24 @@ pub enum PipelineError {
     Audio(String),
 }
 
+/// P2 FIX: Properly map each pipeline error variant to its corresponding core variant.
+/// Previously all errors were converted to Vad, losing type information.
 impl From<PipelineError> for voice_agent_core::Error {
     fn from(err: PipelineError) -> Self {
-        voice_agent_core::Error::Pipeline(voice_agent_core::error::PipelineError::Vad(err.to_string()))
+        use voice_agent_core::error::PipelineError as CorePipelineError;
+
+        let core_err = match err {
+            PipelineError::Vad(msg) => CorePipelineError::Vad(msg),
+            PipelineError::TurnDetection(msg) => CorePipelineError::TurnDetection(msg),
+            PipelineError::Stt(msg) => CorePipelineError::Stt(msg),
+            PipelineError::Tts(msg) => CorePipelineError::Tts(msg),
+            PipelineError::Model(msg) => CorePipelineError::Stt(format!("Model: {}", msg)),
+            PipelineError::ChannelClosed => CorePipelineError::ChannelClosed,
+            PipelineError::Timeout => CorePipelineError::Timeout(0),
+            PipelineError::NotInitialized => CorePipelineError::NotInitialized,
+            PipelineError::Audio(msg) => CorePipelineError::Vad(format!("Audio: {}", msg)),
+        };
+
+        voice_agent_core::Error::Pipeline(core_err)
     }
 }
