@@ -1,10 +1,12 @@
 //! Speculative Execution for LLM
 //!
 //! Implements multiple speculative strategies:
-//! - SLM-First: Use small model first, upgrade if complex
+//! - SLM-First: Use small model first, upgrade if complex (recommended)
 //! - Race Parallel: Run SLM and LLM in parallel, use first good response
 //! - Hybrid Streaming: Start with SLM, switch to LLM mid-stream
-//! - Draft-Verify: EAGLE-style draft tokens with LLM verification
+//!
+//! Note: True EAGLE-style speculative decoding requires KV cache sharing
+//! between draft and verify models, which is not yet implemented.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -19,14 +21,12 @@ use crate::LlmError;
 /// Speculative execution mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpeculativeMode {
-    /// SLM first, upgrade if complex
+    /// SLM first, upgrade if complex (recommended for most use cases)
     SlmFirst,
-    /// Race SLM and LLM in parallel
+    /// Race SLM and LLM in parallel, use first acceptable response
     RaceParallel,
-    /// Hybrid streaming (start SLM, switch to LLM)
+    /// Hybrid streaming (start SLM, switch to LLM mid-stream if quality drops)
     HybridStreaming,
-    /// EAGLE-style draft-verify
-    DraftVerify,
 }
 
 /// Speculative execution configuration
@@ -124,7 +124,6 @@ impl SpeculativeExecutor {
             SpeculativeMode::SlmFirst => self.execute_slm_first(messages).await,
             SpeculativeMode::RaceParallel => self.execute_race_parallel(messages).await,
             SpeculativeMode::HybridStreaming => self.execute_hybrid_streaming(messages).await,
-            SpeculativeMode::DraftVerify => self.execute_draft_verify(messages).await,
         }
     }
 
@@ -459,48 +458,6 @@ impl SpeculativeExecutor {
                 complexity_score: None,
             })
         }
-    }
-
-    /// Draft-verify strategy (EAGLE-style)
-    ///
-    /// **WARNING**: This implementation is NOT true EAGLE-style speculative decoding.
-    /// It runs SLM then LLM sequentially, which DOUBLES latency instead of reducing it.
-    /// True EAGLE-style requires:
-    /// 1. SLM generates draft tokens
-    /// 2. LLM verifies ALL draft tokens in a single forward pass (parallel verification)
-    /// 3. Accept verified prefix, discard rejected suffix
-    ///
-    /// TODO: Implement proper speculative decoding with KV cache sharing.
-    /// For now, prefer SlmFirst or RaceParallel modes.
-    #[deprecated(note = "Doubles latency - use SlmFirst or RaceParallel instead")]
-    async fn execute_draft_verify(&self, messages: &[Message]) -> Result<SpeculativeResult, LlmError> {
-        tracing::warn!("DraftVerify mode doubles latency - consider using SlmFirst or RaceParallel");
-
-        // Simplified draft-verify: use SLM to draft, LLM to verify/complete
-        let start = Instant::now();
-
-        // Generate draft with SLM
-        let draft = self.slm.generate(messages).await?;
-
-        // Verify with LLM by asking it to continue/correct
-        let mut verify_messages = messages.to_vec();
-        verify_messages.push(crate::prompt::Message {
-            role: crate::prompt::Role::Assistant,
-            content: draft.text.clone(),
-        });
-
-        // LLM continues/corrects
-        let final_result = self.llm.generate(&verify_messages).await?;
-
-        self.update_stats(true, true, start.elapsed());
-
-        Ok(SpeculativeResult {
-            text: format!("{}{}", draft.text, final_result.text),
-            model_used: ModelUsed::Hybrid,
-            generation: final_result,
-            used_fallback: false,
-            complexity_score: None,
-        })
     }
 
     /// Estimate query complexity

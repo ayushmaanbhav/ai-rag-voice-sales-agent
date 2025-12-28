@@ -203,17 +203,19 @@ pub enum LlmProvider {
 }
 
 /// Speculative execution mode
+///
+/// P0 FIX: Removed DraftVerify mode which was mislabeled as "EAGLE-style" but
+/// actually ran SLM then LLM sequentially, doubling latency instead of reducing it.
+/// Use SlmFirst (recommended) or RaceParallel instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpeculativeMode {
-    /// SLM first, upgrade if complex
+    /// SLM first, upgrade if complex (recommended for most use cases)
     SlmFirst,
-    /// Race SLM and LLM in parallel
+    /// Race SLM and LLM in parallel, use first acceptable response
     RaceParallel,
-    /// Hybrid streaming
+    /// Hybrid streaming (start SLM, switch to LLM mid-stream if quality drops)
     HybridStreaming,
-    /// EAGLE-style draft-verify
-    DraftVerify,
 }
 
 /// RAG configuration
