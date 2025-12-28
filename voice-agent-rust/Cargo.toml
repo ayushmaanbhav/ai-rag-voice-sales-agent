@@ -95,6 +95,7 @@ voice-agent-rag = { path = "crates/rag" }
 voice-agent-llm = { path = "crates/llm" }
 voice-agent-tools = { path = "crates/tools" }
 voice-agent-agent = { path = "crates/agent" }
+voice-agent-transport = { path = "crates/transport" }
 
 [profile.release]
 lto = "thin"

@@ -1,13 +1,30 @@
 //! Voice Session Handler
 //!
 //! Integrates WebRTC transport with STT/TTS pipeline for end-to-end voice conversations.
+//!
+//! ## Architecture
+//!
+//! ```text
+//! ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+//! │  Transport  │────▶│     STT     │────▶│    Agent    │────▶│     TTS     │
+//! │  (WebRTC)   │     │ (streaming) │     │ (reasoning) │     │ (streaming) │
+//! └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+//!       ▲                                                            │
+//!       │                                                            │
+//!       └────────────────── Audio Playback ◀─────────────────────────┘
+//! ```
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, broadcast, RwLock};
+use tokio::time::interval;
 
 use voice_agent_pipeline::{
     stt::{StreamingStt, SttConfig, SttEngine},
     tts::{StreamingTts, TtsConfig, TtsEngine, TtsEvent, create_hindi_g2p},
+};
+use voice_agent_transport::{
+    TransportSession, SessionConfig, TransportEvent,
 };
 
 use crate::{GoldLoanAgent, AgentConfig, AgentEvent, AgentError};
@@ -21,12 +38,18 @@ pub struct VoiceSessionConfig {
     pub stt: SttConfig,
     /// TTS configuration
     pub tts: TtsConfig,
+    /// Transport configuration
+    pub transport: SessionConfig,
     /// Enable barge-in
     pub barge_in_enabled: bool,
     /// Silence timeout for turn detection (ms)
     pub silence_timeout_ms: u64,
     /// Maximum turn duration (ms)
     pub max_turn_duration_ms: u64,
+    /// Audio processing interval (ms) - how often to poll for audio
+    pub audio_poll_interval_ms: u64,
+    /// Energy threshold for voice activity detection (0.0 - 1.0)
+    pub vad_energy_threshold: f32,
 }
 
 impl Default for VoiceSessionConfig {
@@ -42,9 +65,12 @@ impl Default for VoiceSessionConfig {
                 engine: TtsEngine::Piper,
                 ..Default::default()
             },
+            transport: SessionConfig::default(),
             barge_in_enabled: true,
             silence_timeout_ms: 800,
             max_turn_duration_ms: 30000,
+            audio_poll_interval_ms: 20, // 20ms = 50Hz polling (matches Opus frame size)
+            vad_energy_threshold: 0.01,
         }
     }
 }
@@ -98,8 +124,17 @@ pub struct VoiceSession {
     stt: Arc<StreamingStt>,
     tts: Arc<StreamingTts>,
     event_tx: broadcast::Sender<VoiceSessionEvent>,
-    #[allow(dead_code)] // Reserved for future transport integration
-    audio_tx: Option<mpsc::Sender<Vec<f32>>>,
+    /// Transport session for WebRTC/WebSocket communication
+    transport: Arc<RwLock<Option<TransportSession>>>,
+    /// Channel to send audio to transport
+    audio_out_tx: mpsc::Sender<Vec<f32>>,
+    audio_out_rx: Arc<RwLock<Option<mpsc::Receiver<Vec<f32>>>>>,
+    /// Transport event receiver
+    transport_event_tx: mpsc::Sender<TransportEvent>,
+    /// Shutdown signal
+    shutdown_tx: broadcast::Sender<()>,
+    /// Last voice activity timestamp for silence detection
+    last_voice_activity: Arc<RwLock<Option<Instant>>>,
 }
 
 impl VoiceSession {
@@ -107,6 +142,9 @@ impl VoiceSession {
     pub fn new(session_id: impl Into<String>, config: VoiceSessionConfig) -> Result<Self, AgentError> {
         let session_id = session_id.into();
         let (event_tx, _) = broadcast::channel(100);
+        let (shutdown_tx, _) = broadcast::channel(1);
+        let (audio_out_tx, audio_out_rx) = mpsc::channel(100);
+        let (transport_event_tx, _transport_event_rx) = mpsc::channel(100);
 
         // Create agent
         let agent = Arc::new(GoldLoanAgent::without_llm(
@@ -135,11 +173,41 @@ impl VoiceSession {
             stt,
             tts,
             event_tx,
-            audio_tx: None,
+            transport: Arc::new(RwLock::new(None)),
+            audio_out_tx,
+            audio_out_rx: Arc::new(RwLock::new(Some(audio_out_rx))),
+            transport_event_tx,
+            shutdown_tx,
+            last_voice_activity: Arc::new(RwLock::new(None)),
         })
     }
 
+    /// Attach a transport session for WebRTC/WebSocket communication
+    pub async fn attach_transport(&self, mut transport: TransportSession) {
+        // Set up event callback for transport events
+        transport.set_event_callback(self.transport_event_tx.clone());
+        *self.transport.write().await = Some(transport);
+    }
+
+    /// Connect transport with SDP offer and return answer
+    pub async fn connect_transport(&self, offer: &str) -> Result<String, AgentError> {
+        let mut transport_guard = self.transport.write().await;
+        let transport = transport_guard.as_mut()
+            .ok_or_else(|| AgentError::Pipeline("No transport attached".to_string()))?;
+
+        transport.connect(offer).await
+            .map_err(|e| AgentError::Pipeline(format!("Transport connection failed: {}", e)))
+    }
+
     /// Start the voice session
+    ///
+    /// This starts the main processing loop that:
+    /// 1. Receives audio from transport
+    /// 2. Processes through STT
+    /// 3. Detects end of turn (silence)
+    /// 4. Gets agent response
+    /// 5. Synthesizes with TTS
+    /// 6. Sends audio back through transport
     pub async fn start(&self) -> Result<(), AgentError> {
         self.set_state(VoiceSessionState::Listening).await;
 
@@ -147,11 +215,242 @@ impl VoiceSession {
             session_id: self.session_id.clone(),
         });
 
+        // Spawn the transport event handler
+        self.spawn_transport_event_handler();
+
+        // Spawn the audio output handler (TTS → Transport)
+        self.spawn_audio_output_handler();
+
         // Play greeting
         let greeting = self.agent.process("").await?;
         self.speak(&greeting).await?;
 
         Ok(())
+    }
+
+    /// Spawn task to handle transport events (incoming audio)
+    fn spawn_transport_event_handler(&self) {
+        let state = Arc::clone(&self.state);
+        let stt = Arc::clone(&self.stt);
+        let event_tx = self.event_tx.clone();
+        let config = self.config.clone();
+        let last_voice_activity = Arc::clone(&self.last_voice_activity);
+        let _transport_event_tx = self.transport_event_tx.clone();
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
+
+        // Create a receiver for transport events
+        let (internal_tx, mut internal_rx) = mpsc::channel::<TransportEvent>(100);
+
+        // Spawn a task that forwards transport events
+        let transport = Arc::clone(&self.transport);
+        tokio::spawn(async move {
+            // Set up the transport callback
+            if let Some(ref mut t) = *transport.write().await {
+                t.set_event_callback(internal_tx);
+            }
+        });
+
+        // Session reference for processing
+        let session_id = self.session_id.clone();
+        let agent = Arc::clone(&self.agent);
+        let tts = Arc::clone(&self.tts);
+        let audio_out_tx = self.audio_out_tx.clone();
+
+        tokio::spawn(async move {
+            let mut silence_timer = interval(Duration::from_millis(100));
+
+            loop {
+                tokio::select! {
+                    // Handle shutdown
+                    _ = shutdown_rx.recv() => {
+                        tracing::info!("Transport event handler shutting down for session {}", session_id);
+                        break;
+                    }
+
+                    // Handle incoming transport events
+                    Some(event) = internal_rx.recv() => {
+                        match event {
+                            TransportEvent::AudioReceived { samples, timestamp_ms: _ } => {
+                                let current_state = *state.read().await;
+
+                                match current_state {
+                                    VoiceSessionState::Listening => {
+                                        // Check for voice activity
+                                        let energy = calculate_energy(&samples);
+
+                                        if energy > config.vad_energy_threshold {
+                                            *last_voice_activity.write().await = Some(Instant::now());
+
+                                            // Process through STT
+                                            if let Some(result) = stt.process(&samples)
+                                                .map_err(|e| tracing::error!("STT error: {}", e))
+                                                .ok()
+                                                .flatten()
+                                            {
+                                                let _ = event_tx.send(VoiceSessionEvent::PartialTranscript {
+                                                    text: result.text,
+                                                });
+                                            }
+                                        }
+                                    }
+
+                                    VoiceSessionState::Speaking => {
+                                        // Check for barge-in
+                                        if config.barge_in_enabled {
+                                            let energy = calculate_energy(&samples);
+                                            if energy > config.vad_energy_threshold * 2.0 {
+                                                // Barge-in detected
+                                                let _ = event_tx.send(VoiceSessionEvent::BargedIn);
+                                                tts.barge_in();
+                                                *state.write().await = VoiceSessionState::Listening;
+                                            }
+                                        }
+                                    }
+
+                                    _ => {}
+                                }
+                            }
+
+                            TransportEvent::Disconnected { reason } => {
+                                let _ = event_tx.send(VoiceSessionEvent::Ended { reason });
+                                break;
+                            }
+
+                            TransportEvent::Error { message } => {
+                                let _ = event_tx.send(VoiceSessionEvent::Error(message));
+                            }
+
+                            _ => {}
+                        }
+                    }
+
+                    // Check for silence timeout (end of user turn)
+                    _ = silence_timer.tick() => {
+                        let current_state = *state.read().await;
+                        if current_state != VoiceSessionState::Listening {
+                            continue;
+                        }
+
+                        let should_end_turn = {
+                            let last_activity = last_voice_activity.read().await;
+                            if let Some(last) = *last_activity {
+                                last.elapsed() > Duration::from_millis(config.silence_timeout_ms)
+                            } else {
+                                false
+                            }
+                        };
+
+                        if should_end_turn {
+                            // End user turn and process
+                            *state.write().await = VoiceSessionState::Processing;
+
+                            let transcript = stt.finalize();
+
+                            if !transcript.text.is_empty() {
+                                let _ = event_tx.send(VoiceSessionEvent::FinalTranscript {
+                                    text: transcript.text.clone(),
+                                });
+
+                                // Process through agent
+                                if let Ok(response) = agent.process(&transcript.text).await {
+                                    let _ = event_tx.send(VoiceSessionEvent::Speaking {
+                                        text: response.clone(),
+                                    });
+
+                                    // Synthesize and send audio
+                                    *state.write().await = VoiceSessionState::Speaking;
+
+                                    let g2p = create_hindi_g2p();
+                                    if let Ok(_phonemes) = g2p.convert(&response) {
+                                        let (tts_tx, mut tts_rx) = mpsc::channel::<TtsEvent>(10);
+                                        tts.start(&response, tts_tx);
+
+                                        // Process TTS chunks
+                                        while let Some(tts_event) = tts_rx.recv().await {
+                                            match tts_event {
+                                                TtsEvent::Audio { samples, is_final, .. } => {
+                                                    let _ = audio_out_tx.send(samples.to_vec()).await;
+                                                    if is_final {
+                                                        break;
+                                                    }
+                                                }
+                                                TtsEvent::Complete => break,
+                                                TtsEvent::BargedIn { .. } => break,
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Reset for next turn
+                            stt.reset();
+                            *last_voice_activity.write().await = None;
+                            *state.write().await = VoiceSessionState::Listening;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// Spawn task to handle audio output (send TTS audio to transport)
+    fn spawn_audio_output_handler(&self) {
+        let transport = Arc::clone(&self.transport);
+        let audio_out_rx = Arc::clone(&self.audio_out_rx);
+        let event_tx = self.event_tx.clone();
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
+        let session_id = self.session_id.clone();
+
+        tokio::spawn(async move {
+            // Take ownership of the receiver
+            let mut rx = match audio_out_rx.write().await.take() {
+                Some(rx) => rx,
+                None => {
+                    tracing::error!("Audio output receiver already taken");
+                    return;
+                }
+            };
+
+            let mut timestamp_ms: u64 = 0;
+
+            loop {
+                tokio::select! {
+                    _ = shutdown_rx.recv() => {
+                        tracing::info!("Audio output handler shutting down for session {}", session_id);
+                        break;
+                    }
+
+                    Some(samples) = rx.recv() => {
+                        // Send to event subscribers for local playback
+                        let _ = event_tx.send(VoiceSessionEvent::AudioChunk {
+                            samples: samples.clone(),
+                            sample_rate: 16000,
+                        });
+
+                        // Send through transport if connected (using the new send_audio method)
+                        let transport_guard = transport.read().await;
+                        if let Some(ref transport_session) = *transport_guard {
+                            if transport_session.is_connected() {
+                                // Release guard before async operation
+                                drop(transport_guard);
+
+                                // Use the convenience method that handles guard lifetimes
+                                let guard = transport.read().await;
+                                if let Some(ref ts) = *guard {
+                                    if let Err(e) = ts.send_audio(&samples, timestamp_ms).await {
+                                        tracing::debug!("Transport send: {}", e);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update timestamp (20ms per frame at 16kHz)
+                        timestamp_ms += 20;
+                    }
+                }
+            }
+        });
     }
 
     /// Process incoming audio from transport
@@ -286,11 +585,28 @@ impl VoiceSession {
 
     /// End the voice session
     pub async fn end(&self, reason: impl Into<String>) {
+        // Signal shutdown to all spawned tasks
+        let _ = self.shutdown_tx.send(());
+
+        // Close transport if connected
+        if let Some(ref mut transport) = *self.transport.write().await {
+            let _ = transport.close().await;
+        }
+
         self.set_state(VoiceSessionState::Ended).await;
 
         let _ = self.event_tx.send(VoiceSessionEvent::Ended {
             reason: reason.into(),
         });
+    }
+
+    /// Check if transport is connected
+    pub async fn is_transport_connected(&self) -> bool {
+        if let Some(ref transport) = *self.transport.read().await {
+            transport.is_connected()
+        } else {
+            false
+        }
     }
 
     /// Subscribe to session events
@@ -331,6 +647,15 @@ impl VoiceSession {
     }
 }
 
+/// Calculate RMS energy of audio samples
+fn calculate_energy(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    let sum_squares: f32 = samples.iter().map(|s| s * s).sum();
+    (sum_squares / samples.len() as f32).sqrt()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -359,5 +684,52 @@ mod tests {
         assert!(result.is_ok());
 
         assert_eq!(session.state().await, VoiceSessionState::Listening);
+    }
+
+    #[tokio::test]
+    async fn test_voice_session_no_transport() {
+        let session = VoiceSession::new("test", VoiceSessionConfig::default()).unwrap();
+
+        // No transport attached
+        assert!(!session.is_transport_connected().await);
+
+        // Connect should fail without transport
+        let result = session.connect_transport("offer").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_voice_session_attach_transport() {
+        let session = VoiceSession::new("test", VoiceSessionConfig::default()).unwrap();
+
+        // Attach a transport session
+        let transport = TransportSession::new(SessionConfig::default());
+        session.attach_transport(transport).await;
+
+        // Transport attached but not connected yet
+        assert!(!session.is_transport_connected().await);
+    }
+
+    #[test]
+    fn test_calculate_energy() {
+        // Silence should have zero energy
+        let silence = vec![0.0f32; 100];
+        assert!(calculate_energy(&silence) < 0.001);
+
+        // Loud signal should have high energy
+        let loud = vec![0.5f32; 100];
+        assert!(calculate_energy(&loud) > 0.4);
+
+        // Empty should return 0
+        assert_eq!(calculate_energy(&[]), 0.0);
+    }
+
+    #[test]
+    fn test_config_defaults() {
+        let config = VoiceSessionConfig::default();
+        assert!(config.barge_in_enabled);
+        assert_eq!(config.silence_timeout_ms, 800);
+        assert_eq!(config.audio_poll_interval_ms, 20);
+        assert!(config.vad_energy_threshold > 0.0);
     }
 }

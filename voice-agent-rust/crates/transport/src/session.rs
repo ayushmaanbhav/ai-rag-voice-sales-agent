@@ -211,6 +211,26 @@ impl TransportSession {
         }
     }
 
+    /// Send audio directly through the transport
+    ///
+    /// This is a convenience method that avoids guard lifetime issues in async contexts.
+    pub async fn send_audio(&self, samples: &[f32], timestamp_ms: u64) -> Result<(), TransportError> {
+        let sink = {
+            let guard = self.transport.read();
+            if let Some(ref transport) = *guard {
+                transport.audio_sink()
+            } else {
+                None
+            }
+        };
+
+        if let Some(sink) = sink {
+            sink.send_audio(samples, timestamp_ms).await
+        } else {
+            Err(TransportError::SessionClosed)
+        }
+    }
+
     /// Attempt reconnection
     pub async fn reconnect(&mut self, offer: &str) -> Result<String, TransportError> {
         let mut attempts = 0;

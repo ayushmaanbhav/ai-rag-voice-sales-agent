@@ -13,6 +13,7 @@ voice-agent-pipeline.workspace = true
 voice-agent-rag.workspace = true
 voice-agent-llm.workspace = true
 voice-agent-tools.workspace = true
+voice-agent-transport.workspace = true
 
 # Async
 tokio = { workspace = true, features = ["sync", "time"] }

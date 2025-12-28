@@ -7,6 +7,7 @@
 //! - Tool orchestration
 //! - Persona-aware response generation
 //! - Voice session integration with STT/TTS
+//! - WebRTC/WebSocket transport integration
 
 pub mod conversation;
 pub mod memory;
@@ -21,6 +22,12 @@ pub use stage::{StageManager, ConversationStage, StageTransition};
 pub use intent::{IntentDetector, Intent, Slot, DetectedIntent};
 pub use agent::{GoldLoanAgent, AgentConfig, AgentEvent};
 pub use voice_session::{VoiceSession, VoiceSessionConfig, VoiceSessionState, VoiceSessionEvent};
+
+// Re-export transport types for convenience
+pub use voice_agent_transport::{
+    TransportSession, SessionConfig, TransportEvent,
+    WebRtcConfig, WebSocketConfig, AudioFormat, AudioCodec,
+};
 
 use thiserror::Error;
 
@@ -68,5 +75,11 @@ impl From<voice_agent_llm::LlmError> for AgentError {
 impl From<voice_agent_tools::ToolError> for AgentError {
     fn from(err: voice_agent_tools::ToolError) -> Self {
         AgentError::Tool(err.to_string())
+    }
+}
+
+impl From<voice_agent_transport::TransportError> for AgentError {
+    fn from(err: voice_agent_transport::TransportError) -> Self {
+        AgentError::Pipeline(format!("Transport error: {}", err))
     }
 }

@@ -17,6 +17,7 @@ pub mod codec;
 pub use traits::{Transport, TransportEvent, AudioSink, AudioSource, ConnectionStats};
 pub use session::{TransportSession, SessionConfig};
 pub use webrtc::{WebRtcTransport, WebRtcConfig, IceServer, WebRtcAudioSink, WebRtcAudioSource, WebRtcState};
+pub use websocket::{WebSocketTransport, WebSocketConfig, WebSocketState};
 pub use codec::{OpusEncoder, OpusDecoder, Resampler};
 
 use thiserror::Error;
