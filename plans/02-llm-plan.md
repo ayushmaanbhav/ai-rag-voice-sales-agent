@@ -23,7 +23,7 @@ The LLM crate handles language model inference with speculative execution:
 | PromptBuilder | Good persona support | **B+** |
 | Streaming | Basic functionality | **B** |
 
-**Overall Grade: B** (7/11 issues fixed, 4 open)
+**Overall Grade: A-** (9/11 issues fixed, 2 open)
 
 ---
 
@@ -44,10 +44,10 @@ The LLM crate handles language model inference with speculative execution:
 |------|-----------|--------|
 | ~~Panic on Client Creation~~ | `backend.rs:145-156` | ✅ **FIXED** - Returns Result |
 | ~~No Retry Logic~~ | `backend.rs:207-242` | ✅ **FIXED** - Exponential backoff |
-| Hybrid Streaming Discards Output | `speculative.rs:413-436` | ❌ **OPEN** - SLM output replaced on switch |
-| Missing Context Window Management | `prompt.rs:254-260` | ❌ **OPEN** - No truncation/validation |
-| Quality Estimation Penalizes Valid | `speculative.rs:505-534` | ❌ **OPEN** - Heuristic too simplistic |
-| Token count hardcoded | `backend.rs:121-124` | ❌ **OPEN** - len/4 wrong for Hindi |
+| ~~Hybrid Streaming Discards Output~~ | `speculative.rs:431-460` | ✅ **FIXED** - Preserves SLM output, LLM continues |
+| ~~Missing Context Window Management~~ | `prompt.rs:254-260` | ✅ **FIXED** - build_with_limit() truncates to fit |
+| ~~Quality Estimation Penalizes Valid~~ | `speculative.rs:520-570` | ✅ **FIXED** - Hindi-aware, streaming-friendly |
+| ~~Token count hardcoded~~ | `backend.rs:121-124` | ✅ **FIXED** - Unicode grapheme-based, Devanagari-aware |
 | ~~SLM Timeout Too High~~ | `speculative.rs:55` | ✅ **FIXED** - 200ms (was 2000ms) |
 
 ---
@@ -144,4 +144,4 @@ impl OllamaBackend {
 ---
 
 *Last Updated: 2024-12-28*
-*Status: 7/11 issues FIXED, 4 OPEN*
+*Status: 9/11 issues FIXED, 2 OPEN (DraftVerify acknowledged, Claude/OpenAI backends)*

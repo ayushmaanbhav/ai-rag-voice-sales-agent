@@ -31,8 +31,8 @@ The RAG crate handles retrieval-augmented generation:
 | Task | File:Line | Status |
 |------|-----------|--------|
 | ~~Reranker not integrated~~ | `retriever.rs:85-86,269-304` | ✅ **FIXED** - with_reranker() + rerank() |
-| should_exit() never called | `reranker.rs:449` | ❌ **OPEN** - #[allow(dead_code)], ONNX limitation |
-| No per-layer inference | `reranker.rs:359-384` | ❌ **OPEN** - ONNX doesn't expose layers |
+| ~~should_exit() never called~~ | `reranker.rs:449` | ⚠️ **DOCUMENTED** - See docs/EARLY_EXIT_ONNX.md |
+| ~~No per-layer inference~~ | `reranker.rs:359-384` | ⚠️ **DOCUMENTED** - ONNX limitation, cascaded reranking used instead |
 
 ---
 
@@ -44,9 +44,9 @@ The RAG crate handles retrieval-augmented generation:
 | No agentic RAG flow | N/A | ❌ **NOT IMPL** - Requires agent layer |
 | ~~Prefetch not cached~~ | `retriever.rs:334-382` | ✅ **FIXED** - spawn_blocking + config |
 | ~~Embedding blocks async~~ | `retriever.rs:129-131` | ✅ **FIXED** - spawn_blocking |
-| API key not used | `vector_store.rs:102-107` | ❌ **OPEN** - Config field ignored |
-| Stemming not enabled | `sparse_search.rs` | ❌ **OPEN** - Field exists but unused |
-| No Hindi analyzer | `sparse_search.rs` | ❌ **OPEN** - Language field unused |
+| ~~API key not used~~ | `vector_store.rs:102-107` | ✅ **FIXED** - api_key.clone() applied |
+| ~~Stemming not enabled~~ | `sparse_search.rs` | ✅ **FIXED** - build_tokenizer() adds Stemmer |
+| ~~No Hindi analyzer~~ | `sparse_search.rs` | ✅ **FIXED** - SimpleTokenizer handles Devanagari |
 
 ---
 

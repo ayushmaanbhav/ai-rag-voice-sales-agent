@@ -9,6 +9,8 @@ use voice_agent_llm::{PromptBuilder, Message, Role, OllamaBackend, LlmBackend, L
 // P0 FIX: Import PersonaConfig from the single source of truth
 use voice_agent_config::PersonaConfig;
 use voice_agent_tools::{ToolRegistry, ToolExecutor};
+// P1 FIX: Import RAG components for retrieval-augmented generation
+use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore};
 
 use crate::conversation::{Conversation, ConversationConfig, ConversationEvent, EndReason};
 use crate::stage::ConversationStage;
@@ -27,6 +29,35 @@ pub struct AgentConfig {
     pub rag_enabled: bool,
     /// Enable tools
     pub tools_enabled: bool,
+    /// P1 FIX: Configurable tool defaults (no more hardcoded values)
+    pub tool_defaults: ToolDefaults,
+}
+
+/// P1 FIX: Configurable default values for tool calls
+#[derive(Debug, Clone)]
+pub struct ToolDefaults {
+    /// Default city for branch searches
+    pub default_city: String,
+    /// Default gold purity for eligibility checks
+    pub default_gold_purity: String,
+    /// Default competitor interest rate (%)
+    pub default_competitor_rate: f64,
+    /// Default loan amount for savings calculations
+    pub default_loan_amount: u64,
+    /// Default remaining tenure (months)
+    pub default_tenure_months: u32,
+}
+
+impl Default for ToolDefaults {
+    fn default() -> Self {
+        Self {
+            default_city: "Mumbai".to_string(),
+            default_gold_purity: "22K".to_string(),
+            default_competitor_rate: 18.0,
+            default_loan_amount: 100_000,
+            default_tenure_months: 12,
+        }
+    }
 }
 
 impl Default for AgentConfig {
@@ -37,6 +68,7 @@ impl Default for AgentConfig {
             persona: PersonaConfig::default(),
             rag_enabled: true,
             tools_enabled: true,
+            tool_defaults: ToolDefaults::default(),
         }
     }
 }
@@ -75,6 +107,10 @@ pub struct GoldLoanAgent {
     conversation: Arc<Conversation>,
     tools: Arc<ToolRegistry>,
     llm: Option<Arc<dyn LlmBackend>>,
+    /// P1 FIX: RAG retriever for context augmentation
+    retriever: Option<Arc<HybridRetriever>>,
+    /// P1 FIX: Vector store for RAG search (optional, can be injected)
+    vector_store: Option<Arc<VectorStore>>,
     event_tx: broadcast::Sender<AgentEvent>,
 }
 
@@ -96,11 +132,23 @@ impl GoldLoanAgent {
             .map(|backend| Arc::new(backend) as Arc<dyn LlmBackend>)
             .ok();
 
+        // P1 FIX: Create RAG retriever if enabled
+        let retriever = if config.rag_enabled {
+            Some(Arc::new(HybridRetriever::new(
+                RetrieverConfig::default(),
+                RerankerConfig::default(),
+            )))
+        } else {
+            None
+        };
+
         Self {
             config,
             conversation,
             tools,
             llm,
+            retriever,
+            vector_store: None,
             event_tx,
         }
     }
@@ -120,11 +168,23 @@ impl GoldLoanAgent {
 
         let tools = Arc::new(voice_agent_tools::registry::create_default_registry());
 
+        // P1 FIX: Create RAG retriever if enabled
+        let retriever = if config.rag_enabled {
+            Some(Arc::new(HybridRetriever::new(
+                RetrieverConfig::default(),
+                RerankerConfig::default(),
+            )))
+        } else {
+            None
+        };
+
         Self {
             config,
             conversation,
             tools,
             llm: Some(llm),
+            retriever,
+            vector_store: None,
             event_tx,
         }
     }
@@ -140,13 +200,31 @@ impl GoldLoanAgent {
 
         let tools = Arc::new(voice_agent_tools::registry::create_default_registry());
 
+        // P1 FIX: Create RAG retriever if enabled
+        let retriever = if config.rag_enabled {
+            Some(Arc::new(HybridRetriever::new(
+                RetrieverConfig::default(),
+                RerankerConfig::default(),
+            )))
+        } else {
+            None
+        };
+
         Self {
             config,
             conversation,
             tools,
             llm: None,
+            retriever,
+            vector_store: None,
             event_tx,
         }
+    }
+
+    /// P1 FIX: Set vector store for RAG search
+    pub fn with_vector_store(mut self, vector_store: Arc<VectorStore>) -> Self {
+        self.vector_store = Some(vector_store);
+        self
     }
 
     /// Subscribe to agent events
@@ -219,27 +297,28 @@ impl GoldLoanAgent {
                 }
             }
 
-            // Add defaults
+            // P1 FIX: Use configurable defaults instead of hardcoded values
+            let defaults = &self.config.tool_defaults;
+
             if name == "check_eligibility" && !args.contains_key("gold_purity") {
-                args.insert("gold_purity".to_string(), serde_json::json!("22K"));
+                args.insert("gold_purity".to_string(), serde_json::json!(&defaults.default_gold_purity));
             }
 
             if name == "calculate_savings" {
                 if !args.contains_key("current_interest_rate") {
-                    args.insert("current_interest_rate".to_string(), serde_json::json!(18.0));
+                    args.insert("current_interest_rate".to_string(), serde_json::json!(defaults.default_competitor_rate));
                 }
                 if !args.contains_key("current_loan_amount") {
-                    args.insert("current_loan_amount".to_string(), serde_json::json!(100000));
+                    args.insert("current_loan_amount".to_string(), serde_json::json!(defaults.default_loan_amount));
                 }
                 if !args.contains_key("remaining_tenure_months") {
-                    args.insert("remaining_tenure_months".to_string(), serde_json::json!(12));
+                    args.insert("remaining_tenure_months".to_string(), serde_json::json!(defaults.default_tenure_months));
                 }
             }
 
-            if name == "find_branches"
-                && !args.contains_key("city") {
-                    args.insert("city".to_string(), serde_json::json!("Mumbai"));
-                }
+            if name == "find_branches" && !args.contains_key("city") {
+                args.insert("city".to_string(), serde_json::json!(&defaults.default_city));
+            }
 
             let result = self.tools.execute(name, serde_json::Value::Object(args)).await;
 
@@ -288,6 +367,29 @@ impl GoldLoanAgent {
         let context = self.conversation.get_context();
         if !context.is_empty() {
             builder = builder.with_context(&context);
+        }
+
+        // P1 FIX: Add RAG context if retriever and vector store are available
+        if self.config.rag_enabled {
+            if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
+                match retriever.search(user_input, vector_store, None).await {
+                    Ok(results) if !results.is_empty() => {
+                        let rag_context = results.iter()
+                            .take(3) // Limit to top 3 results
+                            .map(|r| format!("- {}", r.text))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        builder = builder.with_context(&format!("## Relevant Information\n{}", rag_context));
+                        tracing::debug!("RAG retrieved {} results for query", results.len());
+                    }
+                    Ok(_) => {
+                        tracing::debug!("RAG returned no results for query");
+                    }
+                    Err(e) => {
+                        tracing::warn!("RAG search failed, continuing without: {}", e);
+                    }
+                }
+            }
         }
 
         // Add tool result if available

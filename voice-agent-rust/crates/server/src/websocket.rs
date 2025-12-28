@@ -64,7 +64,9 @@ impl WebSocketHandler {
             .ok_or(axum::http::StatusCode::NOT_FOUND)?;
 
         // Create rate limiter for this connection
-        let rate_limiter = RateLimiter::new(state.config.server.rate_limit.clone());
+        // P1 FIX: Use RwLock for hot-reload support
+        let rate_limit_config = state.config.read().server.rate_limit.clone();
+        let rate_limiter = RateLimiter::new(rate_limit_config);
 
         Ok(ws.on_upgrade(move |socket| Self::handle_socket(socket, session, state, rate_limiter)))
     }

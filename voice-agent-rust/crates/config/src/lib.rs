@@ -10,7 +10,7 @@ pub mod pipeline;
 pub mod agent;
 pub mod gold_loan;
 
-pub use settings::{Settings, ServerConfig, RateLimitConfig, load_settings};
+pub use settings::{Settings, ServerConfig, RateLimitConfig, AuthConfig, load_settings};
 pub use pipeline::PipelineConfig;
 pub use agent::{AgentConfig, PersonaConfig};  // P0 FIX: Export PersonaConfig for consolidation
 pub use gold_loan::{GoldLoanConfig, PurityFactors, CompetitorRates};

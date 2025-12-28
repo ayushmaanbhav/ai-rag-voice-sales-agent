@@ -18,11 +18,11 @@ The agent crate handles conversation logic:
 |--------|--------|-------|
 | GoldLoanAgent | Event-driven, mock fallback | **B** |
 | Conversation | Stage FSM works, transitions fixed | **B+** |
-| Intent Detection | Keyword-based, regex still unused | **C** |
-| Memory | Summarization still fake | **D** |
+| Intent Detection | Compiled regex patterns for slots | **B+** |
+| Memory | LLM-based summarization added | **B** |
 | Stage Transitions | Fixed missing paths | **B+** |
 
-**Overall Grade: C+** (3/12 issues fixed, 8 open, 1 partial)
+**Overall Grade: A-** (9/12 issues fixed, 2 open, 1 partial)
 
 ---
 
@@ -30,10 +30,10 @@ The agent crate handles conversation logic:
 
 | Task | File:Line | Status |
 |------|-----------|--------|
-| Slot patterns never used | `intent.rs:216-241,314-330` | ❌ **OPEN** - Patterns defined but not compiled |
-| Memory summarization fake | `memory.rs:160-170` | ❌ **OPEN** - Just concatenates, no LLM |
+| ~~Slot patterns never used~~ | `intent.rs:216-241,314-330` | ✅ **FIXED** - CompiledSlotPattern with regex |
+| ~~Memory summarization fake~~ | `memory.rs:160-170` | ✅ **FIXED** - LLM-based summarize_pending_async() |
 | ~~No Devanagari support~~ | `intent.rs:276-300` | ✅ **FIXED** - unicode_segmentation |
-| Duplicate PersonaTraits | `agent.rs`, `llm/prompt.rs`, `config/agent.rs` | ❌ **OPEN** - 3 definitions |
+| ~~Duplicate PersonaTraits~~ | `agent.rs`, `llm/prompt.rs`, `config/agent.rs` | ✅ **FIXED** - Consolidated to config::PersonaConfig |
 
 ---
 
@@ -42,12 +42,12 @@ The agent crate handles conversation logic:
 | Task | File:Line | Status |
 |------|-----------|--------|
 | ~~Missing FSM transitions~~ | `stage.rs:108-127` | ✅ **FIXED** - Discovery↔ObjectionHandling |
-| required_intents not checked | `stage.rs:269-292` | ❌ **OPEN** - Never validated |
+| ~~required_intents not checked~~ | `stage.rs:269-292` | ✅ **FIXED** - stage_completed() validates |
 | Incomplete stage mappings | `conversation.rs:263-296` | ⚠️ **PARTIAL** - Only 4 intents mapped |
-| Hardcoded tool defaults | `agent.rs:232-251` | ❌ **OPEN** - City/purity hardcoded |
-| SlotType always Text | `intent.rs:322` | ❌ **OPEN** - Ignores slot type |
-| Hardcoded slot confidence | `intent.rs:324` | ❌ **OPEN** - Always 0.8 |
-| No RAG integration | `agent.rs` | ❌ **OPEN** - rag_enabled unused |
+| ~~Hardcoded tool defaults~~ | `agent.rs:252-273` | ✅ **FIXED** - ToolDefaults struct in AgentConfig |
+| ~~SlotType always Text~~ | `intent.rs:322` | ✅ **FIXED** - Typed CompiledSlotPattern |
+| ~~Hardcoded slot confidence~~ | `intent.rs:324` | ✅ **FIXED** - extract_slot_with_patterns() calculates |
+| ~~No RAG integration~~ | `agent.rs:372-393` | ✅ **FIXED** - with_vector_store() + search in generate_response |
 | ~~Stage guidance mismatch~~ | `agent.rs:314-317` | ✅ **FIXED** - Works via string match |
 
 ---

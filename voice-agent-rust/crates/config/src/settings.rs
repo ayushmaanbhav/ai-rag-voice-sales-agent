@@ -144,6 +144,44 @@ pub struct ServerConfig {
     /// Rate limiting configuration
     #[serde(default)]
     pub rate_limit: RateLimitConfig,
+
+    /// P1 FIX: Authentication configuration
+    #[serde(default)]
+    pub auth: AuthConfig,
+}
+
+/// P1 FIX: Authentication configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthConfig {
+    /// Enable authentication (set to false for development)
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// API key for simple authentication (should be set via VOICE_AGENT__SERVER__AUTH__API_KEY env var)
+    #[serde(default)]
+    pub api_key: Option<String>,
+
+    /// Paths that bypass authentication (e.g., health checks)
+    #[serde(default = "default_public_paths")]
+    pub public_paths: Vec<String>,
+}
+
+fn default_public_paths() -> Vec<String> {
+    vec![
+        "/health".to_string(),
+        "/ready".to_string(),
+        "/metrics".to_string(),
+    ]
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false, // Disabled by default for development
+            api_key: None,
+            public_paths: default_public_paths(),
+        }
+    }
 }
 
 /// Rate limiting configuration
@@ -221,6 +259,7 @@ impl Default for ServerConfig {
             // Use ["http://localhost:3000"] for local dev, or specific domains for production
             cors_origins: Vec::new(),
             rate_limit: RateLimitConfig::default(),
+            auth: AuthConfig::default(),  // P1 FIX: Auth config
         }
     }
 }

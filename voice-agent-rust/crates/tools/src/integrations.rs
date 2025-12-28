@@ -29,6 +29,18 @@ pub enum IntegrationError {
     Internal(String),
 }
 
+/// P2 FIX: Convert IntegrationError to ToolError for unified error handling
+impl From<IntegrationError> for crate::mcp::ToolError {
+    fn from(err: IntegrationError) -> Self {
+        match err {
+            IntegrationError::NotFound(msg) => crate::mcp::ToolError::not_found(msg),
+            IntegrationError::InvalidRequest(msg) => crate::mcp::ToolError::invalid_params(msg),
+            IntegrationError::RateLimited => crate::mcp::ToolError::internal("Rate limited - please retry later"),
+            _ => crate::mcp::ToolError::internal(err.to_string()),
+        }
+    }
+}
+
 // ============================================================================
 // CRM Integration
 // ============================================================================

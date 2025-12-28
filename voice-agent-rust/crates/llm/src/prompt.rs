@@ -229,16 +229,100 @@ Respond naturally as if speaking on a phone call. Do not use bullet points, head
         self.messages
     }
 
+    /// Build with context window limit
+    ///
+    /// P0 FIX: Truncates conversation history to fit within token limit.
+    /// Preserves system prompt and most recent messages, removing oldest
+    /// non-system messages first.
+    pub fn build_with_limit(self, max_tokens: usize) -> Vec<Message> {
+        let current_tokens = self.estimate_tokens();
+
+        if current_tokens <= max_tokens {
+            return self.messages;
+        }
+
+        // Separate system messages (keep all) from conversation history
+        let (system_msgs, conv_msgs): (Vec<_>, Vec<_>) = self.messages
+            .into_iter()
+            .partition(|m| matches!(m.role, Role::System));
+
+        let system_tokens: usize = system_msgs.iter()
+            .map(|m| Self::estimate_single_message_tokens(&m.content))
+            .sum();
+
+        let available_tokens = max_tokens.saturating_sub(system_tokens);
+
+        // Keep recent messages that fit within limit
+        let mut kept_msgs: Vec<Message> = Vec::new();
+        let mut used_tokens = 0;
+
+        for msg in conv_msgs.into_iter().rev() {
+            let msg_tokens = Self::estimate_single_message_tokens(&msg.content);
+            if used_tokens + msg_tokens <= available_tokens {
+                kept_msgs.push(msg);
+                used_tokens += msg_tokens;
+            } else {
+                break;
+            }
+        }
+
+        kept_msgs.reverse();
+
+        // Combine: system messages first, then kept conversation
+        let mut result = system_msgs;
+        result.extend(kept_msgs);
+
+        tracing::debug!(
+            "Context truncated: {} -> {} tokens ({} messages kept)",
+            current_tokens,
+            system_tokens + used_tokens,
+            result.len()
+        );
+
+        result
+    }
+
+    /// Estimate tokens for a single message content
+    fn estimate_single_message_tokens(content: &str) -> usize {
+        use unicode_segmentation::UnicodeSegmentation;
+
+        let grapheme_count = content.graphemes(true).count();
+        let devanagari_count = content.chars()
+            .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
+            .count();
+
+        if devanagari_count > grapheme_count / 3 {
+            grapheme_count.max(1) / 2
+        } else {
+            grapheme_count.max(1) / 4
+        }
+    }
+
     /// Get message count
     pub fn message_count(&self) -> usize {
         self.messages.len()
     }
 
     /// Estimate token count
+    ///
+    /// P0 FIX: Improved estimation for Hindi/Devanagari text
     pub fn estimate_tokens(&self) -> usize {
+        use unicode_segmentation::UnicodeSegmentation;
+
         self.messages
             .iter()
-            .map(|m| m.content.len() / 4) // Rough estimate
+            .map(|m| {
+                let grapheme_count = m.content.graphemes(true).count();
+                let devanagari_count = m.content.chars()
+                    .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
+                    .count();
+
+                if devanagari_count > grapheme_count / 3 {
+                    grapheme_count.max(1) / 2
+                } else {
+                    grapheme_count.max(1) / 4
+                }
+            })
             .sum()
     }
 }

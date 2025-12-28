@@ -99,8 +99,18 @@ pub struct VectorStore {
 
 impl VectorStore {
     /// Create a new vector store connection
+    ///
+    /// P0 FIX: Now uses api_key from config for authenticated Qdrant connections.
     pub async fn new(config: VectorStoreConfig) -> Result<Self, RagError> {
-        let client = Qdrant::from_url(&config.endpoint)
+        let mut builder = Qdrant::from_url(&config.endpoint);
+
+        // P0 FIX: Apply API key if configured
+        if let Some(ref api_key) = config.api_key {
+            builder = builder.api_key(api_key.clone());
+            tracing::info!("Qdrant connection using API key authentication");
+        }
+
+        let client = builder
             .build()
             .map_err(|e| RagError::Connection(e.to_string()))?;
 

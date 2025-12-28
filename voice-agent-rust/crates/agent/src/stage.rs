@@ -184,6 +184,8 @@ pub struct StageManager {
     stage_history: Mutex<Vec<StageTransition>>,
     stage_turns: Mutex<HashMap<ConversationStage, usize>>,
     collected_info: Mutex<HashMap<String, String>>,
+    /// P0 FIX: Track detected intents for stage requirement validation
+    detected_intents: Mutex<Vec<String>>,
     requirements: HashMap<ConversationStage, StageRequirements>,
 }
 
@@ -195,6 +197,7 @@ impl StageManager {
             stage_history: Mutex::new(Vec::new()),
             stage_turns: Mutex::new(HashMap::new()),
             collected_info: Mutex::new(HashMap::new()),
+            detected_intents: Mutex::new(Vec::new()),
             requirements: Self::default_requirements(),
         }
     }
@@ -265,11 +268,30 @@ impl StageManager {
         self.collected_info.lock().insert(key.to_string(), value.to_string());
     }
 
+    /// Record a detected intent
+    ///
+    /// P0 FIX: Tracks intents for stage requirement validation.
+    pub fn record_intent(&self, intent: &str) {
+        let mut intents = self.detected_intents.lock();
+        if !intents.contains(&intent.to_string()) {
+            intents.push(intent.to_string());
+            tracing::debug!("Recorded intent: {}", intent);
+        }
+    }
+
+    /// Check if a specific intent has been detected
+    pub fn has_intent(&self, intent: &str) -> bool {
+        self.detected_intents.lock().contains(&intent.to_string())
+    }
+
     /// Check if current stage requirements are met
+    ///
+    /// P0 FIX: Now validates required_intents in addition to min_turns and required_info.
     pub fn stage_completed(&self) -> bool {
         let stage = self.current();
         let turns = self.stage_turns.lock();
         let info = self.collected_info.lock();
+        let intents = self.detected_intents.lock();
 
         if let Some(req) = self.requirements.get(&stage) {
             // Check minimum turns
@@ -281,6 +303,18 @@ impl StageManager {
             // Check required info
             for key in &req.required_info {
                 if !info.contains_key(key) {
+                    return false;
+                }
+            }
+
+            // P0 FIX: Check required intents
+            for intent in &req.required_intents {
+                if !intents.contains(intent) {
+                    tracing::debug!(
+                        "Stage {:?} incomplete: missing required intent '{}'",
+                        stage,
+                        intent
+                    );
                     return false;
                 }
             }

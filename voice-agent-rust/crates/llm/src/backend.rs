@@ -118,9 +118,32 @@ pub trait LlmBackend: Send + Sync {
     fn model_name(&self) -> &str;
 
     /// Estimate tokens
+    ///
+    /// P0 FIX: Improved token estimation for multilingual content.
+    /// - English text: ~4 chars per token
+    /// - Hindi/Devanagari: ~2-3 chars per token (but 3 bytes each in UTF-8)
+    /// - Uses unicode grapheme count for accuracy
     fn estimate_tokens(&self, text: &str) -> usize {
-        // Rough estimate: ~4 characters per token
-        text.len() / 4
+        use unicode_segmentation::UnicodeSegmentation;
+
+        // Count actual grapheme clusters (handles Devanagari properly)
+        let grapheme_count = text.graphemes(true).count();
+
+        // Count Devanagari characters (U+0900 to U+097F)
+        let devanagari_count = text.chars()
+            .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
+            .count();
+
+        // Estimate: Devanagari has ~2 graphemes per token, English ~4
+        if devanagari_count > grapheme_count / 3 {
+            // Primarily Hindi/Devanagari text
+            // Each Hindi word is roughly 1.5-2 tokens, grapheme count / 2
+            grapheme_count.max(1) / 2
+        } else {
+            // Primarily English or mixed
+            // Average ~4 characters per token
+            grapheme_count.max(1) / 4
+        }
     }
 }
 

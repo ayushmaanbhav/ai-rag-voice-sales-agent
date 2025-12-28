@@ -8,21 +8,26 @@ use axum::{
     extract::{State, Path, Json},
     http::{StatusCode, HeaderValue, Method},
     response::IntoResponse,
+    Extension,
 };
 use serde::{Deserialize, Serialize};
-use tower_http::cors::{CorsLayer, Any, AllowOrigin};
+use tower_http::cors::{CorsLayer, Any};
 use tower_http::trace::TraceLayer;
 use tower_http::compression::CompressionLayer;
 
 use crate::state::AppState;
 use crate::websocket::{WebSocketHandler, create_session};
 use crate::metrics::metrics_handler;
+use crate::auth::auth_middleware;
 use voice_agent_tools::ToolExecutor;
 
 /// Create the application router
 pub fn create_router(state: AppState) -> Router {
     // P0 FIX: Build CORS layer from configured origins instead of wildcard Any
-    let cors_layer = build_cors_layer(&state.config.server.cors_origins, state.config.server.cors_enabled);
+    // P1 FIX: Now uses RwLock for hot-reload support
+    let config = state.config.read();
+    let cors_layer = build_cors_layer(&config.server.cors_origins, config.server.cors_enabled);
+    drop(config); // Release lock before building router
 
     Router::new()
         // Session endpoints
@@ -45,10 +50,18 @@ pub fn create_router(state: AppState) -> Router {
         // P0 FIX: Prometheus metrics endpoint
         .route("/metrics", get(metrics_handler))
 
+        // P1 FIX: Config reload endpoint (admin only)
+        .route("/admin/reload-config", post(reload_config))
+
         // WebSocket
         .route("/ws/:session_id", get(ws_handler))
 
-        // Middleware
+        // Middleware (order matters - auth runs after CORS but before handlers)
+        // P1 FIX: Apply auth middleware layer via Extension
+        .layer(axum::middleware::from_fn(|req: axum::extract::Request, next: axum::middleware::Next| async move {
+            auth_middleware(req, next).await
+        }))
+        .layer(Extension(state.config.clone()))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .layer(cors_layer)
@@ -270,6 +283,32 @@ async fn readiness_check(
         "status": "ready",
         "sessions": session_count,
     }))
+}
+
+/// P1 FIX: Config reload endpoint
+///
+/// POST /admin/reload-config
+///
+/// Reloads configuration from disk. Useful for updating settings without restart.
+/// Note: Some settings (like CORS) are only applied at startup.
+async fn reload_config(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match state.reload_config() {
+        Ok(()) => {
+            (StatusCode::OK, Json(serde_json::json!({
+                "status": "success",
+                "message": "Configuration reloaded successfully"
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Config reload failed: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+                "status": "error",
+                "message": e
+            })))
+        }
+    }
 }
 
 /// WebSocket handler wrapper

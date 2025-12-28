@@ -1,11 +1,16 @@
 //! Sparse Search using Tantivy (BM25)
 //!
 //! Provides keyword-based search for hybrid retrieval.
+//!
+//! P0 FIX: Added Hindi/Devanagari tokenization support using SimpleTokenizer.
+//! For production Hindi NLP, consider integrating ICU or language-specific
+//! stemmers (e.g., NLTK's Hindi stemmer via Python bindings).
 
 use std::path::Path;
 use std::collections::HashMap;
 use tantivy::{
-    schema::{Schema, TEXT, STORED, STRING, Field, OwnedValue},
+    schema::{Schema, TEXT, STORED, STRING, Field, OwnedValue, TextFieldIndexing, TextOptions},
+    tokenizer::{SimpleTokenizer, LowerCaser, TextAnalyzer, RemoveLongFilter, Stemmer, Language},
     Index, IndexWriter, IndexReader,
     query::QueryParser,
     collector::TopDocs,
@@ -68,13 +73,24 @@ pub struct SparseIndex {
 
 impl SparseIndex {
     /// Create a new sparse index
+    ///
+    /// P0 FIX: Now uses language-aware tokenization based on config.
     pub fn new(config: SparseConfig) -> Result<Self, RagError> {
-        // Build schema
+        // Build schema with custom tokenizer
         let mut schema_builder = Schema::builder();
 
+        // P0 FIX: Create text options with custom tokenizer
+        let text_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("multilingual")
+                    .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions)
+            )
+            .set_stored();
+
         let id_field = schema_builder.add_text_field("id", STRING | STORED);
-        let text_field = schema_builder.add_text_field("text", TEXT | STORED);
-        let title_field = schema_builder.add_text_field("title", TEXT | STORED);
+        let text_field = schema_builder.add_text_field("text", text_options.clone());
+        let title_field = schema_builder.add_text_field("title", text_options);
         let category_field = schema_builder.add_text_field("category", STRING | STORED);
 
         let schema = schema_builder.build();
@@ -89,6 +105,11 @@ impl SparseIndex {
             Index::create_in_ram(schema.clone())
         };
 
+        // P0 FIX: Register multilingual tokenizer
+        // Uses SimpleTokenizer which handles Unicode/Devanagari properly
+        let tokenizer = Self::build_tokenizer(&config);
+        index.tokenizers().register("multilingual", tokenizer);
+
         let reader = index
             .reader()
             .map_err(|e| RagError::Index(e.to_string()))?;
@@ -96,6 +117,12 @@ impl SparseIndex {
         let writer = index
             .writer(50_000_000) // 50MB buffer
             .map_err(|e| RagError::Index(e.to_string()))?;
+
+        tracing::info!(
+            "Sparse index created with language={}, stemming={}",
+            config.language,
+            config.stemming
+        );
 
         Ok(Self {
             index,
@@ -108,6 +135,28 @@ impl SparseIndex {
             category_field,
             config,
         })
+    }
+
+    /// Build tokenizer based on configuration
+    ///
+    /// P0 FIX: Supports English stemming; Hindi uses simple Unicode tokenization.
+    fn build_tokenizer(config: &SparseConfig) -> TextAnalyzer {
+        // SimpleTokenizer handles Unicode properly (including Devanagari)
+        let base = TextAnalyzer::builder(SimpleTokenizer::default())
+            .filter(RemoveLongFilter::limit(100))
+            .filter(LowerCaser);
+
+        // Add stemmer for supported languages
+        if config.stemming && config.language == "en" {
+            base.filter(Stemmer::new(Language::English)).build()
+        } else {
+            if config.language == "hi" || config.language == "hindi" {
+                tracing::info!("Hindi: using SimpleTokenizer (no stemming available in Tantivy)");
+            } else if config.language != "en" {
+                tracing::warn!("Language '{}' has no stemmer, using simple tokenization", config.language);
+            }
+            base.build()
+        }
     }
 
     /// Index documents

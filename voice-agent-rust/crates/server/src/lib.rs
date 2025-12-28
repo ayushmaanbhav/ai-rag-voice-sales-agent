@@ -8,9 +8,11 @@ pub mod session;
 pub mod state;
 pub mod rate_limit;
 pub mod metrics;
+pub mod auth;  // P1 FIX: Auth middleware
 
 pub use websocket::WebSocketHandler;
 pub use http::create_router;
+pub use auth::auth_middleware;
 pub use session::{Session, SessionManager};
 pub use state::AppState;
 pub use rate_limit::{RateLimiter, RateLimitError};

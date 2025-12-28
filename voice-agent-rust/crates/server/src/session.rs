@@ -1,16 +1,229 @@
 //! Session Management
 //!
 //! Manages voice agent sessions.
+//!
+//! ## P1 FIX: Session Store Abstraction
+//!
+//! The session management now uses a trait-based abstraction for storage,
+//! allowing different backends (in-memory, Redis, etc.) to be used.
+//!
+//! - `InMemorySessionStore` - Default, uses HashMap (current behavior)
+//! - `RedisSessionStore` - Stub for Redis-based persistence (future)
+//!
+//! Note: Full Redis persistence requires serialization of agent state,
+//! which is complex due to the agent containing LLM connections and
+//! async state. For now, Redis support focuses on session metadata
+//! and coordination between instances.
 
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 use tokio::sync::watch;
+use async_trait::async_trait;
 
 use voice_agent_agent::{GoldLoanAgent, AgentConfig};
 
 use crate::ServerError;
+
+/// P1 FIX: Session metadata for Redis storage
+///
+/// Contains serializable session information that can be stored in Redis.
+/// The full agent state is kept in-memory with session affinity.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SessionMetadata {
+    /// Session ID
+    pub id: String,
+    /// Creation timestamp (Unix epoch milliseconds)
+    pub created_at_ms: u64,
+    /// Last activity timestamp (Unix epoch milliseconds)
+    pub last_activity_ms: u64,
+    /// Is session active
+    pub active: bool,
+    /// Current conversation stage
+    pub stage: String,
+    /// Number of turns in conversation
+    pub turn_count: usize,
+    /// Instance ID that owns this session (for affinity)
+    pub instance_id: Option<String>,
+}
+
+/// P1 FIX: Session store trait for pluggable backends
+#[async_trait]
+pub trait SessionStore: Send + Sync {
+    /// Store session metadata
+    async fn store_metadata(&self, session: &Session) -> Result<(), ServerError>;
+
+    /// Get session metadata by ID
+    async fn get_metadata(&self, id: &str) -> Result<Option<SessionMetadata>, ServerError>;
+
+    /// Delete session metadata
+    async fn delete_metadata(&self, id: &str) -> Result<(), ServerError>;
+
+    /// List all session IDs
+    async fn list_ids(&self) -> Result<Vec<String>, ServerError>;
+
+    /// Update last activity timestamp
+    async fn touch(&self, id: &str) -> Result<(), ServerError>;
+
+    /// Check if this store supports distributed sessions
+    fn is_distributed(&self) -> bool;
+}
+
+/// P1 FIX: In-memory session store (default)
+///
+/// This is the current implementation - sessions are stored in memory
+/// with no persistence across restarts.
+#[derive(Default)]
+pub struct InMemorySessionStore {
+    metadata: RwLock<HashMap<String, SessionMetadata>>,
+}
+
+impl InMemorySessionStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[async_trait]
+impl SessionStore for InMemorySessionStore {
+    async fn store_metadata(&self, session: &Session) -> Result<(), ServerError> {
+        let metadata = SessionMetadata {
+            id: session.id.clone(),
+            created_at_ms: session.created_at.elapsed().as_millis() as u64,
+            last_activity_ms: session.last_activity.read().elapsed().as_millis() as u64,
+            active: *session.active.read(),
+            stage: session.agent.stage().display_name().to_string(),
+            turn_count: session.agent.conversation().turn_count(),
+            instance_id: None,
+        };
+        self.metadata.write().insert(session.id.clone(), metadata);
+        Ok(())
+    }
+
+    async fn get_metadata(&self, id: &str) -> Result<Option<SessionMetadata>, ServerError> {
+        Ok(self.metadata.read().get(id).cloned())
+    }
+
+    async fn delete_metadata(&self, id: &str) -> Result<(), ServerError> {
+        self.metadata.write().remove(id);
+        Ok(())
+    }
+
+    async fn list_ids(&self) -> Result<Vec<String>, ServerError> {
+        Ok(self.metadata.read().keys().cloned().collect())
+    }
+
+    async fn touch(&self, id: &str) -> Result<(), ServerError> {
+        if let Some(meta) = self.metadata.write().get_mut(id) {
+            meta.last_activity_ms = 0; // Would need system time for real timestamp
+        }
+        Ok(())
+    }
+
+    fn is_distributed(&self) -> bool {
+        false
+    }
+}
+
+/// P1 FIX: Redis session store configuration
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RedisSessionConfig {
+    /// Redis connection URL
+    pub url: String,
+    /// Key prefix for session data
+    pub key_prefix: String,
+    /// TTL for session keys in seconds
+    pub ttl_seconds: u64,
+    /// Instance ID for session affinity
+    pub instance_id: String,
+}
+
+impl Default for RedisSessionConfig {
+    fn default() -> Self {
+        Self {
+            url: "redis://127.0.0.1:6379".to_string(),
+            key_prefix: "voice_agent:session:".to_string(),
+            ttl_seconds: 3600,
+            instance_id: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+}
+
+/// P1 FIX: Redis session store (stub for future implementation)
+///
+/// This is a placeholder for Redis-based session persistence.
+/// Full implementation requires:
+/// 1. Redis connection pool (deadpool-redis or bb8-redis)
+/// 2. Serialization of session state
+/// 3. Session affinity for agent state
+/// 4. Pub/sub for session events
+pub struct RedisSessionStore {
+    config: RedisSessionConfig,
+    // TODO: Add Redis connection pool when implementing
+    // pool: Pool<RedisConnectionManager>,
+}
+
+impl RedisSessionStore {
+    pub fn new(config: RedisSessionConfig) -> Self {
+        tracing::warn!("RedisSessionStore is a stub - using in-memory fallback");
+        Self { config }
+    }
+
+    fn _key(&self, id: &str) -> String {
+        format!("{}{}", self.config.key_prefix, id)
+    }
+}
+
+#[async_trait]
+impl SessionStore for RedisSessionStore {
+    async fn store_metadata(&self, session: &Session) -> Result<(), ServerError> {
+        // TODO: Implement Redis SET with TTL
+        tracing::debug!("Redis store_metadata stub called for session {}", session.id);
+        let _key = self._key(&session.id);
+        // In a real implementation:
+        // let value = serde_json::to_string(&metadata)?;
+        // conn.set_ex(key, value, self.config.ttl_seconds).await?;
+        Ok(())
+    }
+
+    async fn get_metadata(&self, id: &str) -> Result<Option<SessionMetadata>, ServerError> {
+        // TODO: Implement Redis GET
+        tracing::debug!("Redis get_metadata stub called for session {}", id);
+        let _key = self._key(id);
+        // In a real implementation:
+        // let value: Option<String> = conn.get(key).await?;
+        // Ok(value.map(|v| serde_json::from_str(&v)).transpose()?)
+        Ok(None)
+    }
+
+    async fn delete_metadata(&self, id: &str) -> Result<(), ServerError> {
+        // TODO: Implement Redis DEL
+        tracing::debug!("Redis delete_metadata stub called for session {}", id);
+        let _key = self._key(id);
+        Ok(())
+    }
+
+    async fn list_ids(&self) -> Result<Vec<String>, ServerError> {
+        // TODO: Implement Redis SCAN with pattern
+        tracing::debug!("Redis list_ids stub called");
+        // In a real implementation:
+        // let pattern = format!("{}*", self.config.key_prefix);
+        // let keys: Vec<String> = conn.scan_match(pattern).collect().await?;
+        Ok(vec![])
+    }
+
+    async fn touch(&self, id: &str) -> Result<(), ServerError> {
+        // TODO: Implement Redis EXPIRE refresh
+        tracing::debug!("Redis touch stub called for session {}", id);
+        let _key = self._key(id);
+        Ok(())
+    }
+
+    fn is_distributed(&self) -> bool {
+        true
+    }
+}
 
 /// Session state
 pub struct Session {
@@ -234,5 +447,59 @@ mod tests {
 
         manager.remove(&id);
         assert!(manager.get(&id).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_session_store() {
+        let store = InMemorySessionStore::new();
+        let manager = SessionManager::new(10);
+        let session = manager.create(AgentConfig::default()).unwrap();
+
+        // Store metadata
+        store.store_metadata(&session).await.unwrap();
+
+        // Retrieve metadata
+        let metadata = store.get_metadata(&session.id).await.unwrap();
+        assert!(metadata.is_some());
+        let meta = metadata.unwrap();
+        assert_eq!(meta.id, session.id);
+        assert!(meta.active);
+
+        // List IDs
+        let ids = store.list_ids().await.unwrap();
+        assert!(ids.contains(&session.id));
+
+        // Delete
+        store.delete_metadata(&session.id).await.unwrap();
+        let metadata = store.get_metadata(&session.id).await.unwrap();
+        assert!(metadata.is_none());
+
+        // Check distributed flag
+        assert!(!store.is_distributed());
+    }
+
+    #[test]
+    fn test_redis_session_config_default() {
+        let config = RedisSessionConfig::default();
+        assert_eq!(config.url, "redis://127.0.0.1:6379");
+        assert!(config.key_prefix.starts_with("voice_agent:session:"));
+        assert_eq!(config.ttl_seconds, 3600);
+        assert!(!config.instance_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_redis_session_store_stub() {
+        let config = RedisSessionConfig::default();
+        let store = RedisSessionStore::new(config);
+
+        // The stub should return empty/None values but not error
+        let ids = store.list_ids().await.unwrap();
+        assert!(ids.is_empty());
+
+        let metadata = store.get_metadata("nonexistent").await.unwrap();
+        assert!(metadata.is_none());
+
+        // Should be marked as distributed
+        assert!(store.is_distributed());
     }
 }

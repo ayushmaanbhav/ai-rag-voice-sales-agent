@@ -27,7 +27,7 @@ Core infrastructure crates:
 | Session Management | In-memory, no persistence | **C** |
 | Observability | Prometheus metrics | **B+** |
 
-**Overall Grade: B** (5/13 issues fixed, 4 open, 4 partial)
+**Overall Grade: B+** (6/13 issues fixed, 3 open, 4 partial)
 
 ---
 
@@ -48,7 +48,7 @@ Core infrastructure crates:
 |------|-----------|--------|
 | Linear resampling | `audio.rs:215-238` | ⚠️ **DOCUMENTED** - Recommends rubato |
 | No config hot-reload | `settings.rs` | ❌ **OPEN** - Requires restart |
-| No auth middleware | `http.rs:22-58` | ❌ **OPEN** - No JWT/API key |
+| ~~No auth middleware~~ | `auth.rs` + `settings.rs:153-184` | ✅ **FIXED** - API key auth with Bearer token |
 | No session persistence | `session.rs:64-203` | ❌ **OPEN** - In-memory only |
 | WebSocket lock contention | `websocket.rs:81-85` | ⚠️ **PARTIAL** - Uses tokio::sync::Mutex |
 | ~~No graceful shutdown~~ | `main.rs:41-80` | ✅ **FIXED** - SIGTERM/SIGINT handling |
@@ -261,4 +261,4 @@ async fn main() {
 ---
 
 *Last Updated: 2024-12-28*
-*Status: 5/13 issues FIXED, 4 OPEN, 4 PARTIAL*
+*Status: 6/13 issues FIXED, 3 OPEN, 4 PARTIAL*

@@ -15,7 +15,7 @@ use tokio::time::timeout;
 use parking_lot::Mutex;
 
 use crate::backend::{LlmBackend, GenerationResult};
-use crate::prompt::Message;
+use crate::prompt::{Message, Role};
 use crate::LlmError;
 
 /// Speculative execution mode
@@ -432,12 +432,27 @@ impl SpeculativeExecutor {
             // Switch to LLM
             drop(slm_handle); // Cancel SLM
 
-            // Continue with LLM
-            let result = self.llm.generate_stream(messages, tx).await?;
+            // P1 FIX: Preserve SLM output and have LLM continue from there
+            let slm_partial = tokens.join("");
+
+            // Create continuation prompt that includes SLM output as assistant prefix
+            let mut continuation_messages = messages.to_vec();
+            if !slm_partial.is_empty() {
+                continuation_messages.push(Message {
+                    role: Role::Assistant,
+                    content: format!("{} ", slm_partial), // Partial response to continue from
+                });
+            }
+
+            // Continue with LLM from where SLM left off
+            let result = self.llm.generate_stream(&continuation_messages, tx).await?;
             self.update_stats(true, true, start.elapsed());
 
+            // Combine SLM prefix with LLM continuation
+            let combined_text = format!("{}{}", slm_partial, result.text);
+
             Ok(SpeculativeResult {
-                text: result.text.clone(),
+                text: combined_text,
                 model_used: ModelUsed::Hybrid,
                 generation: result,
                 used_fallback: true,
@@ -503,31 +518,52 @@ impl SpeculativeExecutor {
     }
 
     /// Estimate response quality
+    ///
+    /// P1 FIX: Improved heuristics for Hindi/Hinglish streaming context.
+    /// - Don't penalize short initial responses (streaming starts small)
+    /// - Account for Hindi politeness phrases ("maaf kijiye", "sorry" in greeting)
+    /// - Better repetition detection that accounts for Hindi sentence structure
     fn estimate_quality(&self, response: &str, _messages: &[Message]) -> f32 {
-        // Simple quality heuristics
         let mut score: f32 = 1.0;
 
-        // Too short
-        if response.len() < 20 {
-            score -= 0.3;
+        // P1 FIX: Only penalize very short responses, and less severely
+        // During streaming, initial chunks are naturally short
+        if response.len() < 10 {
+            score -= 0.1; // Mild penalty for extremely short
         }
 
-        // Repetition detection
+        // Repetition detection - improved for Hindi
         let words: Vec<&str> = response.split_whitespace().collect();
-        if words.len() > 5 {
+        if words.len() > 8 {
+            // Need more words before judging repetition
             let unique: std::collections::HashSet<&str> = words.iter().cloned().collect();
             let repetition_ratio = unique.len() as f32 / words.len() as f32;
-            if repetition_ratio < 0.5 {
-                score -= 0.4;
+            // P1 FIX: Higher threshold - Hindi often repeats conjunctions (aur, toh, ki)
+            if repetition_ratio < 0.35 {
+                score -= 0.3;
             }
         }
 
-        // Contains error markers
-        let error_markers = ["sorry", "cannot", "error", "invalid"];
-        for marker in &error_markers {
-            if response.to_lowercase().contains(marker) {
-                score -= 0.2;
+        // P1 FIX: Only penalize actual error indicators, not polite phrases
+        // "sorry" and "cannot" are valid in Indian English greetings/politeness
+        let error_indicators = [
+            "error:", "exception", "failed to", "invalid input",
+            "त्रुटि", "गलती हुई", // Hindi error indicators
+        ];
+        let lower = response.to_lowercase();
+        for indicator in &error_indicators {
+            if lower.contains(indicator) {
+                score -= 0.3;
+                break; // Only penalize once
             }
+        }
+
+        // Detect gibberish/garbage output (repeated special characters)
+        let special_char_ratio = response.chars()
+            .filter(|c| !c.is_alphanumeric() && !c.is_whitespace() && *c != '।' && *c != '?' && *c != '!')
+            .count() as f32 / response.len().max(1) as f32;
+        if special_char_ratio > 0.3 {
+            score -= 0.4;
         }
 
         score.max(0.0)

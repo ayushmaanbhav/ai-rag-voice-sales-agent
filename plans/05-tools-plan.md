@@ -22,7 +22,7 @@ The tools crate provides MCP-compatible tool implementations:
 | AppointmentScheduler | Calendar trait + date validation | **B** |
 | BranchLocator | 20 branches in 8 cities (JSON) | **A-** |
 
-**Overall Grade: A-** (11/13 issues fixed, 1 partial, 1 N/A)
+**Overall Grade: A** (13/14 issues fixed, 1 partial)
 
 ---
 
@@ -57,9 +57,9 @@ The tools crate provides MCP-compatible tool implementations:
 |------|-----------|--------|
 | ~~Missing Audio ContentBlock~~ | `mcp.rs:148-187` | ✅ **FIXED** - Full audio support |
 | ~~Basic schema validation~~ | `mcp.rs:331-424` | ✅ **FIXED** - Type/enum/range validation |
-| O(n) history removal | `registry.rs:141-146` | ❌ **OPEN** - Should use VecDeque |
-| Error type unused | `lib.rs:20-42` | ❌ **OPEN** - Dual error types |
-| Tiered interest rates | `config/gold_loan.rs` | ❌ **OPEN** - Single rate only |
+| ~~O(n) history removal~~ | `registry.rs:141-146` | ✅ **FIXED** - Uses VecDeque with O(1) pop_front |
+| ~~Error type unused~~ | `integrations.rs:32-42` | ✅ **FIXED** - From<IntegrationError> for ToolError |
+| ~~Tiered interest rates~~ | `config/gold_loan.rs:42-67,269-288` | ✅ **FIXED** - TieredRates struct + get_tiered_rate() |
 
 ---
 
@@ -190,4 +190,4 @@ Minimum data per branch:
 ---
 
 *Last Updated: 2024-12-28*
-*Status: 11/13 issues FIXED, 1 PARTIAL, 1 N/A*
+*Status: 13/14 issues FIXED, 1 PARTIAL*
