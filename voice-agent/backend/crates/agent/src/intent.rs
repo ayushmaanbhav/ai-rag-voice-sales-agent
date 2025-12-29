@@ -632,17 +632,6 @@ impl IntentDetector {
         slots
     }
 
-    /// P0 FIX: Convert Devanagari numerals to ASCII digits
-    fn devanagari_to_ascii(s: &str) -> String {
-        s.chars().map(|c| {
-            match c {
-                '०' => '0', '१' => '1', '२' => '2', '३' => '3', '४' => '4',
-                '५' => '5', '६' => '6', '७' => '7', '८' => '8', '९' => '9',
-                _ => c,
-            }
-        }).collect()
-    }
-
     /// P3 FIX: Convert all Indic script numerals to ASCII digits
     ///
     /// Supports all 11 major Indic scripts:
@@ -863,51 +852,6 @@ impl IntentDetector {
 
                     return Some((value, pattern.slot_type.clone(), confidence));
                 }
-            }
-        }
-
-        None
-    }
-
-    /// P0 FIX: Legacy method for backwards compatibility
-    /// Use extract_slots() with compiled patterns instead.
-    #[deprecated(note = "Use extract_slots() which uses compiled regex patterns")]
-    fn extract_slot_value(&self, text: &str, slot_name: &str) -> Option<String> {
-        if let Some(patterns) = self.compiled_patterns.get(slot_name) {
-            self.extract_slot_with_patterns(text, patterns)
-                .map(|(value, _, _)| value)
-        } else {
-            None
-        }
-    }
-
-    /// Helper to extract number from text (handles Hindi number words too)
-    #[allow(dead_code)]
-    fn extract_number_before(text: &str) -> Option<f64> {
-        // First try to extract a digit-based number
-        let number_str: String = text.chars().rev()
-            .take_while(|c| c.is_ascii_digit() || *c == '.' || c.is_whitespace())
-            .collect::<String>()
-            .chars().rev().collect();
-
-        if let Ok(num) = number_str.trim().parse::<f64>() {
-            return Some(num);
-        }
-
-        // Try Hindi number words
-        let text_lower = text.to_lowercase();
-        let hindi_numbers = [
-            ("ek", 1.0), ("do", 2.0), ("teen", 3.0), ("char", 4.0), ("paanch", 5.0),
-            ("panch", 5.0), ("che", 6.0), ("saat", 7.0), ("aath", 8.0), ("nau", 9.0),
-            ("das", 10.0), ("bees", 20.0), ("pachees", 25.0), ("pachas", 50.0),
-            ("one", 1.0), ("two", 2.0), ("three", 3.0), ("four", 4.0), ("five", 5.0),
-            ("six", 6.0), ("seven", 7.0), ("eight", 8.0), ("nine", 9.0), ("ten", 10.0),
-            ("twenty", 20.0), ("fifty", 50.0),
-        ];
-
-        for (word, value) in hindi_numbers {
-            if text_lower.contains(word) {
-                return Some(value);
             }
         }
 

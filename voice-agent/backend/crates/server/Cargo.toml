@@ -19,6 +19,8 @@ voice-agent-llm.workspace = true
 voice-agent-tools.workspace = true
 voice-agent-agent.workspace = true
 voice-agent-persistence.workspace = true
+# P2 FIX: Wire transport crate for future WebRTC support
+voice-agent-transport.workspace = true
 
 # Web framework
 axum = { workspace = true, features = ["ws", "macros"] }

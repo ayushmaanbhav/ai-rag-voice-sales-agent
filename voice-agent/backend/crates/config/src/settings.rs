@@ -397,6 +397,32 @@ pub struct ServerConfig {
     /// P1 FIX: Authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
+
+    /// P2 FIX: STUN servers for WebRTC NAT traversal
+    #[serde(default = "default_stun_servers")]
+    pub stun_servers: Vec<String>,
+
+    /// P2 FIX: TURN servers for WebRTC relay (when STUN fails)
+    #[serde(default)]
+    pub turn_servers: Vec<TurnServerConfig>,
+}
+
+/// P2 FIX: TURN server configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnServerConfig {
+    /// TURN server URL (e.g., "turn:turn.example.com:3478")
+    pub url: String,
+    /// Username for TURN authentication
+    pub username: String,
+    /// Credential for TURN authentication
+    pub credential: String,
+}
+
+fn default_stun_servers() -> Vec<String> {
+    vec![
+        "stun:stun.l.google.com:19302".to_string(),
+        "stun:stun1.l.google.com:19302".to_string(),
+    ]
 }
 
 /// P1 FIX: Authentication configuration
@@ -607,6 +633,8 @@ impl Default for ServerConfig {
             cors_origins: Vec::new(),
             rate_limit: RateLimitConfig::default(),
             auth: AuthConfig::default(),  // P1 FIX: Auth config
+            stun_servers: default_stun_servers(),  // P2 FIX: WebRTC STUN
+            turn_servers: Vec::new(),  // P2 FIX: WebRTC TURN (requires configuration)
         }
     }
 }

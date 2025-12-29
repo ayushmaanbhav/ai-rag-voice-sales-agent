@@ -1,8 +1,9 @@
 //! Voice Agent Server
 //!
-//! Provides WebSocket and HTTP endpoints for the voice agent.
+//! Provides WebSocket, WebRTC, and HTTP endpoints for the voice agent.
 
 pub mod websocket;
+pub mod webrtc;  // P2 FIX: WebRTC signaling endpoints
 pub mod http;
 pub mod session;
 pub mod state;
@@ -11,6 +12,7 @@ pub mod metrics;
 pub mod auth;  // P1 FIX: Auth middleware
 
 pub use websocket::WebSocketHandler;
+pub use webrtc::WebRtcSession;
 pub use http::create_router;
 pub use auth::auth_middleware;
 pub use session::{Session, SessionManager, SessionStore, SessionMetadata, InMemorySessionStore, ScyllaSessionStore};
@@ -28,6 +30,9 @@ pub enum ServerError {
 
     #[error("WebSocket error: {0}")]
     WebSocket(String),
+
+    #[error("WebRTC error: {0}")]
+    WebRtc(String),
 
     #[error("Authentication error: {0}")]
     Auth(String),
@@ -47,6 +52,7 @@ impl From<ServerError> for axum::http::StatusCode {
         match err {
             ServerError::Session(_) => axum::http::StatusCode::NOT_FOUND,
             ServerError::WebSocket(_) => axum::http::StatusCode::BAD_REQUEST,
+            ServerError::WebRtc(_) => axum::http::StatusCode::BAD_REQUEST,
             ServerError::Auth(_) => axum::http::StatusCode::UNAUTHORIZED,
             ServerError::RateLimit => axum::http::StatusCode::TOO_MANY_REQUESTS,
             ServerError::InvalidRequest(_) => axum::http::StatusCode::BAD_REQUEST,

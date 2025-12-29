@@ -1,12 +1,32 @@
 //! Voice Agent Transport Layer
 //!
-//! P0 FIX: WebRTC transport for low-latency voice communication.
+//! WebRTC transport for low-latency voice communication.
 //!
 //! Provides transport abstractions for:
 //! - WebRTC (primary, for mobile apps)
 //! - WebSocket (fallback, for web browsers)
 //!
 //! Target latency: <50ms one-way audio transport
+//!
+//! # Integration Status: NOT INTEGRATED
+//!
+//! **WARNING**: This crate is fully implemented (~1,500 LOC) but is NOT currently
+//! integrated with the server crate. The server uses its own WebSocket implementation
+//! in `voice-agent-server/src/websocket.rs`.
+//!
+//! ## To Integrate:
+//! 1. Add `voice-agent-transport` dependency to `voice-agent-server/Cargo.toml`
+//! 2. Add WebRTC signaling endpoints to HTTP routes
+//! 3. Wire `WebRtcTransport` to voice sessions
+//!
+//! ## Why Not Integrated:
+//! - Current MVP uses WebSocket-only for simplicity
+//! - WebRTC requires STUN/TURN infrastructure
+//! - Mobile app not yet ready for WebRTC
+//!
+//! ## Future Plans:
+//! - Integrate when mobile app requires low-latency (<50ms) audio
+//! - Add ICE candidate relay through existing WebSocket connection
 
 pub mod webrtc;
 pub mod websocket;

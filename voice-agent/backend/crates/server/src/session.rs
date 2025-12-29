@@ -343,6 +343,8 @@ pub struct Session {
     pub last_activity: RwLock<Instant>,
     /// Is active
     pub active: RwLock<bool>,
+    /// P2 FIX: WebRTC transport (optional, for low-latency audio)
+    webrtc: RwLock<Option<crate::webrtc::WebRtcSession>>,
 }
 
 impl Session {
@@ -355,7 +357,23 @@ impl Session {
             created_at: Instant::now(),
             last_activity: RwLock::new(Instant::now()),
             active: RwLock::new(true),
+            webrtc: RwLock::new(None),
         }
+    }
+
+    /// P2 FIX: Set the WebRTC transport for this session
+    pub fn set_webrtc_transport(&self, session: crate::webrtc::WebRtcSession) {
+        *self.webrtc.write() = Some(session);
+    }
+
+    /// P2 FIX: Get the WebRTC transport Arc if connected
+    pub fn get_webrtc_transport(&self) -> Option<std::sync::Arc<tokio::sync::RwLock<voice_agent_transport::WebRtcTransport>>> {
+        self.webrtc.read().as_ref().map(|s| s.transport.clone())
+    }
+
+    /// P2 FIX: Check if WebRTC is connected
+    pub fn has_webrtc(&self) -> bool {
+        self.webrtc.read().is_some()
     }
 
     /// Update last activity

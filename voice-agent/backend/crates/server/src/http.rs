@@ -17,6 +17,7 @@ use tower_http::compression::CompressionLayer;
 
 use crate::state::AppState;
 use crate::websocket::{WebSocketHandler, create_session};
+use crate::webrtc;  // P2 FIX: WebRTC signaling
 use crate::metrics::metrics_handler;
 use crate::auth::auth_middleware;
 use voice_agent_tools::ToolExecutor;
@@ -61,6 +62,13 @@ pub fn create_router(state: AppState) -> Router {
 
         // WebSocket
         .route("/ws/:session_id", get(ws_handler))
+
+        // P2 FIX: WebRTC signaling endpoints for low-latency audio transport
+        .route("/api/webrtc/:session_id/offer", post(webrtc::handle_offer))
+        .route("/api/webrtc/:session_id/ice", post(webrtc::add_ice_candidate))
+        .route("/api/webrtc/:session_id/candidates", get(webrtc::get_ice_candidates))
+        .route("/api/webrtc/:session_id/status", get(webrtc::get_status))
+        .route("/api/webrtc/:session_id/restart", post(webrtc::ice_restart))
 
         // Middleware (order matters - auth runs after CORS but before handlers)
         // P1 FIX: Apply auth middleware layer via Extension

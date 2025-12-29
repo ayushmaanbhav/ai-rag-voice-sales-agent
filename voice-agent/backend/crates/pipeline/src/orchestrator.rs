@@ -12,7 +12,14 @@ use crate::turn_detection::{HybridTurnDetector, TurnDetectionConfig, TurnDetecti
 use crate::stt::{StreamingStt, SttConfig};
 use crate::tts::{StreamingTts, TtsConfig, TtsEvent};
 use crate::PipelineError;
-use voice_agent_core::{AudioFrame, TranscriptResult};
+use voice_agent_core::{AudioFrame, TranscriptResult, Frame, ProcessorContext, ControlFrame, Language};
+
+// P1 FIX: Import processors for streaming LLM → TTS pipeline
+use crate::processors::{
+    ProcessorChain, SentenceDetector, SentenceDetectorConfig,
+    TtsProcessor, TtsProcessorConfig,
+    InterruptHandler, InterruptHandlerConfig,
+};
 
 /// Pipeline events
 #[derive(Debug, Clone)]
@@ -55,6 +62,32 @@ pub struct PipelineConfig {
     pub barge_in: BargeInConfig,
     /// Latency budget in milliseconds
     pub latency_budget_ms: u32,
+    /// P1 FIX: Processor chain configuration for streaming LLM output
+    pub processors: ProcessorChainConfig,
+}
+
+/// P1 FIX: Configuration for the processor chain
+#[derive(Debug, Clone)]
+pub struct ProcessorChainConfig {
+    /// Enable processor chain for streaming LLM output
+    pub enabled: bool,
+    /// Sentence detector configuration
+    pub sentence_detector: SentenceDetectorConfig,
+    /// TTS processor configuration
+    pub tts_processor: TtsProcessorConfig,
+    /// Interrupt handler configuration
+    pub interrupt_handler: InterruptHandlerConfig,
+}
+
+impl Default for ProcessorChainConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            sentence_detector: SentenceDetectorConfig::default(),
+            tts_processor: TtsProcessorConfig::default(),
+            interrupt_handler: InterruptHandlerConfig::default(),
+        }
+    }
 }
 
 impl Default for PipelineConfig {
@@ -66,6 +99,7 @@ impl Default for PipelineConfig {
             tts: TtsConfig::default(),
             barge_in: BargeInConfig::default(),
             latency_budget_ms: 500,
+            processors: ProcessorChainConfig::default(),
         }
     }
 }
@@ -134,6 +168,9 @@ pub struct VoicePipeline {
     barge_in_speech_ms: Mutex<u32>,
     /// Last audio timestamp
     last_audio_time: Mutex<Instant>,
+    /// P1 FIX: Processor chain for streaming LLM → TTS
+    /// Contains: SentenceDetector → TtsProcessor → InterruptHandler
+    processor_chain: Option<ProcessorChain>,
 }
 
 impl VoicePipeline {
@@ -146,6 +183,13 @@ impl VoicePipeline {
 
         let (event_tx, _) = broadcast::channel(100);
 
+        // P1 FIX: Build processor chain if enabled
+        let processor_chain = if config.processors.enabled {
+            Some(Self::build_processor_chain(&config.processors, tts.clone()))
+        } else {
+            None
+        };
+
         Ok(Self {
             config,
             vad,
@@ -156,7 +200,43 @@ impl VoicePipeline {
             event_tx,
             barge_in_speech_ms: Mutex::new(0),
             last_audio_time: Mutex::new(Instant::now()),
+            processor_chain,
         })
+    }
+
+    /// P1 FIX: Build the processor chain for LLM streaming output
+    ///
+    /// Chain: SentenceDetector → TtsProcessor → InterruptHandler
+    ///
+    /// This pipeline:
+    /// 1. Buffers LLM text chunks until sentence boundary
+    /// 2. Sends complete sentences to TTS for synthesis
+    /// 3. Handles barge-in interrupts during audio playback
+    fn build_processor_chain(
+        config: &ProcessorChainConfig,
+        tts: Arc<StreamingTts>,
+    ) -> ProcessorChain {
+        let mut chain = ProcessorChain::new("llm-to-audio");
+
+        // 1. Sentence detector: buffers LLM chunks, emits sentences
+        chain.add(SentenceDetector::new(config.sentence_detector.clone()));
+
+        // 2. TTS processor: converts sentences to audio frames
+        // Share the TTS instance with the main pipeline for barge-in coordination
+        let mut tts_config = config.tts_processor.clone();
+        tts_config.tts = TtsConfig::default(); // Will use shared instance
+        chain.add(TtsProcessor::with_tts(tts_config, tts));
+
+        // 3. Interrupt handler: manages barge-in during audio output
+        chain.add(InterruptHandler::new(config.interrupt_handler.clone()));
+
+        tracing::info!(
+            chain_name = chain.name(),
+            processor_count = chain.len(),
+            "Built LLM → Audio processor chain"
+        );
+
+        chain
     }
 
     /// Subscribe to pipeline events
@@ -323,6 +403,80 @@ impl VoicePipeline {
         }
 
         Ok(())
+    }
+
+    /// P1 FIX: Speak using streaming LLM output through the processor chain
+    ///
+    /// This method processes LLM text chunks through:
+    /// 1. SentenceDetector - buffers chunks until sentence boundary
+    /// 2. TtsProcessor - converts sentences to audio
+    /// 3. InterruptHandler - handles barge-in during playback
+    ///
+    /// This provides lower latency than `speak()` for streaming LLM output
+    /// because TTS starts as soon as the first sentence is complete.
+    ///
+    /// # Arguments
+    /// * `chunk_rx` - Receiver for LLM text chunks
+    /// * `language` - Language for sentence detection and TTS
+    ///
+    /// # Returns
+    /// Receiver for output audio frames
+    pub async fn speak_streaming(
+        &self,
+        mut chunk_rx: mpsc::Receiver<String>,
+        language: Language,
+    ) -> Result<mpsc::Receiver<Frame>, PipelineError> {
+        // Check if processor chain is available
+        let chain = self.processor_chain.as_ref()
+            .ok_or_else(|| PipelineError::NotInitialized)?;
+
+        // Set state
+        *self.state.lock() = PipelineState::Speaking;
+        self.turn_detector.set_agent_speaking();
+        *self.barge_in_speech_ms.lock() = 0;
+
+        // Start the processor chain with session context
+        let context = ProcessorContext::new("streaming-session")
+            .with_language(language);
+
+        let (input_tx, output_rx) = chain.run(context);
+
+        // Spawn task to feed LLM chunks into the processor chain
+        tokio::spawn(async move {
+            while let Some(chunk) = chunk_rx.recv().await {
+                // Create LLM chunk frame
+                let frame = Frame::LLMChunk {
+                    text: chunk,
+                    is_final: false,
+                };
+
+                if input_tx.send(frame).await.is_err() {
+                    tracing::warn!("Processor chain input channel closed");
+                    break;
+                }
+            }
+
+            // Send final LLM chunk to signal completion
+            let _ = input_tx.send(Frame::LLMChunk {
+                text: String::new(),
+                is_final: true,
+            }).await;
+
+            // Send flush control frame
+            let _ = input_tx.send(Frame::Control(ControlFrame::Flush)).await;
+
+            tracing::debug!("LLM streaming complete, sent flush to processor chain");
+        });
+
+        // Note: We return the output_rx for the caller to process audio frames
+        // The caller is responsible for sending audio to the transport layer
+
+        Ok(output_rx)
+    }
+
+    /// P1 FIX: Check if processor chain is enabled and available
+    pub fn has_processor_chain(&self) -> bool {
+        self.processor_chain.is_some()
     }
 
     /// Get current pipeline state

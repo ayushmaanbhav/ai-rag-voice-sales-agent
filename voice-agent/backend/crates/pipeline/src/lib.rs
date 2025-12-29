@@ -32,7 +32,12 @@ pub use stt::{StreamingStt, SttConfig, SttEngine, EnhancedDecoder, DecoderConfig
 pub use tts::{StreamingTts, TtsConfig, TtsEngine, TtsEvent, WordChunker, ChunkStrategy};
 
 // Orchestrator exports
-pub use orchestrator::{VoicePipeline, PipelineConfig, PipelineEvent, PipelineState, BargeInConfig, BargeInAction};
+pub use orchestrator::{
+    VoicePipeline, PipelineConfig, PipelineEvent, PipelineState,
+    BargeInConfig, BargeInAction,
+    // P1 FIX: Export processor chain config for external configuration
+    ProcessorChainConfig,
+};
 
 // Processor exports
 pub use processors::{
