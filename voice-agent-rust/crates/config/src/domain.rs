@@ -116,25 +116,139 @@ impl DomainConfig {
     }
 
     /// Validate configuration
+    ///
+    /// P1 FIX: Comprehensive validation including:
+    /// - Interest rate ranges (0-30%)
+    /// - LTV ranges (0-90% per RBI guidelines)
+    /// - Tiered rate ordering (higher tiers should have lower rates)
+    /// - Competitor rates should be higher than Kotak rates
+    /// - Processing fee ranges (0-5%)
+    /// - Business logic consistency checks
     pub fn validate(&self) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
 
-        // Validate gold loan config
-        if self.gold_loan.kotak_interest_rate <= 0.0 {
-            errors.push("Interest rate must be positive".to_string());
-        }
-        if self.gold_loan.ltv_percent <= 0.0 || self.gold_loan.ltv_percent > 100.0 {
-            errors.push("LTV must be between 0 and 100".to_string());
+        // === Gold Loan Config Validation ===
+        let gl = &self.gold_loan;
+
+        // Interest rate validation (0-30% range)
+        if gl.kotak_interest_rate <= 0.0 || gl.kotak_interest_rate > 30.0 {
+            errors.push(format!(
+                "Interest rate {} out of valid range (0-30%)",
+                gl.kotak_interest_rate
+            ));
         }
 
-        // Validate product config
+        // LTV validation (0-90% per RBI guidelines for gold loans)
+        if gl.ltv_percent <= 0.0 || gl.ltv_percent > 90.0 {
+            errors.push(format!(
+                "LTV {} out of valid range (0-90%)",
+                gl.ltv_percent
+            ));
+        }
+
+        // Tiered rate ordering validation (higher tiers should have lower rates)
+        if gl.tiered_rates.tier1_rate <= gl.tiered_rates.tier2_rate {
+            errors.push(format!(
+                "Tier 1 rate ({}) should be > Tier 2 rate ({}) - higher loans get better rates",
+                gl.tiered_rates.tier1_rate, gl.tiered_rates.tier2_rate
+            ));
+        }
+        if gl.tiered_rates.tier2_rate <= gl.tiered_rates.tier3_rate {
+            errors.push(format!(
+                "Tier 2 rate ({}) should be > Tier 3 rate ({}) - higher loans get better rates",
+                gl.tiered_rates.tier2_rate, gl.tiered_rates.tier3_rate
+            ));
+        }
+
+        // Tier threshold ordering validation
+        if gl.tiered_rates.tier1_threshold >= gl.tiered_rates.tier2_threshold {
+            errors.push(format!(
+                "Tier 1 threshold ({}) should be < Tier 2 threshold ({})",
+                gl.tiered_rates.tier1_threshold, gl.tiered_rates.tier2_threshold
+            ));
+        }
+
+        // Competitor rates should be higher than Kotak rates (otherwise no competitive advantage)
+        let kotak_best_rate = gl.tiered_rates.tier3_rate; // Best rate for comparison
+        if gl.competitor_rates.muthoot < kotak_best_rate {
+            errors.push(format!(
+                "Muthoot rate ({}) < Kotak best rate ({}) - no competitive advantage",
+                gl.competitor_rates.muthoot, kotak_best_rate
+            ));
+        }
+        if gl.competitor_rates.manappuram < kotak_best_rate {
+            errors.push(format!(
+                "Manappuram rate ({}) < Kotak best rate ({}) - no competitive advantage",
+                gl.competitor_rates.manappuram, kotak_best_rate
+            ));
+        }
+        if gl.competitor_rates.iifl < kotak_best_rate {
+            errors.push(format!(
+                "IIFL rate ({}) < Kotak best rate ({}) - no competitive advantage",
+                gl.competitor_rates.iifl, kotak_best_rate
+            ));
+        }
+
+        // Processing fee validation (0-5% range)
+        if gl.processing_fee_percent < 0.0 || gl.processing_fee_percent > 5.0 {
+            errors.push(format!(
+                "Processing fee {} out of valid range (0-5%)",
+                gl.processing_fee_percent
+            ));
+        }
+
+        // Loan amount range validation
+        if gl.min_loan_amount <= 0.0 {
+            errors.push("Minimum loan amount must be positive".to_string());
+        }
+        if gl.max_loan_amount <= gl.min_loan_amount {
+            errors.push(format!(
+                "Maximum loan ({}) must be greater than minimum ({})",
+                gl.max_loan_amount, gl.min_loan_amount
+            ));
+        }
+
+        // Gold price validation
+        if gl.gold_price_per_gram <= 0.0 {
+            errors.push("Gold price must be positive".to_string());
+        }
+
+        // Purity factor validation (must be 0-1)
+        if gl.purity_factors.k24 < 0.0 || gl.purity_factors.k24 > 1.0 {
+            errors.push("24K purity factor must be between 0 and 1".to_string());
+        }
+        if gl.purity_factors.k22 < 0.0 || gl.purity_factors.k22 > 1.0 {
+            errors.push("22K purity factor must be between 0 and 1".to_string());
+        }
+        if gl.purity_factors.k18 < 0.0 || gl.purity_factors.k18 > 1.0 {
+            errors.push("18K purity factor must be between 0 and 1".to_string());
+        }
+        // Purity ordering (24K > 22K > 18K > 14K)
+        if gl.purity_factors.k24 < gl.purity_factors.k22 {
+            errors.push("24K purity factor should be >= 22K factor".to_string());
+        }
+        if gl.purity_factors.k22 < gl.purity_factors.k18 {
+            errors.push("22K purity factor should be >= 18K factor".to_string());
+        }
+
+        // === Product Config Validation ===
         if self.product.variants.is_empty() {
             errors.push("At least one product variant required".to_string());
         }
 
-        // Validate prompts
+        // === Prompts Validation ===
         if self.prompts.system_prompt.agent_name.is_empty() {
             errors.push("Agent name required in prompts".to_string());
+        }
+
+        // === Branches Validation ===
+        // Check for duplicate branch IDs
+        let branch_ids: Vec<_> = self.branches.branches.iter().map(|b| &b.id).collect();
+        let mut seen = std::collections::HashSet::new();
+        for id in &branch_ids {
+            if !seen.insert(*id) {
+                errors.push(format!("Duplicate branch ID: {}", id));
+            }
         }
 
         if errors.is_empty() {
@@ -142,6 +256,40 @@ impl DomainConfig {
         } else {
             Err(errors)
         }
+    }
+
+    /// Validate and return warnings (non-fatal issues)
+    pub fn validate_with_warnings(&self) -> (Result<(), Vec<String>>, Vec<String>) {
+        let mut warnings = Vec::new();
+
+        // Check for missing branch coverage
+        if self.branches.branches.len() < 10 {
+            warnings.push(format!(
+                "Only {} branches configured - consider adding more for better coverage",
+                self.branches.branches.len()
+            ));
+        }
+
+        // Check for missing competitors
+        if self.competitors.competitors.is_empty() {
+            warnings.push("No competitors configured - comparison features disabled".to_string());
+        }
+
+        // Check gold price is recent (basic sanity check)
+        if self.gold_loan.gold_price_per_gram < 5000.0 {
+            warnings.push(format!(
+                "Gold price {} seems low - verify it's current",
+                self.gold_loan.gold_price_per_gram
+            ));
+        }
+        if self.gold_loan.gold_price_per_gram > 10000.0 {
+            warnings.push(format!(
+                "Gold price {} seems high - verify it's correct",
+                self.gold_loan.gold_price_per_gram
+            ));
+        }
+
+        (self.validate(), warnings)
     }
 
     /// Merge with another config (other takes precedence for non-default values)
@@ -369,6 +517,73 @@ mod tests {
         let mut bad_config = DomainConfig::default();
         bad_config.gold_loan.kotak_interest_rate = -1.0;
         assert!(bad_config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validation_interest_rate_range() {
+        let mut config = DomainConfig::default();
+
+        // Too high interest rate
+        config.gold_loan.kotak_interest_rate = 35.0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err()[0].contains("Interest rate"));
+    }
+
+    #[test]
+    fn test_validation_ltv_range() {
+        let mut config = DomainConfig::default();
+
+        // LTV > 90% violates RBI guidelines
+        config.gold_loan.ltv_percent = 95.0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().iter().any(|e| e.contains("LTV")));
+    }
+
+    #[test]
+    fn test_validation_tiered_rates() {
+        let mut config = DomainConfig::default();
+
+        // Invalid: tier1 rate <= tier2 rate (should be descending)
+        config.gold_loan.tiered_rates.tier1_rate = 9.0;
+        config.gold_loan.tiered_rates.tier2_rate = 10.0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().iter().any(|e| e.contains("Tier 1 rate")));
+    }
+
+    #[test]
+    fn test_validation_competitor_rates() {
+        let mut config = DomainConfig::default();
+
+        // Invalid: competitor rate lower than Kotak (no competitive advantage)
+        config.gold_loan.competitor_rates.muthoot = 8.0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().iter().any(|e| e.contains("Muthoot")));
+    }
+
+    #[test]
+    fn test_validation_processing_fee() {
+        let mut config = DomainConfig::default();
+
+        // Invalid: processing fee > 5%
+        config.gold_loan.processing_fee_percent = 6.0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().iter().any(|e| e.contains("Processing fee")));
+    }
+
+    #[test]
+    fn test_validate_with_warnings() {
+        let config = DomainConfig::default();
+        let (result, warnings) = config.validate_with_warnings();
+
+        // Default config should be valid
+        assert!(result.is_ok());
+        // But may have warnings about missing branches/competitors
+        assert!(!warnings.is_empty());
     }
 
     #[test]

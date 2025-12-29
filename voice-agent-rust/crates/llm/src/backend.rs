@@ -514,6 +514,417 @@ struct OllamaStreamChunk {
     context: Option<Vec<i64>>,
 }
 
+// =============================================================================
+// P2 FIX: OpenAI-compatible Backend
+// =============================================================================
+
+/// Configuration for OpenAI-compatible backends
+#[derive(Debug, Clone)]
+pub struct OpenAIConfig {
+    /// API endpoint (OpenAI: https://api.openai.com/v1, Azure: custom)
+    pub endpoint: String,
+    /// API key
+    pub api_key: String,
+    /// Model name (gpt-4, gpt-3.5-turbo, claude-3-sonnet, etc.)
+    pub model: String,
+    /// Maximum tokens to generate
+    pub max_tokens: usize,
+    /// Temperature (0-2)
+    pub temperature: f32,
+    /// Top-p sampling
+    pub top_p: f32,
+    /// Request timeout
+    pub timeout: Duration,
+    /// Enable streaming
+    pub stream: bool,
+    /// Organization ID (OpenAI specific)
+    pub organization: Option<String>,
+    /// Azure API version (Azure specific)
+    pub api_version: Option<String>,
+}
+
+impl Default for OpenAIConfig {
+    fn default() -> Self {
+        Self {
+            endpoint: "https://api.openai.com/v1".to_string(),
+            api_key: String::new(),
+            model: "gpt-3.5-turbo".to_string(),
+            max_tokens: 256,
+            temperature: 0.7,
+            top_p: 0.9,
+            timeout: Duration::from_secs(30),
+            stream: true,
+            organization: None,
+            api_version: None,
+        }
+    }
+}
+
+impl OpenAIConfig {
+    /// Create config for OpenAI
+    pub fn openai(api_key: impl Into<String>, model: impl Into<String>) -> Self {
+        Self {
+            api_key: api_key.into(),
+            model: model.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Create config for Azure OpenAI
+    pub fn azure(
+        endpoint: impl Into<String>,
+        api_key: impl Into<String>,
+        deployment: impl Into<String>,
+        api_version: impl Into<String>,
+    ) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            api_key: api_key.into(),
+            model: deployment.into(),
+            api_version: Some(api_version.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Create config for local OpenAI-compatible server (vLLM, Ollama, etc.)
+    pub fn local(endpoint: impl Into<String>, model: impl Into<String>) -> Self {
+        Self {
+            endpoint: endpoint.into(),
+            api_key: "not-needed".to_string(),
+            model: model.into(),
+            ..Default::default()
+        }
+    }
+}
+
+/// OpenAI-compatible backend
+///
+/// Works with:
+/// - OpenAI (GPT-4, GPT-3.5)
+/// - Azure OpenAI
+/// - Claude via Anthropic (using OpenAI-compatible mode)
+/// - vLLM
+/// - Local servers with OpenAI-compatible APIs
+pub struct OpenAIBackend {
+    config: OpenAIConfig,
+    client: Client,
+}
+
+impl OpenAIBackend {
+    /// Create new OpenAI backend
+    pub fn new(config: OpenAIConfig) -> Result<Self, LlmError> {
+        if config.api_key.is_empty() && !config.endpoint.starts_with("http://localhost") {
+            return Err(LlmError::Configuration("API key required for remote endpoints".to_string()));
+        }
+
+        let client = Client::builder()
+            .timeout(config.timeout)
+            .build()
+            .map_err(|e| LlmError::Network(e.to_string()))?;
+
+        Ok(Self { config, client })
+    }
+
+    /// Get the full API URL for chat completions
+    fn chat_url(&self) -> String {
+        if let Some(ref api_version) = self.config.api_version {
+            // Azure format: {endpoint}/openai/deployments/{model}/chat/completions?api-version={version}
+            format!(
+                "{}/openai/deployments/{}/chat/completions?api-version={}",
+                self.config.endpoint.trim_end_matches('/'),
+                self.config.model,
+                api_version
+            )
+        } else {
+            // Standard OpenAI format
+            format!("{}/chat/completions", self.config.endpoint.trim_end_matches('/'))
+        }
+    }
+
+    /// Build request headers
+    fn build_headers(&self) -> reqwest::header::HeaderMap {
+        use reqwest::header::HeaderValue;
+
+        let mut headers = reqwest::header::HeaderMap::new();
+
+        if self.config.api_version.is_some() {
+            // Azure uses api-key header
+            if let Ok(val) = HeaderValue::from_str(&self.config.api_key) {
+                headers.insert("api-key", val);
+            }
+        } else {
+            // OpenAI uses Authorization header
+            let auth_value = format!("Bearer {}", self.config.api_key);
+            if let Ok(val) = HeaderValue::from_str(&auth_value) {
+                headers.insert(reqwest::header::AUTHORIZATION, val);
+            }
+        }
+
+        if let Some(ref org) = self.config.organization {
+            if let Ok(val) = HeaderValue::from_str(org) {
+                headers.insert("OpenAI-Organization", val);
+            }
+        }
+
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+
+        headers
+    }
+}
+
+#[async_trait]
+impl LlmBackend for OpenAIBackend {
+    async fn generate(&self, messages: &[Message]) -> Result<GenerationResult, LlmError> {
+        let start = std::time::Instant::now();
+
+        let openai_messages: Vec<OpenAIMessage> = messages
+            .iter()
+            .map(|m| OpenAIMessage {
+                role: match m.role {
+                    crate::prompt::Role::System => "system".to_string(),
+                    crate::prompt::Role::User => "user".to_string(),
+                    crate::prompt::Role::Assistant => "assistant".to_string(),
+                    crate::prompt::Role::Tool => "tool".to_string(),
+                },
+                content: m.content.clone(),
+            })
+            .collect();
+
+        let request = OpenAIChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_messages,
+            max_tokens: Some(self.config.max_tokens),
+            temperature: Some(self.config.temperature),
+            top_p: Some(self.config.top_p),
+            stream: Some(false),
+        };
+
+        let response = self.client
+            .post(&self.chat_url())
+            .headers(self.build_headers())
+            .json(&request)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(LlmError::Api(format!("HTTP {}: {}", status, error_text)));
+        }
+
+        let response: OpenAIChatResponse = response.json().await
+            .map_err(|e| LlmError::InvalidResponse(e.to_string()))?;
+
+        let choice = response.choices.first()
+            .ok_or_else(|| LlmError::InvalidResponse("No choices in response".to_string()))?;
+
+        let total_time_ms = start.elapsed().as_millis() as u64;
+        let tokens = response.usage.map(|u| u.completion_tokens).unwrap_or(0);
+
+        Ok(GenerationResult {
+            text: choice.message.content.clone(),
+            tokens,
+            time_to_first_token_ms: total_time_ms, // Non-streaming, so same as total
+            total_time_ms,
+            tokens_per_second: if total_time_ms > 0 {
+                tokens as f32 / (total_time_ms as f32 / 1000.0)
+            } else {
+                0.0
+            },
+            finish_reason: match choice.finish_reason.as_deref() {
+                Some("stop") => FinishReason::Stop,
+                Some("length") => FinishReason::Length,
+                _ => FinishReason::Stop,
+            },
+            context: None, // OpenAI doesn't expose KV cache
+        })
+    }
+
+    async fn generate_stream(
+        &self,
+        messages: &[Message],
+        tx: mpsc::Sender<String>,
+    ) -> Result<GenerationResult, LlmError> {
+        let start = std::time::Instant::now();
+        let mut first_token_time: Option<u64> = None;
+        let mut full_text = String::new();
+        let mut token_count = 0;
+
+        let openai_messages: Vec<OpenAIMessage> = messages
+            .iter()
+            .map(|m| OpenAIMessage {
+                role: match m.role {
+                    crate::prompt::Role::System => "system".to_string(),
+                    crate::prompt::Role::User => "user".to_string(),
+                    crate::prompt::Role::Assistant => "assistant".to_string(),
+                    crate::prompt::Role::Tool => "tool".to_string(),
+                },
+                content: m.content.clone(),
+            })
+            .collect();
+
+        let request = OpenAIChatRequest {
+            model: self.config.model.clone(),
+            messages: openai_messages,
+            max_tokens: Some(self.config.max_tokens),
+            temperature: Some(self.config.temperature),
+            top_p: Some(self.config.top_p),
+            stream: Some(true),
+        };
+
+        let response = self.client
+            .post(&self.chat_url())
+            .headers(self.build_headers())
+            .json(&request)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(LlmError::Api(format!("HTTP {}: {}", status, error_text)));
+        }
+
+        // Process SSE stream
+        use futures::StreamExt;
+        let mut stream = response.bytes_stream();
+
+        let mut buffer = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| LlmError::Network(e.to_string()))?;
+            buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+            // Process complete SSE lines
+            while let Some(line_end) = buffer.find('\n') {
+                let line = buffer[..line_end].trim().to_string();
+                buffer = buffer[line_end + 1..].to_string();
+
+                if line.is_empty() || line == "data: [DONE]" {
+                    continue;
+                }
+
+                if let Some(json_str) = line.strip_prefix("data: ") {
+                    if let Ok(chunk) = serde_json::from_str::<OpenAIStreamChunk>(json_str) {
+                        if let Some(choice) = chunk.choices.first() {
+                            if let Some(ref delta) = choice.delta {
+                                if let Some(ref content) = delta.content {
+                                    if first_token_time.is_none() {
+                                        first_token_time = Some(start.elapsed().as_millis() as u64);
+                                    }
+                                    full_text.push_str(content);
+                                    token_count += 1;
+                                    let _ = tx.send(content.clone()).await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let total_time_ms = start.elapsed().as_millis() as u64;
+
+        Ok(GenerationResult {
+            text: full_text,
+            tokens: token_count,
+            time_to_first_token_ms: first_token_time.unwrap_or(total_time_ms),
+            total_time_ms,
+            tokens_per_second: if total_time_ms > 0 {
+                token_count as f32 / (total_time_ms as f32 / 1000.0)
+            } else {
+                0.0
+            },
+            finish_reason: FinishReason::Stop,
+            context: None,
+        })
+    }
+
+    async fn is_available(&self) -> bool {
+        // Try a simple models list request for non-Azure
+        if self.config.api_version.is_none() {
+            let url = format!("{}/models", self.config.endpoint.trim_end_matches('/'));
+            self.client
+                .get(&url)
+                .headers(self.build_headers())
+                .timeout(Duration::from_secs(5))
+                .send()
+                .await
+                .map(|r| r.status().is_success())
+                .unwrap_or(false)
+        } else {
+            // For Azure, try a lightweight request
+            true // Assume available; actual check would need deployment-specific logic
+        }
+    }
+
+    fn model_name(&self) -> &str {
+        &self.config.model
+    }
+}
+
+// OpenAI API types
+#[derive(Debug, Serialize)]
+struct OpenAIChatRequest {
+    model: String,
+    messages: Vec<OpenAIMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stream: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenAIMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIChatResponse {
+    choices: Vec<OpenAIChoice>,
+    usage: Option<OpenAIUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIChoice {
+    message: OpenAIMessage,
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIUsage {
+    completion_tokens: usize,
+    #[allow(dead_code)]
+    prompt_tokens: usize,
+    #[allow(dead_code)]
+    total_tokens: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamChunk {
+    choices: Vec<OpenAIStreamChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIStreamChoice {
+    delta: Option<OpenAIDelta>,
+    #[allow(dead_code)]
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIDelta {
+    content: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -570,5 +981,104 @@ mod tests {
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("keep_alive"));
         assert!(json.contains("context"));
+    }
+
+    // P2 FIX: OpenAI backend tests
+
+    #[test]
+    fn test_openai_config_default() {
+        let config = OpenAIConfig::default();
+        assert_eq!(config.endpoint, "https://api.openai.com/v1");
+        assert_eq!(config.model, "gpt-3.5-turbo");
+        assert!(config.api_key.is_empty());
+    }
+
+    #[test]
+    fn test_openai_config_openai() {
+        let config = OpenAIConfig::openai("sk-xxx", "gpt-4");
+        assert_eq!(config.api_key, "sk-xxx");
+        assert_eq!(config.model, "gpt-4");
+        assert!(config.api_version.is_none());
+    }
+
+    #[test]
+    fn test_openai_config_azure() {
+        let config = OpenAIConfig::azure(
+            "https://my-resource.openai.azure.com",
+            "azure-key",
+            "gpt-4-deployment",
+            "2024-02-01"
+        );
+        assert!(config.api_version.is_some());
+        assert_eq!(config.model, "gpt-4-deployment");
+    }
+
+    #[test]
+    fn test_openai_config_local() {
+        let config = OpenAIConfig::local("http://localhost:8000/v1", "llama-3");
+        assert_eq!(config.endpoint, "http://localhost:8000/v1");
+        assert_eq!(config.api_key, "not-needed");
+    }
+
+    #[test]
+    fn test_openai_backend_creation() {
+        // Local endpoint should work without API key
+        let config = OpenAIConfig::local("http://localhost:8000", "test");
+        let backend = OpenAIBackend::new(config);
+        assert!(backend.is_ok());
+
+        // Remote endpoint requires API key
+        let config = OpenAIConfig::default();
+        let backend = OpenAIBackend::new(config);
+        assert!(backend.is_err());
+
+        // With API key should work
+        let config = OpenAIConfig::openai("sk-xxx", "gpt-4");
+        let backend = OpenAIBackend::new(config);
+        assert!(backend.is_ok());
+    }
+
+    #[test]
+    fn test_openai_chat_url() {
+        // Standard OpenAI URL
+        let config = OpenAIConfig::openai("sk-xxx", "gpt-4");
+        let backend = OpenAIBackend::new(config).unwrap();
+        assert_eq!(
+            backend.chat_url(),
+            "https://api.openai.com/v1/chat/completions"
+        );
+
+        // Azure URL format
+        let config = OpenAIConfig::azure(
+            "https://myresource.openai.azure.com",
+            "key",
+            "deployment",
+            "2024-02-01"
+        );
+        let backend = OpenAIBackend::new(config).unwrap();
+        assert!(backend.chat_url().contains("openai/deployments/deployment"));
+        assert!(backend.chat_url().contains("api-version=2024-02-01"));
+    }
+
+    #[test]
+    fn test_openai_request_serialization() {
+        let request = OpenAIChatRequest {
+            model: "gpt-4".to_string(),
+            messages: vec![
+                OpenAIMessage {
+                    role: "user".to_string(),
+                    content: "Hello".to_string(),
+                }
+            ],
+            max_tokens: Some(256),
+            temperature: Some(0.7),
+            top_p: Some(0.9),
+            stream: Some(false),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("gpt-4"));
+        assert!(json.contains("Hello"));
+        assert!(json.contains("max_tokens"));
     }
 }

@@ -11,7 +11,7 @@ pub mod speculative;
 pub mod streaming;
 pub mod prompt;
 
-pub use backend::{LlmBackend, OllamaBackend, LlmConfig};
+pub use backend::{LlmBackend, OllamaBackend, LlmConfig, OpenAIBackend, OpenAIConfig};
 pub use speculative::{SpeculativeExecutor, SpeculativeMode, SpeculativeResult};
 pub use streaming::{StreamingGenerator, TokenStream, GenerationEvent};
 pub use prompt::{PromptBuilder, Message, Role, PersonaConfig, ToolDefinition, ToolParameter, ParsedToolCall, parse_tool_call};
