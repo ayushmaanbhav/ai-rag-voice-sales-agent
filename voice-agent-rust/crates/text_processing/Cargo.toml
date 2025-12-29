@@ -1,0 +1,38 @@
+[package]
+name = "voice-agent-text-processing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Text processing pipeline for voice agent (grammar, translation, PII, compliance)"
+
+[dependencies]
+# Core types
+voice-agent-core = { path = "../core" }
+
+# Async
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# NLP
+regex.workspace = true
+unicode-segmentation.workspace = true
+
+# Serialization
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+toml.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Utilities
+once_cell.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
