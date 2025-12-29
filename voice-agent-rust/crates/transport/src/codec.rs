@@ -230,7 +230,7 @@ impl OpusDecoder {
     }
 }
 
-/// Resampler for converting between sample rates
+/// P5 FIX: High-quality resampler using Rubato
 pub struct Resampler {
     from_rate: u32,
     to_rate: u32,
@@ -242,15 +242,54 @@ impl Resampler {
         Self { from_rate, to_rate }
     }
 
-    /// Resample audio
+    /// P5 FIX: Resample audio using Rubato (sinc interpolation)
     ///
-    /// Simple linear interpolation resampling.
-    /// For production, use a proper resampling library like rubato.
+    /// Uses FFT-based resampler for high-quality conversion.
+    /// Falls back to linear interpolation for edge cases.
     pub fn resample(&self, input: &[f32]) -> Vec<f32> {
+        use rubato::{FftFixedIn, Resampler as RubatoResampler};
+
         if self.from_rate == self.to_rate {
             return input.to_vec();
         }
 
+        // For very short inputs, use linear fallback
+        if input.len() < 64 {
+            return self.resample_linear(input);
+        }
+
+        // Convert to f64 for higher precision
+        let samples_f64: Vec<f64> = input.iter().map(|&s| s as f64).collect();
+        let chunk_size = input.len().min(1024);
+
+        match FftFixedIn::<f64>::new(
+            self.from_rate as usize,
+            self.to_rate as usize,
+            chunk_size,
+            2,  // sub_chunks
+            1,  // channels
+        ) {
+            Ok(mut resampler) => {
+                let input_frames = vec![samples_f64];
+                match resampler.process(&input_frames, None) {
+                    Ok(output_frames) => {
+                        output_frames[0].iter().map(|&s| s as f32).collect()
+                    }
+                    Err(e) => {
+                        tracing::warn!("Rubato processing failed: {}", e);
+                        self.resample_linear(input)
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Rubato init failed: {}", e);
+                self.resample_linear(input)
+            }
+        }
+    }
+
+    /// Linear interpolation fallback
+    fn resample_linear(&self, input: &[f32]) -> Vec<f32> {
         let ratio = self.to_rate as f64 / self.from_rate as f64;
         let output_len = (input.len() as f64 * ratio).ceil() as usize;
         let mut output = Vec::with_capacity(output_len);
@@ -258,7 +297,7 @@ impl Resampler {
         for i in 0..output_len {
             let src_idx = i as f64 / ratio;
             let idx_floor = src_idx.floor() as usize;
-            let idx_ceil = (idx_floor + 1).min(input.len() - 1);
+            let idx_ceil = (idx_floor + 1).min(input.len().saturating_sub(1));
             let frac = src_idx - idx_floor as f64;
 
             let sample = input[idx_floor] * (1.0 - frac as f32) + input[idx_ceil] * frac as f32;

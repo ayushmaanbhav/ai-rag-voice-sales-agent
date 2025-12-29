@@ -31,6 +31,8 @@ tracing.workspace = true
 parking_lot.workspace = true
 uuid = { version = "1.6", features = ["v4", "serde"] }
 bytes = "1"
+# P5 FIX: High-quality audio resampling
+rubato.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

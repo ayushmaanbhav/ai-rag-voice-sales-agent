@@ -39,6 +39,117 @@ pub struct Message {
     pub content: String,
 }
 
+/// P4 FIX: Tool definition for LLM-based tool calling
+///
+/// Describes a tool that the LLM can request to call.
+#[derive(Debug, Clone)]
+pub struct ToolDefinition {
+    /// Tool name (must match the tool registry name)
+    pub name: String,
+    /// Human-readable description of what the tool does
+    pub description: String,
+    /// Tool parameters
+    pub parameters: Vec<ToolParameter>,
+}
+
+/// P4 FIX: Tool parameter definition
+#[derive(Debug, Clone)]
+pub struct ToolParameter {
+    /// Parameter name
+    pub name: String,
+    /// Parameter description
+    pub description: String,
+    /// Whether this parameter is required
+    pub required: bool,
+}
+
+impl ToolDefinition {
+    /// Create a new tool definition
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            parameters: Vec::new(),
+        }
+    }
+
+    /// Add a parameter
+    pub fn param(mut self, name: impl Into<String>, description: impl Into<String>, required: bool) -> Self {
+        self.parameters.push(ToolParameter {
+            name: name.into(),
+            description: description.into(),
+            required,
+        });
+        self
+    }
+
+    /// Create definitions for gold loan tools
+    pub fn gold_loan_tools() -> Vec<ToolDefinition> {
+        vec![
+            ToolDefinition::new("check_eligibility", "Check if customer is eligible for a gold loan based on their gold weight and purity")
+                .param("gold_weight", "Weight of gold in grams", true)
+                .param("gold_purity", "Purity of gold (e.g., '22K', '18K')", false),
+            ToolDefinition::new("calculate_savings", "Calculate monthly savings when switching from competitor")
+                .param("current_lender", "Name of current lender (e.g., 'Muthoot', 'Manappuram')", true)
+                .param("current_interest_rate", "Current interest rate in percentage", false)
+                .param("current_loan_amount", "Current loan amount in INR", false)
+                .param("remaining_tenure_months", "Remaining tenure in months", false),
+            ToolDefinition::new("find_branches", "Find nearby Kotak branches")
+                .param("city", "City name to search branches in", true)
+                .param("area", "Specific area or locality (optional)", false),
+            ToolDefinition::new("schedule_callback", "Schedule a callback from branch team")
+                .param("phone", "Customer phone number", true)
+                .param("preferred_time", "Preferred callback time (e.g., 'morning', 'afternoon')", false),
+        ]
+    }
+}
+
+/// P4 FIX: Parse tool call from LLM response
+///
+/// Extracts tool calls in the format: `[TOOL_CALL: {"name": "...", "arguments": {...}}]`
+pub fn parse_tool_call(response: &str) -> Option<ParsedToolCall> {
+    // Look for the tool call pattern
+    let start_marker = "[TOOL_CALL:";
+    let end_marker = "]";
+
+    let start_idx = response.find(start_marker)?;
+    let json_start = start_idx + start_marker.len();
+
+    // Find matching end bracket
+    let remaining = &response[json_start..];
+    let end_idx = remaining.find(end_marker)?;
+    let json_str = remaining[..end_idx].trim();
+
+    // Parse the JSON
+    let value: serde_json::Value = serde_json::from_str(json_str).ok()?;
+    let name = value.get("name")?.as_str()?.to_string();
+    let arguments = value.get("arguments").cloned().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+
+    // Extract the text before and after the tool call
+    let text_before = response[..start_idx].trim().to_string();
+    let text_after = response[json_start + end_idx + 1..].trim().to_string();
+
+    Some(ParsedToolCall {
+        name,
+        arguments,
+        text_before,
+        text_after,
+    })
+}
+
+/// P4 FIX: Parsed tool call from LLM response
+#[derive(Debug, Clone)]
+pub struct ParsedToolCall {
+    /// Tool name to call
+    pub name: String,
+    /// Arguments as JSON value
+    pub arguments: serde_json::Value,
+    /// Text before the tool call (can be used as partial response)
+    pub text_before: String,
+    /// Text after the tool call (continuation)
+    pub text_after: String,
+}
+
 impl Message {
     pub fn system(content: impl Into<String>) -> Self {
         Self {
@@ -221,6 +332,53 @@ Respond naturally as if speaking on a phone call. Do not use bullet points, head
         if !guidance.is_empty() {
             self.messages.push(Message::system(format!("## Current Stage Guidance\n{}", guidance)));
         }
+        self
+    }
+
+    /// P4 FIX: Add available tools for LLM-based tool calling
+    ///
+    /// For Ollama (non-OpenAI models), we inject tool definitions into the system prompt
+    /// and instruct the LLM to output tool calls in a specific JSON format.
+    ///
+    /// The LLM should output: `[TOOL_CALL: {"name": "tool_name", "arguments": {...}}]`
+    /// when it determines a tool should be called.
+    pub fn with_tools(mut self, tools: &[ToolDefinition]) -> Self {
+        if tools.is_empty() {
+            return self;
+        }
+
+        let mut tool_prompt = String::from(
+            r#"## Available Tools
+
+You have access to the following tools. When you need to use a tool to help the customer, output a tool call in this EXACT format:
+
+[TOOL_CALL: {"name": "tool_name", "arguments": {"param1": "value1"}}]
+
+After the tool runs, you will receive the result to incorporate into your response.
+
+Available tools:
+"#
+        );
+
+        for tool in tools {
+            tool_prompt.push_str(&format!(
+                "\n### {}\n{}\nParameters:\n",
+                tool.name, tool.description
+            ));
+            for param in &tool.parameters {
+                let required = if param.required { " (required)" } else { "" };
+                tool_prompt.push_str(&format!(
+                    "- {}: {}{}\n",
+                    param.name, param.description, required
+                ));
+            }
+        }
+
+        tool_prompt.push_str(
+            "\nOnly use tools when the customer's request requires specific calculations or data lookup. For general conversation, respond naturally without tools."
+        );
+
+        self.messages.push(Message::system(tool_prompt));
         self
     }
 
@@ -424,5 +582,76 @@ mod tests {
 
         let greeting_en = ResponseTemplates::greeting("Priya", "en");
         assert!(greeting_en.contains("Hello"));
+    }
+
+    // P4 FIX: Tool calling tests
+
+    #[test]
+    fn test_tool_definition_builder() {
+        let tool = ToolDefinition::new("test_tool", "A test tool")
+            .param("param1", "First parameter", true)
+            .param("param2", "Second parameter", false);
+
+        assert_eq!(tool.name, "test_tool");
+        assert_eq!(tool.parameters.len(), 2);
+        assert!(tool.parameters[0].required);
+        assert!(!tool.parameters[1].required);
+    }
+
+    #[test]
+    fn test_gold_loan_tools() {
+        let tools = ToolDefinition::gold_loan_tools();
+
+        assert!(tools.len() >= 3);
+        assert!(tools.iter().any(|t| t.name == "check_eligibility"));
+        assert!(tools.iter().any(|t| t.name == "calculate_savings"));
+        assert!(tools.iter().any(|t| t.name == "find_branches"));
+    }
+
+    #[test]
+    fn test_parse_tool_call_simple() {
+        let response = r#"Let me check that for you. [TOOL_CALL: {"name": "check_eligibility", "arguments": {"gold_weight": 50}}]"#;
+
+        let parsed = parse_tool_call(response).expect("Should parse tool call");
+        assert_eq!(parsed.name, "check_eligibility");
+        assert_eq!(parsed.arguments["gold_weight"], 50);
+        assert_eq!(parsed.text_before, "Let me check that for you.");
+    }
+
+    #[test]
+    fn test_parse_tool_call_no_tool() {
+        let response = "Hello! How can I help you today?";
+        assert!(parse_tool_call(response).is_none());
+    }
+
+    #[test]
+    fn test_parse_tool_call_with_text_after() {
+        let response = r#"[TOOL_CALL: {"name": "find_branches", "arguments": {"city": "Mumbai"}}] I'll wait for the results."#;
+
+        let parsed = parse_tool_call(response).expect("Should parse tool call");
+        assert_eq!(parsed.name, "find_branches");
+        assert_eq!(parsed.arguments["city"], "Mumbai");
+        assert!(parsed.text_before.is_empty());
+        assert_eq!(parsed.text_after, "I'll wait for the results.");
+    }
+
+    #[test]
+    fn test_with_tools() {
+        let tools = ToolDefinition::gold_loan_tools();
+        let messages = PromptBuilder::new()
+            .system_prompt("en")
+            .with_tools(&tools)
+            .user_message("Can you check my eligibility?")
+            .build();
+
+        // Should have system prompt, tool definitions, and user message
+        assert!(messages.len() >= 3);
+
+        // Tool definitions should be in the prompt
+        let tool_msg = messages.iter()
+            .find(|m| m.content.contains("TOOL_CALL"))
+            .expect("Should have tool definitions");
+        assert!(tool_msg.content.contains("check_eligibility"));
+        assert!(tool_msg.content.contains("calculate_savings"));
     }
 }

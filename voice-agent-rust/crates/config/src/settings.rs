@@ -66,6 +66,18 @@ pub struct Settings {
     /// Feature flags
     #[serde(default)]
     pub features: FeatureFlags,
+
+    /// P4 FIX: Path to domain configuration file (YAML or JSON)
+    #[serde(default = "default_domain_config_path")]
+    pub domain_config_path: String,
+
+    /// P5 FIX: RAG configuration for retrieval and reranking
+    #[serde(default)]
+    pub rag: RagConfig,
+}
+
+fn default_domain_config_path() -> String {
+    "config/domain.yaml".to_string()
 }
 
 impl Settings {
@@ -297,6 +309,104 @@ impl Default for RateLimitConfig {
             messages_per_second: default_messages_per_second(),
             audio_bytes_per_second: default_audio_bytes_per_second(),
             burst_multiplier: default_burst_multiplier(),
+        }
+    }
+}
+
+/// P5 FIX: RAG configuration for retrieval and reranking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RagConfig {
+    /// Enable RAG retrieval
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    // Retriever settings
+    /// Top-K results from dense (embedding) search
+    #[serde(default = "default_dense_top_k")]
+    pub dense_top_k: usize,
+
+    /// Top-K results from sparse (BM25/keyword) search
+    #[serde(default = "default_sparse_top_k")]
+    pub sparse_top_k: usize,
+
+    /// Final top-K results after fusion
+    #[serde(default = "default_final_top_k")]
+    pub final_top_k: usize,
+
+    /// Weight for dense vs sparse (0.0 = all sparse, 1.0 = all dense)
+    #[serde(default = "default_dense_weight")]
+    pub dense_weight: f32,
+
+    /// Reciprocal Rank Fusion parameter (higher = more weight to top results)
+    #[serde(default = "default_rrf_k")]
+    pub rrf_k: f32,
+
+    /// Minimum score threshold (filter out low-scoring results)
+    #[serde(default = "default_min_score")]
+    pub min_score: f32,
+
+    // Reranker settings
+    /// Enable cascaded reranking
+    #[serde(default = "default_true")]
+    pub reranking_enabled: bool,
+
+    /// Pre-filter threshold (keyword overlap score to pass to full model)
+    #[serde(default = "default_prefilter_threshold")]
+    pub prefilter_threshold: f32,
+
+    /// Max documents to run through full reranking model
+    #[serde(default = "default_max_full_model_docs")]
+    pub max_full_model_docs: usize,
+
+    /// Early termination confidence threshold
+    #[serde(default = "default_early_termination_threshold")]
+    pub early_termination_threshold: f32,
+
+    /// Minimum high-confidence results before early termination
+    #[serde(default = "default_early_termination_min_results")]
+    pub early_termination_min_results: usize,
+
+    // Prefetch settings
+    /// Confidence threshold for VAD-triggered prefetch
+    #[serde(default = "default_prefetch_confidence")]
+    pub prefetch_confidence_threshold: f32,
+
+    /// Top-K results for prefetch (smaller for speed)
+    #[serde(default = "default_prefetch_top_k")]
+    pub prefetch_top_k: usize,
+}
+
+// RAG default value functions
+fn default_dense_top_k() -> usize { 20 }
+fn default_sparse_top_k() -> usize { 20 }
+fn default_final_top_k() -> usize { 5 }
+fn default_dense_weight() -> f32 { 0.7 }  // P5: Increased for semantic queries
+fn default_rrf_k() -> f32 { 60.0 }
+fn default_min_score() -> f32 { 0.4 }  // P5: Increased for domain-specific queries
+fn default_prefilter_threshold() -> f32 { 0.15 }  // P5: Tuned for gold loan domain
+fn default_max_full_model_docs() -> usize { 10 }
+fn default_early_termination_threshold() -> f32 { 0.92 }  // P5: Slightly lower for faster exits
+fn default_early_termination_min_results() -> usize { 3 }
+fn default_prefetch_confidence() -> f32 { 0.6 }  // P5: Lower for more aggressive prefetch
+fn default_prefetch_top_k() -> usize { 3 }
+
+impl Default for RagConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            dense_top_k: default_dense_top_k(),
+            sparse_top_k: default_sparse_top_k(),
+            final_top_k: default_final_top_k(),
+            dense_weight: default_dense_weight(),
+            rrf_k: default_rrf_k(),
+            min_score: default_min_score(),
+            reranking_enabled: true,
+            prefilter_threshold: default_prefilter_threshold(),
+            max_full_model_docs: default_max_full_model_docs(),
+            early_termination_threshold: default_early_termination_threshold(),
+            early_termination_min_results: default_early_termination_min_results(),
+            prefetch_confidence_threshold: default_prefetch_confidence(),
+            prefetch_top_k: default_prefetch_top_k(),
         }
     }
 }

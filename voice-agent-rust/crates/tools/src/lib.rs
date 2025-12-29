@@ -9,7 +9,7 @@ pub mod gold_loan;
 pub mod integrations;
 
 pub use mcp::{Tool, ToolInput, ToolOutput, ToolSchema, ToolError};
-pub use registry::{ToolRegistry, ToolExecutor};
+pub use registry::{ToolRegistry, ToolExecutor, IntegrationConfig, create_registry_with_integrations};
 pub use gold_loan::{
     EligibilityCheckTool,
     SavingsCalculatorTool,

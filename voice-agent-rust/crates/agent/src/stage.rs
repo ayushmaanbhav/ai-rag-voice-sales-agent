@@ -6,6 +6,65 @@ use std::collections::HashMap;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
+/// P4 FIX: RAG timing strategy for prefetch behavior
+///
+/// Different strategies trade off between latency and resource usage:
+/// - **Eager**: Prefetch on any partial transcript (lowest latency, highest resource usage)
+/// - **Conservative**: Only prefetch on high-confidence partials (balanced)
+/// - **StageAware**: Only prefetch during stages that heavily use RAG (efficient)
+/// - **Disabled**: No prefetching (lowest resource usage, highest latency)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RagTimingStrategy {
+    /// Prefetch on any partial transcript (confidence > 0.5)
+    /// Best for: Low-latency requirements, powerful hardware
+    Eager,
+    /// Only prefetch on high-confidence partials (confidence > 0.8)
+    /// Best for: Balanced latency/resource trade-off
+    #[default]
+    Conservative,
+    /// Only prefetch during high-RAG stages (Presentation, ObjectionHandling, Discovery)
+    /// Best for: Resource-constrained environments
+    StageAware,
+    /// No prefetching - only search when response is needed
+    /// Best for: Minimal resource usage, batch processing
+    Disabled,
+}
+
+impl RagTimingStrategy {
+    /// Check if prefetch should be triggered given the parameters
+    pub fn should_prefetch(&self, confidence: f32, stage: ConversationStage) -> bool {
+        match self {
+            RagTimingStrategy::Eager => confidence > 0.5,
+            RagTimingStrategy::Conservative => confidence > 0.8,
+            RagTimingStrategy::StageAware => {
+                confidence > 0.7 && stage.rag_context_fraction() > 0.1
+            }
+            RagTimingStrategy::Disabled => false,
+        }
+    }
+
+    /// Get minimum word count for prefetch trigger
+    pub fn min_words(&self) -> usize {
+        match self {
+            RagTimingStrategy::Eager => 2,
+            RagTimingStrategy::Conservative => 3,
+            RagTimingStrategy::StageAware => 3,
+            RagTimingStrategy::Disabled => usize::MAX, // Never trigger
+        }
+    }
+
+    /// Get cache TTL in seconds
+    pub fn cache_ttl_secs(&self) -> u64 {
+        match self {
+            RagTimingStrategy::Eager => 5,
+            RagTimingStrategy::Conservative => 10,
+            RagTimingStrategy::StageAware => 15,
+            RagTimingStrategy::Disabled => 0,
+        }
+    }
+}
+
 /// Conversation stage
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[derive(Default)]
@@ -543,5 +602,68 @@ mod tests {
 
         // Farewell should keep minimal history
         assert!(ConversationStage::Farewell.history_turns_to_keep() <= 3);
+    }
+
+    // P4 FIX: RAG timing strategy tests
+
+    #[test]
+    fn test_rag_timing_strategy_eager() {
+        let strategy = RagTimingStrategy::Eager;
+
+        // Should prefetch on any stage with medium confidence
+        assert!(strategy.should_prefetch(0.6, ConversationStage::Greeting));
+        assert!(strategy.should_prefetch(0.6, ConversationStage::Presentation));
+
+        // Should not prefetch with very low confidence
+        assert!(!strategy.should_prefetch(0.4, ConversationStage::Greeting));
+
+        // Should have low min words
+        assert_eq!(strategy.min_words(), 2);
+    }
+
+    #[test]
+    fn test_rag_timing_strategy_conservative() {
+        let strategy = RagTimingStrategy::Conservative;
+
+        // Should only prefetch on high confidence
+        assert!(!strategy.should_prefetch(0.7, ConversationStage::Presentation));
+        assert!(strategy.should_prefetch(0.85, ConversationStage::Presentation));
+
+        // Should require more words
+        assert_eq!(strategy.min_words(), 3);
+    }
+
+    #[test]
+    fn test_rag_timing_strategy_stage_aware() {
+        let strategy = RagTimingStrategy::StageAware;
+
+        // Should not prefetch during Greeting (no RAG needed)
+        assert!(!strategy.should_prefetch(0.9, ConversationStage::Greeting));
+        assert!(!strategy.should_prefetch(0.9, ConversationStage::Farewell));
+
+        // Should prefetch during Presentation (high RAG)
+        assert!(strategy.should_prefetch(0.8, ConversationStage::Presentation));
+
+        // Should prefetch during ObjectionHandling (high RAG)
+        assert!(strategy.should_prefetch(0.8, ConversationStage::ObjectionHandling));
+    }
+
+    #[test]
+    fn test_rag_timing_strategy_disabled() {
+        let strategy = RagTimingStrategy::Disabled;
+
+        // Should never prefetch
+        assert!(!strategy.should_prefetch(1.0, ConversationStage::Presentation));
+        assert!(!strategy.should_prefetch(1.0, ConversationStage::ObjectionHandling));
+
+        // Min words should be very high (effectively never)
+        assert_eq!(strategy.min_words(), usize::MAX);
+    }
+
+    #[test]
+    fn test_rag_timing_strategy_default() {
+        // Default should be Conservative
+        let strategy = RagTimingStrategy::default();
+        assert_eq!(strategy, RagTimingStrategy::Conservative);
     }
 }

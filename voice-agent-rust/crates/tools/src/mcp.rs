@@ -361,6 +361,14 @@ pub trait Tool: Send + Sync {
             Err(ToolError::invalid_params("Input must be an object"))
         }
     }
+
+    /// P5 FIX: Get per-tool timeout in seconds
+    ///
+    /// Tools can override this to specify custom timeouts.
+    /// Default is 30 seconds.
+    fn timeout_secs(&self) -> u64 {
+        30 // Default timeout
+    }
 }
 
 /// P2 FIX: Validate a property value against its schema

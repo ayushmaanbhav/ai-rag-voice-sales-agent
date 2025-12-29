@@ -50,6 +50,23 @@ impl Default for RetrieverConfig {
     }
 }
 
+/// P5 FIX: Convert from centralized RagConfig
+impl From<&voice_agent_config::RagConfig> for RetrieverConfig {
+    fn from(config: &voice_agent_config::RagConfig) -> Self {
+        Self {
+            dense_top_k: config.dense_top_k,
+            sparse_top_k: config.sparse_top_k,
+            final_top_k: config.final_top_k,
+            dense_weight: config.dense_weight,
+            rrf_k: config.rrf_k,
+            min_score: config.min_score,
+            reranking_enabled: config.reranking_enabled,
+            prefetch_confidence_threshold: config.prefetch_confidence_threshold,
+            prefetch_top_k: config.prefetch_top_k,
+        }
+    }
+}
+
 /// Final search result
 #[derive(Debug, Clone)]
 pub struct SearchResult {

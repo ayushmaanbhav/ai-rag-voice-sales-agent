@@ -1,0 +1,337 @@
+# Domain Configuration for Kotak Gold Loan Voice Agent
+# This file contains all domain-specific configuration for the gold loan product.
+
+domain: gold_loan
+version: "1.0.0"
+
+# Gold Loan Business Configuration
+gold_loan:
+  # Current gold price per gram in INR (update regularly)
+  gold_price_per_gram: 7500.0
+  # Base interest rate (%)
+  kotak_interest_rate: 10.5
+  # Loan-to-Value ratio (%)
+  ltv_percent: 75.0
+  # Loan amount range
+  min_loan_amount: 10000.0
+  max_loan_amount: 25000000.0  # 2.5 Cr
+  # Processing fee (%)
+  processing_fee_percent: 1.0
+
+  # Gold purity factors
+  purity_factors:
+    k24: 1.0
+    k22: 0.916
+    k18: 0.75
+    k14: 0.585
+
+  # Tiered interest rates - higher amounts get better rates
+  tiered_rates:
+    tier1_rate: 11.5        # Up to 1 lakh
+    tier1_threshold: 100000.0
+    tier2_rate: 10.5        # 1-5 lakh
+    tier2_threshold: 500000.0
+    tier3_rate: 9.5         # Above 5 lakh
+
+# Branch Configuration
+branches:
+  total_branches: 1600
+  states:
+    - Maharashtra
+    - Gujarat
+    - Karnataka
+    - Tamil Nadu
+    - Kerala
+    - Andhra Pradesh
+    - Telangana
+    - Delhi
+    - Uttar Pradesh
+    - Rajasthan
+    - Madhya Pradesh
+    - West Bengal
+    - Punjab
+    - Haryana
+
+  # City-wise branch coverage
+  city_coverage:
+    Mumbai: 120
+    Delhi: 85
+    Bangalore: 65
+    Chennai: 55
+    Hyderabad: 50
+    Pune: 45
+    Ahmedabad: 40
+    Kolkata: 35
+
+  # Doorstep service configuration
+  doorstep_service:
+    enabled: true
+    min_loan_amount: 50000.0
+    booking_advance_hours: 24
+    available_cities:
+      - Mumbai
+      - Delhi
+      - Bangalore
+      - Chennai
+      - Hyderabad
+      - Pune
+      - Ahmedabad
+      - Kolkata
+
+  # Sample branches (add more as needed)
+  branches:
+    - id: MUM001
+      name: Andheri West Branch
+      city: Mumbai
+      state: Maharashtra
+      pincode: "400069"
+      address: "Shop 12, Andheri West, Near Metro Station, Mumbai"
+      phone: "022-12345678"
+      coordinates:
+        latitude: 19.1197
+        longitude: 72.8464
+      hours:
+        weekday_open: "09:30"
+        weekday_close: "17:30"
+        saturday_open: "09:30"
+        saturday_close: "14:00"
+        sunday_open: false
+      features:
+        gold_loan: true
+        locker: true
+        women_priority: true
+        doorstep_available: true
+        languages: [Hindi, English, Marathi]
+
+    - id: DEL001
+      name: Connaught Place Branch
+      city: Delhi
+      state: Delhi
+      pincode: "110001"
+      address: "N Block, Connaught Place, New Delhi"
+      phone: "011-23456789"
+      coordinates:
+        latitude: 28.6315
+        longitude: 77.2167
+      features:
+        gold_loan: true
+        locker: true
+        premium_banking: true
+        nri_services: true
+        languages: [Hindi, English, Punjabi]
+
+# Product Configuration
+product:
+  variants:
+    - id: standard
+      name: Kotak Gold Loan
+      description: Standard gold loan with competitive rates and flexible repayment
+      target_segment: [all]
+      interest_rate_min: 9.5
+      interest_rate_max: 11.5
+      benefits:
+        - 30-minute approval
+        - Zero foreclosure charges
+        - Flexible tenure
+        - Bank-grade security
+      active: true
+
+    - id: shakti_gold
+      name: Kotak Shakti Gold
+      description: Special gold loan program for women with preferential rates
+      target_segment: [women]
+      interest_rate_min: 9.25
+      interest_rate_max: 11.0
+      benefits:
+        - 0.25% lower interest rate
+        - Women-priority branches
+        - Dedicated relationship manager
+        - Flexible EMI options
+      active: true
+
+    - id: bullet
+      name: Kotak Gold Bullet
+      description: Pay only interest monthly, repay principal at end of tenure
+      target_segment: [business, seasonal_income]
+      interest_rate_min: 10.0
+      interest_rate_max: 12.0
+      benefits:
+        - Lower monthly outflow
+        - Principal repaid at tenure end
+        - Ideal for business needs
+      active: true
+
+    - id: overdraft
+      name: Kotak Gold Overdraft
+      description: Revolving credit against gold - pay interest only on used amount
+      target_segment: [high_value, business]
+      interest_rate_min: 10.5
+      interest_rate_max: 12.5
+      benefits:
+        - Pay interest only on used amount
+        - Revolving credit facility
+        - Withdraw and repay anytime
+      active: true
+
+  eligibility:
+    min_age: 21
+    max_age: 65
+    citizenship: [Indian, NRI]
+    gold_purity:
+      min_purity_karat: 18
+      accepted_purity: ["24K", "22K", "20K", "18K"]
+      not_accepted:
+        - Gold-plated items
+        - Gold coins (non-hallmarked)
+        - Items below 18K
+
+  tenure:
+    min_months: 3
+    max_months: 36
+    options: [3, 6, 9, 12, 18, 24, 36]
+    renewal_allowed: true
+
+  fees:
+    processing_fee:
+      fee_type: percentage
+      value: 1.0
+      min_amount: 500.0
+      max_amount: 25000.0
+      description: "1% of loan amount"
+    valuation_charges:
+      fee_type: free
+      description: "Free gold valuation"
+    foreclosure_charges:
+      fee_type: free
+      description: "Zero foreclosure charges"
+
+# Competitor Configuration
+competitors:
+  competitors:
+    muthoot:
+      id: muthoot
+      name: Muthoot
+      full_name: Muthoot Finance Limited
+      competitor_type: nbfc
+      interest_rate_min: 12.0
+      interest_rate_max: 24.0
+      processing_fee_percent: 1.5
+      ltv_percent: 75.0
+      weaknesses:
+        - Higher interest rates than banks
+        - Not RBI bank-regulated (NBFC)
+        - Inconsistent customer service
+        - Limited digital services
+      common_complaints:
+        - High interest rates
+        - Aggressive recovery practices
+        - Hidden charges
+      market_share: 25.0
+      branch_count: 5500
+      key_regions: [Kerala, Tamil Nadu, Karnataka]
+
+    manappuram:
+      id: manappuram
+      name: Manappuram
+      full_name: Manappuram Finance Limited
+      competitor_type: nbfc
+      interest_rate_min: 14.0
+      interest_rate_max: 26.0
+      processing_fee_percent: 1.5
+      ltv_percent: 75.0
+      weaknesses:
+        - Higher rates than banks
+        - NBFC status (less regulated)
+        - Limited insurance coverage
+      market_share: 15.0
+      branch_count: 4500
+      key_regions: [Kerala, Tamil Nadu]
+
+    iifl:
+      id: iifl
+      name: IIFL
+      full_name: IIFL Finance Limited
+      competitor_type: nbfc
+      interest_rate_min: 11.0
+      interest_rate_max: 24.0
+      processing_fee_percent: 1.5
+      ltv_percent: 75.0
+      weaknesses:
+        - NBFC status
+        - Recent regulatory issues
+        - Limited tier-2 city presence
+      market_share: 8.0
+      key_regions: [Maharashtra, Gujarat]
+
+  switching_benefits:
+    balance_transfer:
+      processing_fee_percent: 0.5
+      top_up_available: true
+      same_day_transfer: true
+      benefits:
+        - Lower interest rate from day one
+        - Reduced processing fee (0.5%)
+        - Same day transfer possible
+        - Top-up available on existing gold
+        - Zero foreclosure charges
+        - Bank-grade security for your gold
+
+    objection_handlers:
+      - objection: "I'm happy with my current lender"
+        response: "That's great! But have you compared the total interest you're paying? Many customers save 30-40% just by switching to our lower rates."
+        follow_up: "Would you like me to show you a quick comparison?"
+
+      - objection: "Switching is too much hassle"
+        response: "We've made it very simple - we handle all the paperwork. Most customers complete the switch in just one visit."
+        follow_up: "Would you like me to explain the 3-step process?"
+
+      - objection: "My current lender has my gold"
+        response: "We can arrange a direct balance transfer where we pay off your existing loan and transfer your gold to our insured vault - all in one day."
+        follow_up: "This way you don't have to handle the gold yourself."
+
+# Prompt Templates
+prompts:
+  system_prompt:
+    role: "You are a helpful gold loan advisor for Kotak Mahindra Bank."
+    agent_name: Priya
+    company_name: Kotak Mahindra Bank
+    instructions:
+      - Help customers understand gold loan options
+      - Answer questions about rates, eligibility, and process
+      - Highlight Kotak's advantages over competitors
+      - Guide customers through the application process
+      - Capture leads for callback if customer is interested
+    compliance:
+      - Never guarantee specific loan approval
+      - Always mention that rates are subject to change
+      - Disclose that gold valuation is done at branch
+      - Do not disparage competitors directly
+    guidelines:
+      - Be warm and professional
+      - Use simple language, avoid jargon
+      - Acknowledge customer concerns before responding
+      - Keep responses concise (under 60 words)
+      - Use Hindi words naturally if customer uses them
+    avoid:
+      - Making promises about approval
+      - Sharing personal opinions
+      - Being pushy or aggressive
+
+  greetings:
+    default: "Hello! I'm {agent_name} from Kotak Mahindra Bank. How can I help you with your gold loan needs today?"
+    morning: "Good morning! I'm {agent_name} from Kotak Mahindra Bank. How can I assist you today?"
+    afternoon: "Good afternoon! I'm {agent_name} from Kotak Mahindra Bank. How may I help you?"
+    evening: "Good evening! I'm {agent_name} from Kotak Mahindra Bank. How can I help you today?"
+    returning: "Welcome back, {customer_name}! It's great to hear from you again. How can I help you today?"
+    hindi: "Namaste! Main {agent_name} bol rahi hoon Kotak Mahindra Bank se. Main aapki kaise madad kar sakti hoon?"
+
+  responses:
+    rate_inquiry: "Our gold loan interest rates start from 9.5% per annum, which is among the lowest in the market. The exact rate depends on your loan amount - higher amounts get better rates. Would you like me to calculate your potential savings?"
+    eligibility: "Gold loan eligibility is simple - you need to be between 21-65 years old with valid ID and address proof. We accept gold ornaments of 18K purity and above."
+    process: "The process is quick and simple: 1) Visit any Kotak branch with your gold and ID, 2) We value your gold in 15 minutes, 3) Loan approved and disbursed in 30 minutes. That's it!"
+    safety: "Your gold is stored in RBI-regulated bank-grade vaults with 24/7 security and full insurance coverage. You can even track your gold status through our digital platform."
+
+  fallbacks:
+    not_understood: "I'm sorry, I didn't quite catch that. Could you please rephrase your question?"
+    technical_issue: "I apologize, but I'm having some technical difficulties. Would you like me to arrange a callback from our team?"
+    out_of_scope: "I specialize in gold loans. For other banking products, I can connect you with the right team. Would you like that?"

@@ -53,6 +53,12 @@ pub fn create_router(state: AppState) -> Router {
         // P1 FIX: Config reload endpoint (admin only)
         .route("/admin/reload-config", post(reload_config))
 
+        // P4 FIX: Domain config reload endpoint
+        .route("/admin/reload-domain-config", post(reload_domain_config))
+
+        // P4 FIX: Domain config info endpoint
+        .route("/api/domain/info", get(domain_info))
+
         // WebSocket
         .route("/ws/:session_id", get(ws_handler))
 
@@ -389,6 +395,78 @@ async fn reload_config(
             })))
         }
     }
+}
+
+/// P4 FIX: Domain config reload endpoint
+///
+/// POST /admin/reload-domain-config
+///
+/// Hot-reloads domain configuration (gold loan settings, prompts, competitor info).
+async fn reload_domain_config(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match state.reload_domain_config() {
+        Ok(()) => {
+            (StatusCode::OK, Json(serde_json::json!({
+                "status": "success",
+                "message": "Domain configuration reloaded successfully"
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Domain config reload failed: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+                "status": "error",
+                "message": e
+            })))
+        }
+    }
+}
+
+/// P4 FIX: Domain config info endpoint
+///
+/// GET /api/domain/info
+///
+/// Returns current domain configuration summary for debugging/monitoring.
+async fn domain_info(
+    State(state): State<AppState>,
+) -> Json<serde_json::Value> {
+    let domain = state.get_domain_config();
+    let config = domain.get();
+
+    Json(serde_json::json!({
+        "domain": config.domain,
+        "version": config.version,
+        "gold_loan": {
+            "current_gold_price": domain.gold_price(),
+            "interest_rate": config.gold_loan.kotak_interest_rate,
+            "ltv_percent": config.gold_loan.ltv_percent,
+            "tiered_rates": {
+                "tier1": format!("Up to ₹{}: {}%", config.gold_loan.tiered_rates.tier1_threshold, config.gold_loan.tiered_rates.tier1_rate),
+                "tier2": format!("Up to ₹{}: {}%", config.gold_loan.tiered_rates.tier2_threshold, config.gold_loan.tiered_rates.tier2_rate),
+                "tier3": format!("Above ₹{}: {}%", config.gold_loan.tiered_rates.tier2_threshold, config.gold_loan.tiered_rates.tier3_rate),
+            }
+        },
+        "branches": {
+            "total": config.branches.total_branches,
+            "states_covered": config.branches.states.len(),
+            "cities_with_coverage": config.branches.city_coverage.len(),
+            "doorstep_enabled": config.branches.doorstep_service.enabled,
+        },
+        "products": {
+            "variants": config.product.variants.iter()
+                .filter(|v| v.active)
+                .map(|v| v.name.clone())
+                .collect::<Vec<_>>(),
+        },
+        "competitors": {
+            "count": config.competitors.competitors.len(),
+            "tracked": config.competitors.competitors.keys().collect::<Vec<_>>(),
+        },
+        "prompts": {
+            "agent_name": config.prompts.system_prompt.agent_name,
+            "stages": config.prompts.stage_prompts.keys().collect::<Vec<_>>(),
+        }
+    }))
 }
 
 /// WebSocket handler wrapper

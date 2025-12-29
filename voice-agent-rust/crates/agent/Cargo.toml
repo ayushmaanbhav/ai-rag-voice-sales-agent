@@ -35,3 +35,8 @@ regex.workspace = true  # P0 FIX: For compiled slot pattern extraction
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "voice_pipeline_bench"
+harness = false

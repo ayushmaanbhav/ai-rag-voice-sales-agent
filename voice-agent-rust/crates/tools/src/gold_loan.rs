@@ -8,8 +8,9 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use voice_agent_config::GoldLoanConfig;
+use crate::integrations::{CrmIntegration, CalendarIntegration, CrmLead, LeadSource, InterestLevel, LeadStatus, Appointment, AppointmentPurpose, AppointmentStatus};
 
 use crate::mcp::{Tool, ToolSchema, ToolOutput, ToolError, InputSchema, PropertySchema};
 
@@ -347,11 +348,20 @@ impl Default for SavingsCalculatorTool {
 }
 
 /// Lead capture tool
-pub struct LeadCaptureTool;
+/// P4 FIX: Now wired to CrmIntegration for actual lead creation
+pub struct LeadCaptureTool {
+    /// CRM integration for creating leads
+    crm: Option<Arc<dyn CrmIntegration>>,
+}
 
 impl LeadCaptureTool {
     pub fn new() -> Self {
-        Self
+        Self { crm: None }
+    }
+
+    /// Create with CRM integration
+    pub fn with_crm(crm: Arc<dyn CrmIntegration>) -> Self {
+        Self { crm: Some(crm) }
     }
 }
 
@@ -397,7 +407,60 @@ impl Tool for LeadCaptureTool {
             return Err(ToolError::invalid_params("phone_number must be 10 digits"));
         }
 
-        // Generate lead ID
+        // Extract optional fields
+        let city = input.get("city").and_then(|v| v.as_str()).map(String::from);
+        let estimated_gold = input.get("estimated_gold_weight").and_then(|v| v.as_f64());
+        let notes = input.get("notes").and_then(|v| v.as_str()).map(String::from);
+        let interest_str = input.get("interest_level").and_then(|v| v.as_str()).unwrap_or("Medium");
+
+        // Parse interest level
+        let interest_level = match interest_str.to_lowercase().as_str() {
+            "high" => InterestLevel::High,
+            "low" => InterestLevel::Low,
+            _ => InterestLevel::Medium,
+        };
+
+        // P4 FIX: Use CRM integration if available
+        if let Some(ref crm) = self.crm {
+            let lead = CrmLead {
+                id: None,
+                name: name.to_string(),
+                phone: phone.to_string(),
+                email: None,
+                city,
+                source: LeadSource::VoiceAgent,
+                interest_level,
+                estimated_gold_grams: estimated_gold,
+                current_lender: None,
+                notes,
+                assigned_to: None,
+                status: LeadStatus::New,
+            };
+
+            match crm.create_lead(lead).await {
+                Ok(lead_id) => {
+                    let result = json!({
+                        "success": true,
+                        "lead_id": lead_id,
+                        "customer_name": name,
+                        "phone_number": phone,
+                        "city": input.get("city").and_then(|v| v.as_str()),
+                        "interest_level": interest_str,
+                        "estimated_gold_weight": estimated_gold,
+                        "created_at": Utc::now().to_rfc3339(),
+                        "crm_integrated": true,
+                        "message": format!("Lead captured successfully! A representative will contact {} shortly.", name)
+                    });
+                    return Ok(ToolOutput::json(result));
+                }
+                Err(e) => {
+                    tracing::warn!("CRM integration failed, falling back to local: {}", e);
+                    // Fall through to local generation
+                }
+            }
+        }
+
+        // Fallback: Generate lead ID locally (no CRM integration)
         let lead_id = format!("GL{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
 
         let result = json!({
@@ -407,14 +470,20 @@ impl Tool for LeadCaptureTool {
             "phone_number": phone,
             "city": input.get("city").and_then(|v| v.as_str()),
             "preferred_branch": input.get("preferred_branch").and_then(|v| v.as_str()),
-            "estimated_gold_weight": input.get("estimated_gold_weight").and_then(|v| v.as_f64()),
-            "interest_level": input.get("interest_level").and_then(|v| v.as_str()).unwrap_or("Medium"),
+            "estimated_gold_weight": estimated_gold,
+            "interest_level": interest_str,
             "notes": input.get("notes").and_then(|v| v.as_str()),
             "created_at": Utc::now().to_rfc3339(),
+            "crm_integrated": false,
             "message": format!("Lead captured successfully! A representative will contact {} shortly.", name)
         });
 
         Ok(ToolOutput::json(result))
+    }
+
+    /// P5 FIX: CRM integrations may need more time
+    fn timeout_secs(&self) -> u64 {
+        45 // 45 seconds for CRM operations
     }
 }
 
@@ -425,11 +494,20 @@ impl Default for LeadCaptureTool {
 }
 
 /// Appointment scheduler tool
-pub struct AppointmentSchedulerTool;
+/// P4 FIX: Now wired to CalendarIntegration for actual scheduling
+pub struct AppointmentSchedulerTool {
+    /// Calendar integration for scheduling appointments
+    calendar: Option<Arc<dyn CalendarIntegration>>,
+}
 
 impl AppointmentSchedulerTool {
     pub fn new() -> Self {
-        Self
+        Self { calendar: None }
+    }
+
+    /// Create with calendar integration
+    pub fn with_calendar(calendar: Arc<dyn CalendarIntegration>) -> Self {
+        Self { calendar: Some(calendar) }
     }
 }
 
@@ -501,11 +579,77 @@ impl Tool for AppointmentSchedulerTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("preferred_time is required"))?;
 
-        let purpose = input.get("purpose")
+        let purpose_str = input.get("purpose")
             .and_then(|v| v.as_str())
             .unwrap_or("New Gold Loan");
 
-        // Generate appointment ID
+        // Parse purpose enum
+        let purpose_enum = match purpose_str {
+            "Gold Loan Transfer" => AppointmentPurpose::GoldLoanTransfer,
+            "Top-up" => AppointmentPurpose::TopUp,
+            "Closure" => AppointmentPurpose::Closure,
+            "Consultation" => AppointmentPurpose::Consultation,
+            _ => AppointmentPurpose::NewGoldLoan,
+        };
+
+        // P4 FIX: Use calendar integration if available
+        if let Some(ref calendar) = self.calendar {
+            let appointment = Appointment {
+                id: None,
+                customer_name: name.to_string(),
+                customer_phone: phone.to_string(),
+                branch_id: branch.to_string(),
+                date: date.clone(),
+                time_slot: time.to_string(),
+                purpose: purpose_enum,
+                notes: None,
+                status: AppointmentStatus::Scheduled,
+                confirmation_sent: false,
+            };
+
+            match calendar.schedule_appointment(appointment).await {
+                Ok(appointment_id) => {
+                    // P0 FIX: Don't claim confirmation sent until actually sent
+                    // Try to send confirmation, but don't fail if it doesn't work
+                    let confirmation_sent = calendar.send_confirmation(&appointment_id).await.is_ok();
+
+                    let result = json!({
+                        "success": true,
+                        "appointment_id": appointment_id,
+                        "customer_name": name,
+                        "phone_number": phone,
+                        "branch_id": branch,
+                        "date": date,
+                        "time": time,
+                        "purpose": purpose_str,
+                        "confirmation_sent": confirmation_sent,
+                        "calendar_integrated": true,
+                        "status": "pending_confirmation",
+                        "confirmation_method": "agent_will_call_to_confirm",
+                        "next_action": "Agent will call customer to confirm appointment",
+                        "message": if confirmation_sent {
+                            format!(
+                                "Appointment scheduled for {} on {} at {}. Confirmation sent to {}.",
+                                name, date, time, phone
+                            )
+                        } else {
+                            format!(
+                                "Appointment scheduled for {} on {} at {}. Our team will call to confirm.",
+                                name, date, time
+                            )
+                        }
+                    });
+                    return Ok(ToolOutput::json(result));
+                }
+                Err(e) => {
+                    tracing::warn!("Calendar integration failed, falling back to local: {}", e);
+                    // Fall through to local generation
+                }
+            }
+        }
+
+        // Fallback: Generate appointment ID locally (no calendar integration)
+        // P0 FIX: Don't claim SMS confirmation sent when we have no integration
         let appointment_id = format!("APT{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
 
         let result = json!({
@@ -516,15 +660,24 @@ impl Tool for AppointmentSchedulerTool {
             "branch_id": branch,
             "date": date,
             "time": time,
-            "purpose": purpose,
-            "confirmation_sent": true,
+            "purpose": purpose_str,
+            "confirmation_sent": false,
+            "calendar_integrated": false,
+            "status": "pending_confirmation",
+            "confirmation_method": "agent_will_call_to_confirm",
+            "next_action": "Agent will call customer to confirm appointment",
             "message": format!(
-                "Appointment scheduled for {} on {} at {}. Confirmation SMS sent to {}.",
-                name, date, time, phone
+                "Appointment scheduled for {} on {} at {}. Our team will call to confirm.",
+                name, date, time
             )
         });
 
         Ok(ToolOutput::json(result))
+    }
+
+    /// P5 FIX: Calendar integrations may be slower, allow more time
+    fn timeout_secs(&self) -> u64 {
+        60 // 60 seconds for appointment scheduling with external calendar
     }
 }
 
@@ -709,5 +862,133 @@ mod tests {
 
         let output = tool.execute(input).await.unwrap();
         assert!(!output.is_error);
+    }
+
+    // P4 FIX: Tests for CRM/Calendar integration wiring
+
+    #[tokio::test]
+    async fn test_lead_capture_with_crm() {
+        use crate::integrations::StubCrmIntegration;
+
+        let crm = Arc::new(StubCrmIntegration::new());
+        let tool = LeadCaptureTool::with_crm(crm);
+        let input = json!({
+            "customer_name": "Rajesh Kumar",
+            "phone_number": "9876543210",
+            "city": "Mumbai",
+            "interest_level": "High"
+        });
+
+        let output = tool.execute(input).await.unwrap();
+        assert!(!output.is_error);
+
+        // Parse output to verify CRM integration flag
+        let text = output.content.iter()
+            .filter_map(|c| match c {
+                crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["crm_integrated"], true);
+        assert!(json["lead_id"].as_str().unwrap().starts_with("LEAD-"));
+    }
+
+    #[tokio::test]
+    async fn test_lead_capture_without_crm() {
+        let tool = LeadCaptureTool::new();
+        let input = json!({
+            "customer_name": "Rajesh Kumar",
+            "phone_number": "9876543210"
+        });
+
+        let output = tool.execute(input).await.unwrap();
+
+        let text = output.content.iter()
+            .filter_map(|c| match c {
+                crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["crm_integrated"], false);
+        assert!(json["lead_id"].as_str().unwrap().starts_with("GL"));
+    }
+
+    #[tokio::test]
+    async fn test_appointment_scheduler_with_calendar() {
+        use crate::integrations::StubCalendarIntegration;
+
+        let calendar = Arc::new(StubCalendarIntegration::new());
+        let tool = AppointmentSchedulerTool::with_calendar(calendar);
+
+        // Use a future date
+        let future_date = (chrono::Utc::now() + chrono::Duration::days(7))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let input = json!({
+            "customer_name": "Rajesh Kumar",
+            "phone_number": "9876543210",
+            "branch_id": "KMBL001",
+            "preferred_date": future_date,
+            "preferred_time": "10:00 AM",
+            "purpose": "New Gold Loan"
+        });
+
+        let output = tool.execute(input).await.unwrap();
+        assert!(!output.is_error);
+
+        let text = output.content.iter()
+            .filter_map(|c| match c {
+                crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["calendar_integrated"], true);
+        assert!(json["appointment_id"].as_str().unwrap().starts_with("APT-"));
+        // P0 FIX: Verify we don't falsely claim SMS confirmation
+        assert_eq!(json["status"], "pending_confirmation");
+    }
+
+    #[tokio::test]
+    async fn test_appointment_scheduler_without_calendar() {
+        let tool = AppointmentSchedulerTool::new();
+
+        let future_date = (chrono::Utc::now() + chrono::Duration::days(7))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let input = json!({
+            "customer_name": "Rajesh Kumar",
+            "phone_number": "9876543210",
+            "branch_id": "KMBL001",
+            "preferred_date": future_date,
+            "preferred_time": "10:00 AM"
+        });
+
+        let output = tool.execute(input).await.unwrap();
+
+        let text = output.content.iter()
+            .filter_map(|c| match c {
+                crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(json["calendar_integrated"], false);
+        assert!(json["appointment_id"].as_str().unwrap().starts_with("APT"));
+        // P0 FIX: Verify we don't falsely claim SMS confirmation
+        assert_eq!(json["confirmation_sent"], false);
+        assert_eq!(json["status"], "pending_confirmation");
     }
 }

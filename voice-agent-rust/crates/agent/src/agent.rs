@@ -12,9 +12,11 @@ use voice_agent_config::PersonaConfig;
 use voice_agent_tools::{ToolRegistry, ToolExecutor};
 // P1 FIX: Import RAG components for retrieval-augmented generation
 use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore, SearchResult};
+// P4 FIX: Import personalization engine for dynamic response adaptation
+use voice_agent_core::personalization::{PersonalizationEngine, PersonalizationContext};
 
 use crate::conversation::{Conversation, ConversationConfig, ConversationEvent, EndReason};
-use crate::stage::ConversationStage;
+use crate::stage::{ConversationStage, RagTimingStrategy};
 use crate::AgentError;
 
 /// Agent configuration
@@ -34,6 +36,8 @@ pub struct AgentConfig {
     pub tool_defaults: ToolDefaults,
     /// P2 FIX: Context window size in tokens (for LLM prompt truncation)
     pub context_window_tokens: usize,
+    /// P4 FIX: RAG timing strategy for prefetch behavior
+    pub rag_timing_strategy: RagTimingStrategy,
 }
 
 /// P1 FIX: Configurable default values for tool calls
@@ -75,6 +79,8 @@ impl Default for AgentConfig {
             // P2 FIX: Default context window for typical LLMs (Llama 3, etc.)
             // 4096 tokens leaves room for response generation
             context_window_tokens: 4096,
+            // P4 FIX: Default to conservative prefetch strategy
+            rag_timing_strategy: RagTimingStrategy::default(),
         }
     }
 }
@@ -131,6 +137,10 @@ pub struct GoldLoanAgent {
     event_tx: broadcast::Sender<AgentEvent>,
     /// P2 FIX: Prefetch cache for VAD → RAG prefetch optimization
     prefetch_cache: RwLock<Option<PrefetchEntry>>,
+    /// P4 FIX: Personalization engine for dynamic response adaptation
+    personalization: PersonalizationEngine,
+    /// P4 FIX: Personalization context (updated each turn)
+    personalization_ctx: RwLock<PersonalizationContext>,
 }
 
 impl GoldLoanAgent {
@@ -166,6 +176,10 @@ impl GoldLoanAgent {
             conversation.memory().set_llm(llm_backend.clone());
         }
 
+        // P4 FIX: Initialize personalization engine and context
+        let personalization = PersonalizationEngine::new();
+        let personalization_ctx = PersonalizationContext::new();
+
         Self {
             config,
             conversation,
@@ -175,6 +189,8 @@ impl GoldLoanAgent {
             vector_store: None,
             event_tx,
             prefetch_cache: RwLock::new(None),
+            personalization,
+            personalization_ctx: RwLock::new(personalization_ctx),
         }
     }
 
@@ -206,6 +222,10 @@ impl GoldLoanAgent {
         // P1 FIX: Wire LLM to memory for real summarization
         conversation.memory().set_llm(llm.clone());
 
+        // P4 FIX: Initialize personalization engine and context
+        let personalization = PersonalizationEngine::new();
+        let personalization_ctx = PersonalizationContext::new();
+
         Self {
             config,
             conversation,
@@ -215,6 +235,8 @@ impl GoldLoanAgent {
             vector_store: None,
             event_tx,
             prefetch_cache: RwLock::new(None),
+            personalization,
+            personalization_ctx: RwLock::new(personalization_ctx),
         }
     }
 
@@ -239,6 +261,10 @@ impl GoldLoanAgent {
             None
         };
 
+        // P4 FIX: Initialize personalization engine and context
+        let personalization = PersonalizationEngine::new();
+        let personalization_ctx = PersonalizationContext::new();
+
         Self {
             config,
             conversation,
@@ -248,6 +274,8 @@ impl GoldLoanAgent {
             vector_store: None,
             event_tx,
             prefetch_cache: RwLock::new(None),
+            personalization,
+            personalization_ctx: RwLock::new(personalization_ctx),
         }
     }
 
@@ -284,8 +312,23 @@ impl GoldLoanAgent {
             _ => return false,
         };
 
-        // Don't prefetch for very short partials
-        if partial_transcript.split_whitespace().count() < 2 {
+        // P4 FIX: Use timing strategy to determine if we should prefetch
+        let stage = self.conversation.stage();
+        let strategy = &self.config.rag_timing_strategy;
+
+        // Check if strategy allows prefetch at this point
+        if !strategy.should_prefetch(confidence, stage) {
+            tracing::trace!(
+                strategy = ?strategy,
+                confidence = confidence,
+                stage = ?stage,
+                "Skipping prefetch - timing strategy declined"
+            );
+            return false;
+        }
+
+        // Don't prefetch for very short partials (strategy-aware minimum)
+        if partial_transcript.split_whitespace().count() < strategy.min_words() {
             return false;
         }
 
@@ -293,9 +336,10 @@ impl GoldLoanAgent {
         let partial = partial_transcript.to_string();
         let cache = self.prefetch_cache.read().clone();
 
-        // Skip if we already prefetched for similar query (within 2 seconds)
+        // Skip if we already prefetched for similar query (strategy-aware TTL)
+        let cache_ttl = strategy.cache_ttl_secs();
         if let Some(entry) = &cache {
-            if entry.timestamp.elapsed().as_secs() < 2
+            if entry.timestamp.elapsed().as_secs() < cache_ttl
                 && partial.contains(&entry.query) {
                 tracing::trace!("Skipping prefetch - similar query already cached");
                 return false;
@@ -305,6 +349,8 @@ impl GoldLoanAgent {
         tracing::debug!(
             partial = %partial,
             confidence = confidence,
+            strategy = ?strategy,
+            stage = ?stage,
             "Triggering RAG prefetch on partial transcript"
         );
 
@@ -418,6 +464,18 @@ impl GoldLoanAgent {
         // Add user turn and detect intent
         let intent = self.conversation.add_user_turn(user_input)?;
 
+        // P4 FIX: Process input through personalization engine
+        // This detects behavior signals, objections, and updates context
+        {
+            let mut ctx = self.personalization_ctx.write();
+            self.personalization.process_input(&mut ctx, user_input);
+
+            // Log detected signals for debugging
+            if let Some(recent_signal) = ctx.recent_signals(1).first() {
+                tracing::debug!(signal = ?recent_signal, "Personalization signal detected");
+            }
+        }
+
         // Forward conversation events
         let _ = self.event_tx.send(AgentEvent::Conversation(
             ConversationEvent::IntentDetected(intent.clone())
@@ -470,6 +528,24 @@ impl GoldLoanAgent {
                 }
             }
             "schedule_visit" => Some("find_branches"),
+            // P4 FIX: Add intent mappings for CRM/Calendar integrations
+            "capture_lead" | "interested" | "callback_request" => {
+                // Capture lead when customer shows interest
+                if intent.slots.contains_key("customer_name") || intent.slots.contains_key("phone_number") {
+                    Some("capture_lead")
+                } else {
+                    None
+                }
+            }
+            "schedule_appointment" | "book_appointment" | "visit_branch" => {
+                // Schedule appointment when customer wants to visit
+                if intent.slots.contains_key("preferred_date") || intent.slots.contains_key("branch_id") {
+                    Some("schedule_appointment")
+                } else {
+                    // If no specific date/branch, first find branches
+                    Some("find_branches")
+                }
+            }
             _ => None,
         };
 
@@ -505,6 +581,56 @@ impl GoldLoanAgent {
 
             if name == "find_branches" && !args.contains_key("city") {
                 args.insert("city".to_string(), serde_json::json!(&defaults.default_city));
+            }
+
+            // P4 FIX: Handle capture_lead tool arguments
+            if name == "capture_lead" {
+                // Map slot names to tool parameter names
+                if args.contains_key("name") && !args.contains_key("customer_name") {
+                    if let Some(v) = args.remove("name") {
+                        args.insert("customer_name".to_string(), v);
+                    }
+                }
+                if args.contains_key("phone") && !args.contains_key("phone_number") {
+                    if let Some(v) = args.remove("phone") {
+                        args.insert("phone_number".to_string(), v);
+                    }
+                }
+                // Default interest level based on intent confidence
+                if !args.contains_key("interest_level") {
+                    let level = if intent.confidence > 0.8 { "High" } else { "Medium" };
+                    args.insert("interest_level".to_string(), serde_json::json!(level));
+                }
+            }
+
+            // P4 FIX: Handle schedule_appointment tool arguments
+            if name == "schedule_appointment" {
+                // Map slot names to tool parameter names
+                if args.contains_key("name") && !args.contains_key("customer_name") {
+                    if let Some(v) = args.remove("name") {
+                        args.insert("customer_name".to_string(), v);
+                    }
+                }
+                if args.contains_key("phone") && !args.contains_key("phone_number") {
+                    if let Some(v) = args.remove("phone") {
+                        args.insert("phone_number".to_string(), v);
+                    }
+                }
+                if args.contains_key("date") && !args.contains_key("preferred_date") {
+                    if let Some(v) = args.remove("date") {
+                        args.insert("preferred_date".to_string(), v);
+                    }
+                }
+                if args.contains_key("time") && !args.contains_key("preferred_time") {
+                    if let Some(v) = args.remove("time") {
+                        args.insert("preferred_time".to_string(), v);
+                    }
+                }
+                if args.contains_key("branch") && !args.contains_key("branch_id") {
+                    if let Some(v) = args.remove("branch") {
+                        args.insert("branch_id".to_string(), v);
+                    }
+                }
             }
 
             let result = self.tools.execute(name, serde_json::Value::Object(args)).await;
@@ -549,6 +675,23 @@ impl GoldLoanAgent {
         let mut builder = PromptBuilder::new()
             .with_persona(persona)
             .system_prompt(&self.config.language);
+
+        // P4 FIX: Add personalization instructions based on detected signals
+        // This dynamically adapts the prompt based on customer behavior
+        {
+            let ctx = self.personalization_ctx.read();
+            let personalization_instructions = self.personalization.generate_instructions(&ctx);
+            if !personalization_instructions.is_empty() {
+                builder = builder.with_context(&format!(
+                    "## Personalization Guidance\n{}",
+                    personalization_instructions
+                ));
+                tracing::trace!(
+                    instructions_len = personalization_instructions.len(),
+                    "Added personalization instructions to prompt"
+                );
+            }
+        }
 
         // Add context from memory
         let context = self.conversation.get_context();
@@ -780,6 +923,48 @@ impl GoldLoanAgent {
     /// P1 FIX: Get agent configuration
     pub fn config(&self) -> &AgentConfig {
         &self.config
+    }
+
+    /// P4 FIX: Set customer profile for personalization
+    ///
+    /// Updates the personalization context based on customer profile data.
+    /// This should be called when customer information is discovered (name, segment, etc.)
+    pub fn set_customer_profile(&self, profile: &voice_agent_core::CustomerProfile) {
+        let mut ctx = self.personalization_ctx.write();
+        *ctx = PersonalizationContext::for_profile(profile);
+        tracing::debug!(
+            segment = ?ctx.segment,
+            customer_name = ?ctx.customer_name,
+            "Updated personalization context from customer profile"
+        );
+    }
+
+    /// P4 FIX: Set customer name for personalization
+    pub fn set_customer_name(&self, name: impl Into<String>) {
+        let name = name.into();
+        let mut ctx = self.personalization_ctx.write();
+        ctx.customer_name = Some(name.clone());
+        tracing::debug!(customer_name = %name, "Set customer name for personalization");
+    }
+
+    /// P4 FIX: Set customer segment for personalization
+    pub fn set_customer_segment(&self, segment: voice_agent_core::CustomerSegment) {
+        use voice_agent_core::personalization::Persona;
+
+        let mut ctx = self.personalization_ctx.write();
+        ctx.segment = Some(segment);
+        ctx.persona = Persona::for_segment(segment);
+        tracing::debug!(segment = ?segment, "Set customer segment for personalization");
+    }
+
+    /// P4 FIX: Get current personalization context (read-only)
+    pub fn personalization_context(&self) -> PersonalizationContext {
+        self.personalization_ctx.read().clone()
+    }
+
+    /// P4 FIX: Get personalization engine reference
+    pub fn personalization_engine(&self) -> &PersonalizationEngine {
+        &self.personalization
     }
 
     /// End conversation

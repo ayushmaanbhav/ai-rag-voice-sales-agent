@@ -50,6 +50,11 @@ base64 = "0.21"
 # Observability
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+# P5 FIX: Distributed tracing via OpenTelemetry
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+tracing-opentelemetry.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

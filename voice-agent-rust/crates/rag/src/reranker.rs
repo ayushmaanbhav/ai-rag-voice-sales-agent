@@ -91,6 +91,26 @@ impl Default for RerankerConfig {
     }
 }
 
+/// P5 FIX: Convert from centralized RagConfig
+impl From<&voice_agent_config::RagConfig> for RerankerConfig {
+    fn from(config: &voice_agent_config::RagConfig) -> Self {
+        Self {
+            strategy: ExitStrategy::Hybrid,
+            confidence_threshold: 0.9,
+            patience: 2,
+            min_layer: 3,
+            max_seq_len: 256,
+            similarity_threshold: 0.95,
+            // Use tuned values from config
+            cascaded_enabled: config.reranking_enabled,
+            prefilter_threshold: config.prefilter_threshold,
+            max_full_model_docs: config.max_full_model_docs,
+            early_termination_threshold: config.early_termination_threshold,
+            early_termination_min_results: config.early_termination_min_results,
+        }
+    }
+}
+
 /// Reranking result
 #[derive(Debug, Clone)]
 pub struct RerankResult {

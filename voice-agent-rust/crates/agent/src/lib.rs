@@ -18,7 +18,7 @@ pub mod voice_session;
 
 pub use conversation::{Conversation, ConversationConfig, ConversationEvent};
 pub use memory::{ConversationMemory, MemoryConfig, MemoryEntry};
-pub use stage::{StageManager, ConversationStage, StageTransition};
+pub use stage::{StageManager, ConversationStage, StageTransition, RagTimingStrategy, TransitionReason};
 pub use intent::{IntentDetector, Intent, Slot, DetectedIntent};
 pub use agent::{GoldLoanAgent, AgentConfig, AgentEvent};
 pub use voice_session::{VoiceSession, VoiceSessionConfig, VoiceSessionState, VoiceSessionEvent};

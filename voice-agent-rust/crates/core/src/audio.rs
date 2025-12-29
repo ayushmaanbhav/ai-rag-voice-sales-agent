@@ -212,13 +212,62 @@ impl AudioFrame {
             .collect()
     }
 
-    /// Simple linear interpolation resampling
-    /// For production, use `rubato` crate for high-quality resampling
+    /// P5 FIX: High-quality resampling using Rubato (sinc interpolation)
+    ///
+    /// Uses `FastFixedIn` resampler for efficient, high-quality conversion.
+    /// Falls back to linear interpolation if Rubato fails (e.g., for very short frames).
     pub fn resample(&self, target_rate: SampleRate) -> Self {
+        use rubato::{FftFixedIn, Resampler};
+
         if self.sample_rate == target_rate {
             return self.clone();
         }
 
+        let from_rate = self.sample_rate.as_u32() as usize;
+        let to_rate = target_rate.as_u32() as usize;
+
+        // Convert f32 samples to f64 for Rubato (higher precision)
+        let samples_f64: Vec<f64> = self.samples.iter().map(|&s| s as f64).collect();
+
+        // For very short frames or edge cases, use linear fallback
+        if self.samples.len() < 64 {
+            return self.resample_linear(target_rate);
+        }
+
+        // Create FFT-based resampler (high quality, efficient for batch processing)
+        // chunk_size should divide input evenly for best results
+        let chunk_size = self.samples.len().min(1024);
+
+        match FftFixedIn::<f64>::new(from_rate, to_rate, chunk_size, 2, 1) {
+            Ok(mut resampler) => {
+                // Rubato expects Vec<Vec<f64>> for multi-channel, we have mono
+                let input_frames = vec![samples_f64];
+
+                match resampler.process(&input_frames, None) {
+                    Ok(output_frames) => {
+                        // Convert back to f32
+                        let resampled: Vec<f32> = output_frames[0]
+                            .iter()
+                            .map(|&s| s as f32)
+                            .collect();
+
+                        Self::new(resampled, target_rate, self.channels, self.sequence)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Rubato processing failed, using linear fallback: {}", e);
+                        self.resample_linear(target_rate)
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Rubato init failed, using linear fallback: {}", e);
+                self.resample_linear(target_rate)
+            }
+        }
+    }
+
+    /// Linear interpolation fallback for edge cases
+    fn resample_linear(&self, target_rate: SampleRate) -> Self {
         let ratio = target_rate.as_u32() as f64 / self.sample_rate.as_u32() as f64;
         let new_len = (self.samples.len() as f64 * ratio) as usize;
 
@@ -226,7 +275,7 @@ impl AudioFrame {
         for i in 0..new_len {
             let src_idx = i as f64 / ratio;
             let idx_floor = src_idx.floor() as usize;
-            let idx_ceil = (idx_floor + 1).min(self.samples.len() - 1);
+            let idx_ceil = (idx_floor + 1).min(self.samples.len().saturating_sub(1));
             let frac = src_idx - idx_floor as f64;
 
             let sample = self.samples[idx_floor] * (1.0 - frac as f32)

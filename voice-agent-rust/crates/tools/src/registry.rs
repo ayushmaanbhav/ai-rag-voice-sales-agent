@@ -93,6 +93,7 @@ impl ToolExecutor for ToolRegistry {
     /// Execute a tool with timeout protection
     ///
     /// P1 FIX: Wraps tool execution in a timeout to prevent indefinite blocking.
+    /// P5 FIX: Uses per-tool timeout instead of global default.
     async fn execute(&self, name: &str, arguments: Value) -> Result<ToolOutput, ToolError> {
         let tool = self.tools.get(name)
             .ok_or_else(|| ToolError::not_found(format!("Tool not found: {}", name)))?;
@@ -100,11 +101,15 @@ impl ToolExecutor for ToolRegistry {
         // Validate input
         tool.validate(&arguments)?;
 
-        // Execute with timeout
-        let timeout_duration = Duration::from_secs(DEFAULT_TOOL_TIMEOUT_SECS);
+        // P5 FIX: Use per-tool timeout, falling back to default
+        let timeout_secs = tool.timeout_secs();
+        let timeout_duration = Duration::from_secs(timeout_secs);
+
+        tracing::trace!(tool = name, timeout_secs = timeout_secs, "Executing tool with timeout");
+
         match tokio::time::timeout(timeout_duration, tool.execute(arguments)).await {
             Ok(result) => result,
-            Err(_elapsed) => Err(ToolError::timeout(name, DEFAULT_TOOL_TIMEOUT_SECS)),
+            Err(_elapsed) => Err(ToolError::timeout(name, timeout_secs)),
         }
     }
 
@@ -204,6 +209,74 @@ pub fn create_default_registry() -> ToolRegistry {
     registry
 }
 
+/// P4 FIX: Integration configuration for tool registry
+pub struct IntegrationConfig {
+    /// CRM integration for lead management
+    pub crm: Option<Arc<dyn crate::integrations::CrmIntegration>>,
+    /// Calendar integration for appointment scheduling
+    pub calendar: Option<Arc<dyn crate::integrations::CalendarIntegration>>,
+}
+
+impl Default for IntegrationConfig {
+    fn default() -> Self {
+        Self {
+            crm: None,
+            calendar: None,
+        }
+    }
+}
+
+impl IntegrationConfig {
+    /// Create with stub integrations (for development/testing)
+    pub fn with_stubs() -> Self {
+        Self {
+            crm: Some(Arc::new(crate::integrations::StubCrmIntegration::new())),
+            calendar: Some(Arc::new(crate::integrations::StubCalendarIntegration::new())),
+        }
+    }
+
+    /// Set CRM integration
+    pub fn with_crm(mut self, crm: Arc<dyn crate::integrations::CrmIntegration>) -> Self {
+        self.crm = Some(crm);
+        self
+    }
+
+    /// Set calendar integration
+    pub fn with_calendar(mut self, calendar: Arc<dyn crate::integrations::CalendarIntegration>) -> Self {
+        self.calendar = Some(calendar);
+        self
+    }
+}
+
+/// P4 FIX: Create registry with integration support
+///
+/// Creates a tool registry with optional CRM and calendar integrations
+/// injected into the appropriate tools (LeadCaptureTool, AppointmentSchedulerTool).
+pub fn create_registry_with_integrations(config: IntegrationConfig) -> ToolRegistry {
+    let mut registry = ToolRegistry::new();
+
+    // Register gold loan tools
+    registry.register(crate::gold_loan::EligibilityCheckTool::new());
+    registry.register(crate::gold_loan::SavingsCalculatorTool::new());
+    registry.register(crate::gold_loan::BranchLocatorTool::new());
+
+    // P4 FIX: Register LeadCaptureTool with CRM integration if available
+    if let Some(crm) = config.crm {
+        registry.register(crate::gold_loan::LeadCaptureTool::with_crm(crm));
+    } else {
+        registry.register(crate::gold_loan::LeadCaptureTool::new());
+    }
+
+    // P4 FIX: Register AppointmentSchedulerTool with calendar integration if available
+    if let Some(calendar) = config.calendar {
+        registry.register(crate::gold_loan::AppointmentSchedulerTool::with_calendar(calendar));
+    } else {
+        registry.register(crate::gold_loan::AppointmentSchedulerTool::new());
+    }
+
+    registry
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,5 +314,46 @@ mod tests {
         });
 
         assert_eq!(tracker.all().len(), 1);
+    }
+
+    // P4 FIX: Tests for integration config
+
+    #[test]
+    fn test_integration_config_default() {
+        let config = IntegrationConfig::default();
+        assert!(config.crm.is_none());
+        assert!(config.calendar.is_none());
+    }
+
+    #[test]
+    fn test_integration_config_with_stubs() {
+        let config = IntegrationConfig::with_stubs();
+        assert!(config.crm.is_some());
+        assert!(config.calendar.is_some());
+    }
+
+    #[test]
+    fn test_registry_with_integrations() {
+        let config = IntegrationConfig::with_stubs();
+        let registry = create_registry_with_integrations(config);
+
+        // Should have all 5 tools
+        assert_eq!(registry.len(), 5);
+        assert!(registry.has("check_eligibility"));
+        assert!(registry.has("calculate_savings"));
+        assert!(registry.has("capture_lead"));
+        assert!(registry.has("schedule_appointment"));
+        assert!(registry.has("find_branches"));
+    }
+
+    #[test]
+    fn test_registry_without_integrations() {
+        let config = IntegrationConfig::default();
+        let registry = create_registry_with_integrations(config);
+
+        // Should still have all 5 tools (just without integrations)
+        assert_eq!(registry.len(), 5);
+        assert!(registry.has("capture_lead"));
+        assert!(registry.has("schedule_appointment"));
     }
 }
