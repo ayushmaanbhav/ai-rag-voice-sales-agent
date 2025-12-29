@@ -451,7 +451,7 @@ pub trait Tool: Send + Sync {
 }
 
 /// Validate a property value against its schema
-fn validate_property(name: &str, value: &Value, schema: &PropertySchema) -> Result<(), ToolError> {
+pub fn validate_property(name: &str, value: &Value, schema: &PropertySchema) -> Result<(), ToolError> {
     // Check type
     let type_valid = match schema.prop_type.as_str() {
         "string" => value.is_string(),

@@ -56,8 +56,9 @@ pub trait GrammarCorrector: Send + Sync + 'static {
 /// Translation interface
 ///
 /// Implementations:
-/// - `IndicTranslator` - IndicTrans2 via ONNX
-/// - `GrpcTranslator` - Python sidecar fallback
+/// - `CandleIndicTrans2Translator` - Native Rust IndicTrans2 (recommended)
+/// - `IndicTrans2Translator` - IndicTrans2 via ONNX (legacy)
+/// - `NoopTranslator` - Pass-through (disabled)
 ///
 /// Supports the "Translate-Think-Translate" pattern for LLM reasoning.
 ///

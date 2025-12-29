@@ -8,13 +8,11 @@
 
 mod detect;
 mod noop;
-mod grpc;
 mod indictrans2;
 mod candle_indictrans2;
 
 pub use detect::ScriptDetector;
 pub use noop::NoopTranslator;
-pub use grpc::{GrpcTranslator, GrpcTranslatorConfig, FallbackTranslator};
 pub use indictrans2::{IndicTrans2Translator, IndicTrans2Config};
 pub use candle_indictrans2::{CandleIndicTrans2Translator, CandleIndicTrans2Config};
 
@@ -28,12 +26,6 @@ use serde::{Deserialize, Serialize};
 pub struct TranslationConfig {
     /// Which provider to use
     pub provider: TranslationProvider,
-    /// gRPC endpoint for fallback
-    #[serde(default = "default_grpc_endpoint")]
-    pub grpc_endpoint: String,
-    /// Whether to fall back to gRPC if native model fails
-    #[serde(default = "default_true")]
-    pub fallback_to_grpc: bool,
     /// Path to English→Indic model (for Candle provider)
     #[serde(default = "default_en_indic_path")]
     pub en_indic_model_path: PathBuf,
@@ -53,14 +45,6 @@ fn default_indic_en_path() -> PathBuf {
     PathBuf::from("models/translation/indictrans2-indic-en")
 }
 
-fn default_grpc_endpoint() -> String {
-    "http://localhost:50051".to_string()
-}
-
-fn default_true() -> bool {
-    true
-}
-
 /// Translation providers
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -72,8 +56,6 @@ pub enum TranslationProvider {
     /// Legacy ONNX-based IndicTrans2 translation
     #[serde(alias = "onnx")]
     IndicTrans2,
-    /// gRPC-based translation (Python sidecar)
-    Grpc,
     /// Disabled (pass-through)
     Disabled,
 }
@@ -82,8 +64,6 @@ impl Default for TranslationConfig {
     fn default() -> Self {
         Self {
             provider: TranslationProvider::Candle,
-            grpc_endpoint: default_grpc_endpoint(),
-            fallback_to_grpc: true,
             en_indic_model_path: default_en_indic_path(),
             indic_en_model_path: default_indic_en_path(),
             indictrans2_model_path: None,
@@ -104,32 +84,15 @@ pub fn create_translator(config: &TranslationConfig) -> Arc<dyn Translator> {
 
             match CandleIndicTrans2Translator::new(candle_config) {
                 Ok(translator) => {
-                    let primary = Arc::new(translator);
-
-                    // Wrap with fallback if enabled
-                    if config.fallback_to_grpc {
-                        tracing::info!("Using Candle IndicTrans2 with gRPC fallback");
-                        let grpc_config = GrpcTranslatorConfig {
-                            endpoint: config.grpc_endpoint.clone(),
-                            ..Default::default()
-                        };
-                        let fallback = Arc::new(GrpcTranslator::new(grpc_config));
-                        Arc::new(FallbackTranslator::new(primary, fallback))
-                    } else {
-                        tracing::info!("Using Candle IndicTrans2 (no fallback)");
-                        primary
-                    }
+                    tracing::info!("Using Candle IndicTrans2 translator");
+                    Arc::new(translator)
                 }
                 Err(e) => {
                     tracing::warn!(
                         error = %e,
-                        "Failed to load Candle IndicTrans2, falling back to gRPC"
+                        "Failed to load Candle IndicTrans2, using noop translator"
                     );
-                    let grpc_config = GrpcTranslatorConfig {
-                        endpoint: config.grpc_endpoint.clone(),
-                        ..Default::default()
-                    };
-                    Arc::new(GrpcTranslator::new(grpc_config))
+                    Arc::new(NoopTranslator::new())
                 }
             }
         }
@@ -148,72 +111,19 @@ pub fn create_translator(config: &TranslationConfig) -> Arc<dyn Translator> {
 
             match IndicTrans2Translator::new(indictrans2_config) {
                 Ok(translator) => {
-                    let primary = Arc::new(translator);
-
-                    if config.fallback_to_grpc {
-                        tracing::info!("Using ONNX IndicTrans2 with gRPC fallback");
-                        let grpc_config = GrpcTranslatorConfig {
-                            endpoint: config.grpc_endpoint.clone(),
-                            ..Default::default()
-                        };
-                        let fallback = Arc::new(GrpcTranslator::new(grpc_config));
-                        Arc::new(FallbackTranslator::new(primary, fallback))
-                    } else {
-                        tracing::info!("Using ONNX IndicTrans2 (no fallback)");
-                        primary
-                    }
+                    tracing::info!("Using ONNX IndicTrans2 translator");
+                    Arc::new(translator)
                 }
                 Err(e) => {
                     tracing::warn!(
                         error = %e,
-                        "Failed to load ONNX IndicTrans2, falling back to gRPC"
+                        "Failed to load ONNX IndicTrans2, using noop translator"
                     );
-                    let grpc_config = GrpcTranslatorConfig {
-                        endpoint: config.grpc_endpoint.clone(),
-                        ..Default::default()
-                    };
-                    Arc::new(GrpcTranslator::new(grpc_config))
+                    Arc::new(NoopTranslator::new())
                 }
             }
         }
-        TranslationProvider::Grpc => {
-            let grpc_config = GrpcTranslatorConfig {
-                endpoint: config.grpc_endpoint.clone(),
-                ..Default::default()
-            };
-            let grpc_translator = Arc::new(GrpcTranslator::new(grpc_config));
-
-            if config.fallback_to_grpc {
-                tracing::info!(
-                    endpoint = %config.grpc_endpoint,
-                    "Using gRPC translator with fallback enabled"
-                );
-            } else {
-                tracing::info!(
-                    endpoint = %config.grpc_endpoint,
-                    "Using gRPC translator (fallback disabled)"
-                );
-            }
-            grpc_translator
-        }
         TranslationProvider::Disabled => Arc::new(NoopTranslator::new()),
-    }
-}
-
-/// Create a fallback translator that tries ONNX first, then gRPC
-pub fn create_fallback_translator(
-    primary: Arc<dyn Translator>,
-    config: &TranslationConfig,
-) -> Arc<dyn Translator> {
-    if config.fallback_to_grpc && matches!(config.provider, TranslationProvider::Grpc) {
-        let grpc_config = GrpcTranslatorConfig {
-            endpoint: config.grpc_endpoint.clone(),
-            ..Default::default()
-        };
-        let fallback = Arc::new(GrpcTranslator::new(grpc_config));
-        Arc::new(FallbackTranslator::new(primary, fallback))
-    } else {
-        primary
     }
 }
 

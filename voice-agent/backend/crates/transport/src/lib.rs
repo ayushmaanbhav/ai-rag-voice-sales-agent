@@ -8,25 +8,27 @@
 //!
 //! Target latency: <50ms one-way audio transport
 //!
-//! # Integration Status: NOT INTEGRATED
+//! # Integration Status: INTEGRATED
 //!
-//! **WARNING**: This crate is fully implemented (~1,500 LOC) but is NOT currently
-//! integrated with the server crate. The server uses its own WebSocket implementation
-//! in `voice-agent-server/src/websocket.rs`.
+//! This crate is fully integrated with the server crate. The server provides:
+//! - WebRTC signaling via HTTP endpoints (`/api/webrtc/:session_id/*`)
+//! - Audio processing pipeline wired to `WebRtcTransport`
+//! - ICE candidate handling (trickle ICE)
+//! - Connection status monitoring
 //!
-//! ## To Integrate:
-//! 1. Add `voice-agent-transport` dependency to `voice-agent-server/Cargo.toml`
-//! 2. Add WebRTC signaling endpoints to HTTP routes
-//! 3. Wire `WebRtcTransport` to voice sessions
+//! ## Usage
 //!
-//! ## Why Not Integrated:
-//! - Current MVP uses WebSocket-only for simplicity
-//! - WebRTC requires STUN/TURN infrastructure
-//! - Mobile app not yet ready for WebRTC
+//! The server exposes these WebRTC endpoints:
+//! - `POST /api/webrtc/:session_id/offer` - Send SDP offer, receive answer
+//! - `POST /api/webrtc/:session_id/ice` - Add remote ICE candidate
+//! - `GET /api/webrtc/:session_id/candidates` - Get local ICE candidates
+//! - `GET /api/webrtc/:session_id/status` - Get connection status
+//! - `POST /api/webrtc/:session_id/restart` - Trigger ICE restart
 //!
-//! ## Future Plans:
-//! - Integrate when mobile app requires low-latency (<50ms) audio
-//! - Add ICE candidate relay through existing WebSocket connection
+//! ## WebSocket Fallback
+//!
+//! For browsers or clients that don't support WebRTC, the server also provides
+//! WebSocket audio transport via `/ws/:session_id` (higher latency ~100ms)
 
 pub mod webrtc;
 pub mod websocket;

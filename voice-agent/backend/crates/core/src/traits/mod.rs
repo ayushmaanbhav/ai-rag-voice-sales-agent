@@ -61,5 +61,5 @@ pub use fsm::{
 // P3 FIX: Export Tool trait and types
 pub use tool::{
     Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
-    ToolSchema, InputSchema, PropertySchema,
+    ToolSchema, InputSchema, PropertySchema, validate_property,
 };

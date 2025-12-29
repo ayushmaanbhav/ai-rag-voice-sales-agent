@@ -15,7 +15,7 @@ use serde_json::Value;
 // Re-export all tool types from core crate
 pub use voice_agent_core::traits::{
     Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
-    ToolSchema, InputSchema, PropertySchema,
+    ToolSchema, InputSchema, PropertySchema, validate_property,
 };
 
 // ============================================================================
