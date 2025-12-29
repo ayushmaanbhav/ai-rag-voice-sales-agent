@@ -14,6 +14,11 @@ use voice_agent_tools::{ToolRegistry, ToolExecutor};
 use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore, SearchResult};
 // P4 FIX: Import personalization engine for dynamic response adaptation
 use voice_agent_core::personalization::{PersonalizationEngine, PersonalizationContext};
+// P5 FIX: Import translator for Translate-Think-Translate pattern
+use voice_agent_core::{Language, Translator};
+use voice_agent_text_processing::translation::{
+    CandleIndicTrans2Translator, CandleIndicTrans2Config,
+};
 
 use crate::conversation::{Conversation, ConversationConfig, ConversationEvent, EndReason};
 use crate::stage::{ConversationStage, RagTimingStrategy};
@@ -141,6 +146,11 @@ pub struct GoldLoanAgent {
     personalization: PersonalizationEngine,
     /// P4 FIX: Personalization context (updated each turn)
     personalization_ctx: RwLock<PersonalizationContext>,
+    /// P5 FIX: Translator for Translate-Think-Translate pattern
+    /// Translates user input to English before LLM, then translates response back
+    translator: Option<Arc<dyn Translator>>,
+    /// P5 FIX: User's language for translation
+    user_language: Language,
 }
 
 impl GoldLoanAgent {
@@ -180,6 +190,34 @@ impl GoldLoanAgent {
         let personalization = PersonalizationEngine::new();
         let personalization_ctx = PersonalizationContext::new();
 
+        // P5 FIX: Parse user language and create translator if not English
+        let user_language = Language::from_str_loose(&config.language)
+            .unwrap_or(Language::Hindi);
+
+        // Only create translator if user language is not English
+        let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
+            // Try to create Candle-based IndicTrans2 translator
+            match Self::create_default_translator() {
+                Ok(t) => {
+                    tracing::info!(
+                        language = ?user_language,
+                        "Translator initialized for Translate-Think-Translate pattern"
+                    );
+                    Some(Arc::new(t) as Arc<dyn Translator>)
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "Failed to create translator, responses will be in English"
+                    );
+                    None
+                }
+            }
+        } else {
+            tracing::debug!("English language selected, translator not needed");
+            None
+        };
+
         Self {
             config,
             conversation,
@@ -191,6 +229,8 @@ impl GoldLoanAgent {
             prefetch_cache: RwLock::new(None),
             personalization,
             personalization_ctx: RwLock::new(personalization_ctx),
+            translator,
+            user_language,
         }
     }
 
@@ -226,6 +266,18 @@ impl GoldLoanAgent {
         let personalization = PersonalizationEngine::new();
         let personalization_ctx = PersonalizationContext::new();
 
+        // P5 FIX: Parse user language and create translator if not English
+        let user_language = Language::from_str_loose(&config.language)
+            .unwrap_or(Language::Hindi);
+
+        let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
+            Self::create_default_translator()
+                .map(|t| Arc::new(t) as Arc<dyn Translator>)
+                .ok()
+        } else {
+            None
+        };
+
         Self {
             config,
             conversation,
@@ -237,6 +289,8 @@ impl GoldLoanAgent {
             prefetch_cache: RwLock::new(None),
             personalization,
             personalization_ctx: RwLock::new(personalization_ctx),
+            translator,
+            user_language,
         }
     }
 
@@ -265,6 +319,18 @@ impl GoldLoanAgent {
         let personalization = PersonalizationEngine::new();
         let personalization_ctx = PersonalizationContext::new();
 
+        // P5 FIX: Parse user language and create translator if not English
+        let user_language = Language::from_str_loose(&config.language)
+            .unwrap_or(Language::Hindi);
+
+        let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
+            Self::create_default_translator()
+                .map(|t| Arc::new(t) as Arc<dyn Translator>)
+                .ok()
+        } else {
+            None
+        };
+
         Self {
             config,
             conversation,
@@ -276,6 +342,8 @@ impl GoldLoanAgent {
             prefetch_cache: RwLock::new(None),
             personalization,
             personalization_ctx: RwLock::new(personalization_ctx),
+            translator,
+            user_language,
         }
     }
 
@@ -283,6 +351,35 @@ impl GoldLoanAgent {
     pub fn with_vector_store(mut self, vector_store: Arc<VectorStore>) -> Self {
         self.vector_store = Some(vector_store);
         self
+    }
+
+    /// P5 FIX: Create default translator using Candle-based IndicTrans2
+    ///
+    /// This creates a translator that can handle bidirectional translation
+    /// between English and Indian languages (Hindi, Tamil, Telugu, etc.)
+    fn create_default_translator() -> voice_agent_core::Result<CandleIndicTrans2Translator> {
+        use std::path::PathBuf;
+
+        // Default paths relative to project root
+        // In production, these would be configured via environment variables
+        let config = CandleIndicTrans2Config {
+            en_indic_path: PathBuf::from("models/translation/indictrans2-en-indic"),
+            indic_en_path: PathBuf::from("models/translation/indictrans2-indic-en"),
+            ..Default::default()
+        };
+
+        CandleIndicTrans2Translator::new(config)
+    }
+
+    /// P5 FIX: Set a custom translator
+    pub fn with_translator(mut self, translator: Arc<dyn Translator>) -> Self {
+        self.translator = Some(translator);
+        self
+    }
+
+    /// P5 FIX: Get user's configured language
+    pub fn user_language(&self) -> Language {
+        self.user_language
     }
 
     /// Subscribe to agent events
@@ -457,11 +554,47 @@ impl GoldLoanAgent {
     }
 
     /// Process user input and generate response
+    ///
+    /// P5 FIX: Implements Translate-Think-Translate pattern:
+    /// 1. If user language is not English, translate input to English
+    /// 2. Process with LLM (which works best in English)
+    /// 3. Translate response back to user's language
     pub async fn process(&self, user_input: &str) -> Result<String, AgentError> {
         // Emit thinking event
         let _ = self.event_tx.send(AgentEvent::Thinking);
 
-        // Add user turn and detect intent
+        // P5 FIX: Translate user input to English if needed
+        // This implements the "Translate" part of Translate-Think-Translate
+        let english_input = if self.user_language != Language::English {
+            if let Some(ref translator) = self.translator {
+                match translator.translate(user_input, self.user_language, Language::English).await {
+                    Ok(translated) => {
+                        tracing::debug!(
+                            from = ?self.user_language,
+                            original = %user_input,
+                            translated = %translated,
+                            "Translated user input to English"
+                        );
+                        translated
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "Translation failed, using original input"
+                        );
+                        user_input.to_string()
+                    }
+                }
+            } else {
+                // No translator available, use original input
+                user_input.to_string()
+            }
+        } else {
+            // Already English, no translation needed
+            user_input.to_string()
+        };
+
+        // Add user turn and detect intent (using original input for conversation history)
         let intent = self.conversation.add_user_turn(user_input)?;
 
         // P4 FIX: Process input through personalization engine
@@ -488,10 +621,40 @@ impl GoldLoanAgent {
             None
         };
 
-        // Build prompt for LLM
-        let response = self.generate_response(user_input, tool_result.as_deref()).await?;
+        // Build prompt for LLM (using English input for better LLM performance)
+        // This is the "Think" part of Translate-Think-Translate
+        let english_response = self.generate_response(&english_input, tool_result.as_deref()).await?;
 
-        // Add assistant turn
+        // P5 FIX: Translate response back to user's language if needed
+        // This is the second "Translate" part of Translate-Think-Translate
+        let response = if self.user_language != Language::English {
+            if let Some(ref translator) = self.translator {
+                match translator.translate(&english_response, Language::English, self.user_language).await {
+                    Ok(translated) => {
+                        tracing::debug!(
+                            to = ?self.user_language,
+                            original = %english_response,
+                            translated = %translated,
+                            "Translated response to user language"
+                        );
+                        translated
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "Response translation failed, using English response"
+                        );
+                        english_response
+                    }
+                }
+            } else {
+                english_response
+            }
+        } else {
+            english_response
+        };
+
+        // Add assistant turn (store the translated response in conversation history)
         self.conversation.add_assistant_turn(&response)?;
 
         // P1 FIX: Trigger memory summarization in background (non-blocking)
