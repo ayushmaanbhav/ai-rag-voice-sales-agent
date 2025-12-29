@@ -41,6 +41,59 @@ impl ConversationStage {
         }
     }
 
+    /// P2 FIX: Get stage-aware context budget in tokens
+    ///
+    /// Different stages require different amounts of context:
+    /// - **Greeting**: Minimal - just system prompt and basic info
+    /// - **Discovery**: Moderate - conversation history to understand needs
+    /// - **Qualification**: Moderate - collected info and history
+    /// - **Presentation**: High - full context + RAG for product info
+    /// - **ObjectionHandling**: High - full context to address all concerns
+    /// - **Closing**: Moderate - key points and summary
+    /// - **Farewell**: Low - just wrap up
+    pub fn context_budget_tokens(&self) -> usize {
+        match self {
+            ConversationStage::Greeting => 1024,
+            ConversationStage::Discovery => 2048,
+            ConversationStage::Qualification => 2048,
+            ConversationStage::Presentation => 3584,    // Room for RAG context
+            ConversationStage::ObjectionHandling => 3584, // Need full context
+            ConversationStage::Closing => 2560,
+            ConversationStage::Farewell => 1024,
+        }
+    }
+
+    /// P2 FIX: Get the fraction of context budget to reserve for RAG results
+    ///
+    /// Returns the fraction (0.0 - 0.5) of the context budget that should
+    /// be reserved for RAG-retrieved information.
+    pub fn rag_context_fraction(&self) -> f32 {
+        match self {
+            ConversationStage::Greeting => 0.0,           // No RAG needed
+            ConversationStage::Discovery => 0.15,         // Some background info
+            ConversationStage::Qualification => 0.2,      // Product details
+            ConversationStage::Presentation => 0.4,       // Heavy RAG usage
+            ConversationStage::ObjectionHandling => 0.35, // Need facts for objections
+            ConversationStage::Closing => 0.2,            // Summary info
+            ConversationStage::Farewell => 0.0,           // No RAG needed
+        }
+    }
+
+    /// P2 FIX: Get recommended number of conversation history turns to keep
+    ///
+    /// Returns the number of most recent user+assistant turn pairs to include.
+    pub fn history_turns_to_keep(&self) -> usize {
+        match self {
+            ConversationStage::Greeting => 0,             // Fresh start
+            ConversationStage::Discovery => 3,            // Recent context
+            ConversationStage::Qualification => 4,        // More context
+            ConversationStage::Presentation => 5,         // Full history
+            ConversationStage::ObjectionHandling => 6,    // Need all context
+            ConversationStage::Closing => 4,              // Key exchanges
+            ConversationStage::Farewell => 2,             // Just recent
+        }
+    }
+
     /// Get guidance for this stage
     pub fn guidance(&self) -> &'static str {
         match self {
@@ -443,5 +496,52 @@ mod tests {
 
         let next = manager.suggest_next();
         assert_eq!(next, Some(ConversationStage::Discovery));
+    }
+
+    #[test]
+    fn test_context_budget_tokens() {
+        // P2 FIX: Test stage-aware context budgets
+        // Greeting should have lowest budget
+        assert!(ConversationStage::Greeting.context_budget_tokens() <= 1024);
+
+        // Presentation should have high budget for RAG
+        assert!(ConversationStage::Presentation.context_budget_tokens() >= 3000);
+
+        // ObjectionHandling should also have high budget
+        assert!(ConversationStage::ObjectionHandling.context_budget_tokens() >= 3000);
+
+        // Farewell should have low budget
+        assert!(ConversationStage::Farewell.context_budget_tokens() <= 1500);
+    }
+
+    #[test]
+    fn test_rag_context_fraction() {
+        // P2 FIX: Test RAG context fractions
+        // Greeting should have no RAG
+        assert_eq!(ConversationStage::Greeting.rag_context_fraction(), 0.0);
+
+        // Farewell should have no RAG
+        assert_eq!(ConversationStage::Farewell.rag_context_fraction(), 0.0);
+
+        // Presentation should have highest RAG fraction
+        let presentation_rag = ConversationStage::Presentation.rag_context_fraction();
+        assert!(presentation_rag >= 0.3, "Presentation RAG fraction should be >= 0.3");
+
+        // ObjectionHandling should also have high RAG fraction
+        let objection_rag = ConversationStage::ObjectionHandling.rag_context_fraction();
+        assert!(objection_rag >= 0.3, "ObjectionHandling RAG fraction should be >= 0.3");
+    }
+
+    #[test]
+    fn test_history_turns_to_keep() {
+        // P2 FIX: Test history turns recommendations
+        // Greeting should keep no history (fresh start)
+        assert_eq!(ConversationStage::Greeting.history_turns_to_keep(), 0);
+
+        // ObjectionHandling should keep the most history
+        assert!(ConversationStage::ObjectionHandling.history_turns_to_keep() >= 5);
+
+        // Farewell should keep minimal history
+        assert!(ConversationStage::Farewell.history_turns_to_keep() <= 3);
     }
 }

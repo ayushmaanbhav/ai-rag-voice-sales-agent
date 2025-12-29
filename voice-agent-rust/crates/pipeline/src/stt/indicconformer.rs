@@ -473,13 +473,20 @@ impl SttBackend for IndicConformerStt {
     }
 }
 
-/// Mel filterbank for audio preprocessing
+/// Mel filterbank for audio preprocessing with sliding-window FFT
+///
+/// Uses realfft for efficient real-signal FFT computation.
+/// Supports streaming mode with audio buffer for sliding window.
 pub struct MelFilterbank {
-    sample_rate: usize,
     n_fft: usize,
     n_mels: usize,
+    hop_length: usize,
     mel_filters: Vec<Vec<f32>>,
     hann_window: Vec<f32>,
+    /// Reusable FFT planner
+    fft: std::sync::Arc<dyn realfft::RealToComplex<f32>>,
+    /// Sliding window buffer for streaming
+    audio_buffer: parking_lot::Mutex<Vec<f32>>,
 }
 
 impl MelFilterbank {
@@ -495,12 +502,21 @@ impl MelFilterbank {
         // Create mel filterbank
         let mel_filters = Self::create_mel_filters(sample_rate, n_fft, n_mels);
 
+        // Create FFT planner
+        let mut planner = realfft::RealFftPlanner::<f32>::new();
+        let fft = planner.plan_fft_forward(n_fft);
+
+        // 10ms hop at 16kHz
+        let hop_length = sample_rate / 100;
+
         Self {
-            sample_rate,
             n_fft,
             n_mels,
+            hop_length,
             mel_filters,
             hann_window,
+            fft,
+            audio_buffer: parking_lot::Mutex::new(Vec::new()),
         }
     }
 
@@ -560,10 +576,25 @@ impl MelFilterbank {
         filters
     }
 
-    /// Extract mel spectrogram from audio
+    /// Compute FFT magnitude spectrum for a single frame using realfft
+    fn compute_fft_frame(&self, windowed: &mut [f32]) -> Vec<f32> {
+        use realfft::num_complex::Complex;
+
+        let n_bins = self.n_fft / 2 + 1;
+        let mut spectrum = vec![Complex::new(0.0f32, 0.0f32); n_bins];
+
+        // Perform FFT
+        if self.fft.process(windowed, &mut spectrum).is_ok() {
+            spectrum.iter().map(|c| c.norm()).collect()
+        } else {
+            // Fallback to zeros on error
+            vec![0.0f32; n_bins]
+        }
+    }
+
+    /// Extract mel spectrogram from audio (batch mode)
     pub fn extract(&self, audio: &[f32]) -> Vec<f32> {
-        let hop_length = 160; // 10ms at 16kHz
-        let n_frames = (audio.len().saturating_sub(self.n_fft)) / hop_length + 1;
+        let n_frames = (audio.len().saturating_sub(self.n_fft)) / self.hop_length + 1;
 
         if n_frames == 0 {
             return vec![0.0; self.n_mels];
@@ -572,31 +603,17 @@ impl MelFilterbank {
         let mut mel_spec = Vec::with_capacity(n_frames * self.n_mels);
 
         for frame_idx in 0..n_frames {
-            let start = frame_idx * hop_length;
+            let start = frame_idx * self.hop_length;
             let end = (start + self.n_fft).min(audio.len());
 
-            // Apply window and compute magnitude spectrum
+            // Apply window
             let mut windowed = vec![0.0f32; self.n_fft];
             for (i, sample) in audio[start..end].iter().enumerate() {
                 windowed[i] = sample * self.hann_window[i];
             }
 
-            // Simple DFT magnitude (for n_fft/2+1 bins)
-            let n_bins = self.n_fft / 2 + 1;
-            let mut magnitudes = vec![0.0f32; n_bins];
-
-            for k in 0..n_bins {
-                let mut real = 0.0f32;
-                let mut imag = 0.0f32;
-
-                for (n, &sample) in windowed.iter().enumerate() {
-                    let angle = -2.0 * std::f32::consts::PI * k as f32 * n as f32 / self.n_fft as f32;
-                    real += sample * angle.cos();
-                    imag += sample * angle.sin();
-                }
-
-                magnitudes[k] = (real * real + imag * imag).sqrt();
-            }
+            // Compute FFT magnitudes
+            let magnitudes = self.compute_fft_frame(&mut windowed);
 
             // Apply mel filterbank
             for filter in &self.mel_filters {
@@ -610,6 +627,53 @@ impl MelFilterbank {
         }
 
         mel_spec
+    }
+
+    /// Streaming mel extraction - add audio and get new mel frames
+    ///
+    /// Returns only the NEW mel frames since last call.
+    /// Maintains internal buffer for sliding window.
+    pub fn extract_streaming(&self, audio: &[f32]) -> Vec<f32> {
+        let mut buffer = self.audio_buffer.lock();
+        buffer.extend_from_slice(audio);
+
+        let mut mel_frames = Vec::new();
+
+        // Process complete frames
+        while buffer.len() >= self.n_fft {
+            // Apply window to current frame
+            let mut windowed = vec![0.0f32; self.n_fft];
+            for i in 0..self.n_fft {
+                windowed[i] = buffer[i] * self.hann_window[i];
+            }
+
+            // Compute FFT magnitudes
+            let magnitudes = self.compute_fft_frame(&mut windowed);
+
+            // Apply mel filterbank
+            for filter in &self.mel_filters {
+                let mut mel_energy = 0.0f32;
+                for (j, &mag) in magnitudes.iter().enumerate() {
+                    mel_energy += mag * filter[j];
+                }
+                mel_frames.push((mel_energy + 1e-10).ln());
+            }
+
+            // Slide window by hop_length
+            buffer.drain(..self.hop_length);
+        }
+
+        mel_frames
+    }
+
+    /// Reset streaming buffer
+    pub fn reset_streaming(&self) {
+        self.audio_buffer.lock().clear();
+    }
+
+    /// Get pending samples in buffer
+    pub fn pending_samples(&self) -> usize {
+        self.audio_buffer.lock().len()
     }
 }
 

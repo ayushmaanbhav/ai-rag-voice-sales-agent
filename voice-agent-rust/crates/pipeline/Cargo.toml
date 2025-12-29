@@ -35,6 +35,7 @@ safetensors = { workspace = true, optional = true }
 # Audio
 rubato.workspace = true
 hound.workspace = true
+realfft = "3.3"
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }

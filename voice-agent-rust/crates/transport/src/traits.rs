@@ -40,6 +40,15 @@ pub enum TransportEvent {
         /// Jitter in milliseconds
         jitter_ms: u32,
     },
+    /// P2 FIX: ICE candidate discovered (for trickle ICE signaling)
+    IceCandidate {
+        /// ICE candidate string
+        candidate: String,
+        /// SDP mid (media stream identification)
+        sdp_mid: Option<String>,
+        /// SDP media line index
+        sdp_m_line_index: Option<u16>,
+    },
     /// Connection closed
     Disconnected {
         reason: String,

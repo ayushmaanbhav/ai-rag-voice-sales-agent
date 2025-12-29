@@ -44,6 +44,10 @@ pub struct SpeculativeConfig {
     pub quality_threshold: f32,
     /// Enable fallback to LLM on error
     pub fallback_enabled: bool,
+    /// P2 FIX: Complexity threshold for speculative parallel LLM execution
+    /// If complexity > this threshold, LLM is started in parallel with SLM
+    /// Set to 1.0 to disable speculative execution
+    pub speculative_llm_threshold: f32,
 }
 
 impl Default for SpeculativeConfig {
@@ -57,6 +61,8 @@ impl Default for SpeculativeConfig {
             min_tokens_before_switch: 10,
             quality_threshold: 0.8,
             fallback_enabled: true,
+            // P2 FIX: Start speculative LLM for moderate complexity queries
+            speculative_llm_threshold: 0.3,
         }
     }
 }
@@ -152,6 +158,10 @@ impl SpeculativeExecutor {
     }
 
     /// SLM-first strategy
+    ///
+    /// P2 FIX: Now runs SLM and LLM in parallel for faster fallback.
+    /// If complexity is moderate (> 0.3), LLM is speculatively started in the background.
+    /// This eliminates the sequential latency when SLM fails/times out/produces low quality.
     async fn execute_slm_first(&self, messages: &[Message]) -> Result<SpeculativeResult, LlmError> {
         let start = Instant::now();
 
@@ -172,6 +182,24 @@ impl SpeculativeExecutor {
             });
         }
 
+        // P2 FIX: Parallel execution - start LLM speculatively if complexity is moderate
+        // This saves latency when we need to fall back from SLM
+        let llm_handle = if self.config.fallback_enabled && complexity > self.config.speculative_llm_threshold {
+            let llm = self.llm.clone();
+            let messages_for_llm = messages.to_vec();
+
+            tracing::debug!(
+                complexity = complexity,
+                "Starting speculative LLM execution in parallel with SLM"
+            );
+
+            Some(tokio::spawn(async move {
+                llm.generate(&messages_for_llm).await
+            }))
+        } else {
+            None
+        };
+
         // Try SLM first with timeout
         let slm_timeout = Duration::from_millis(self.config.slm_timeout_ms);
 
@@ -181,6 +209,12 @@ impl SpeculativeExecutor {
                 let quality = self.estimate_quality(&result.text, messages);
 
                 if quality >= self.config.quality_threshold {
+                    // SLM succeeded - abort speculative LLM
+                    if let Some(handle) = llm_handle {
+                        handle.abort();
+                        tracing::debug!("SLM succeeded, aborting speculative LLM");
+                    }
+
                     self.update_stats(true, false, start.elapsed());
                     Ok(SpeculativeResult {
                         text: result.text.clone(),
@@ -190,18 +224,35 @@ impl SpeculativeExecutor {
                         complexity_score: Some(complexity),
                     })
                 } else if self.config.fallback_enabled {
-                    // Quality too low, fall back to LLM
-                    let result = self.llm.generate(messages).await?;
+                    // Quality too low, use LLM result (already in progress if speculative)
+                    let llm_result = if let Some(handle) = llm_handle {
+                        // Use speculative LLM result
+                        tracing::debug!("SLM quality low, using speculative LLM result");
+                        match handle.await {
+                            Ok(Ok(r)) => r,
+                            Ok(Err(e)) => return Err(e),
+                            Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                        }
+                    } else {
+                        // No speculative LLM, start fresh
+                        self.llm.generate(messages).await?
+                    };
+
                     self.update_stats(true, true, start.elapsed());
 
                     Ok(SpeculativeResult {
-                        text: result.text.clone(),
+                        text: llm_result.text.clone(),
                         model_used: ModelUsed::Llm,
-                        generation: result,
+                        generation: llm_result,
                         used_fallback: true,
                         complexity_score: Some(complexity),
                     })
                 } else {
+                    // No fallback enabled
+                    if let Some(handle) = llm_handle {
+                        handle.abort();
+                    }
+
                     self.update_stats(true, false, start.elapsed());
                     Ok(SpeculativeResult {
                         text: result.text.clone(),
@@ -213,33 +264,63 @@ impl SpeculativeExecutor {
                 }
             }
             Ok(Err(_e)) if self.config.fallback_enabled => {
-                // SLM error, fall back to LLM
-                let result = self.llm.generate(messages).await?;
+                // SLM error, use LLM result (already in progress if speculative)
+                let llm_result = if let Some(handle) = llm_handle {
+                    tracing::debug!("SLM error, using speculative LLM result");
+                    match handle.await {
+                        Ok(Ok(r)) => r,
+                        Ok(Err(e)) => return Err(e),
+                        Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                    }
+                } else {
+                    self.llm.generate(messages).await?
+                };
+
                 self.update_stats(true, true, start.elapsed());
 
                 Ok(SpeculativeResult {
-                    text: result.text.clone(),
+                    text: llm_result.text.clone(),
                     model_used: ModelUsed::Llm,
-                    generation: result,
+                    generation: llm_result,
                     used_fallback: true,
                     complexity_score: Some(complexity),
                 })
             }
-            Ok(Err(e)) => Err(e),
+            Ok(Err(e)) => {
+                if let Some(handle) = llm_handle {
+                    handle.abort();
+                }
+                Err(e)
+            }
             Err(_) if self.config.fallback_enabled => {
-                // Timeout, fall back to LLM
-                let result = self.llm.generate(messages).await?;
+                // Timeout, use LLM result (already in progress if speculative)
+                let llm_result = if let Some(handle) = llm_handle {
+                    tracing::debug!("SLM timeout, using speculative LLM result");
+                    match handle.await {
+                        Ok(Ok(r)) => r,
+                        Ok(Err(e)) => return Err(e),
+                        Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                    }
+                } else {
+                    self.llm.generate(messages).await?
+                };
+
                 self.update_stats(true, true, start.elapsed());
 
                 Ok(SpeculativeResult {
-                    text: result.text.clone(),
+                    text: llm_result.text.clone(),
                     model_used: ModelUsed::Llm,
-                    generation: result,
+                    generation: llm_result,
                     used_fallback: true,
                     complexity_score: Some(complexity),
                 })
             }
-            Err(_) => Err(LlmError::Timeout),
+            Err(_) => {
+                if let Some(handle) = llm_handle {
+                    handle.abort();
+                }
+                Err(LlmError::Timeout)
+            }
         }
     }
 
@@ -620,6 +701,26 @@ mod tests {
         let config = SpeculativeConfig::default();
         assert_eq!(config.mode, SpeculativeMode::SlmFirst);
         assert!(config.fallback_enabled);
+        // P2 FIX: Verify speculative threshold is set
+        assert!(config.speculative_llm_threshold > 0.0);
+        assert!(config.speculative_llm_threshold < config.complexity_threshold);
+    }
+
+    #[test]
+    fn test_speculative_threshold_config() {
+        // P2 FIX: Test that speculative threshold can be configured
+        let config = SpeculativeConfig {
+            speculative_llm_threshold: 0.5,
+            ..Default::default()
+        };
+        assert_eq!(config.speculative_llm_threshold, 0.5);
+
+        // Disable speculative execution
+        let no_speculative = SpeculativeConfig {
+            speculative_llm_threshold: 1.0,
+            ..Default::default()
+        };
+        assert_eq!(no_speculative.speculative_llm_threshold, 1.0);
     }
 
     #[test]

@@ -4,13 +4,14 @@
 
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use parking_lot::RwLock;
 
 use voice_agent_llm::{PromptBuilder, Message, Role, OllamaBackend, LlmBackend, LlmConfig};
 // P0 FIX: Import PersonaConfig from the single source of truth
 use voice_agent_config::PersonaConfig;
 use voice_agent_tools::{ToolRegistry, ToolExecutor};
 // P1 FIX: Import RAG components for retrieval-augmented generation
-use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore};
+use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore, SearchResult};
 
 use crate::conversation::{Conversation, ConversationConfig, ConversationEvent, EndReason};
 use crate::stage::ConversationStage;
@@ -106,6 +107,17 @@ pub enum AgentEvent {
     Error(String),
 }
 
+/// Prefetch cache entry
+#[derive(Debug, Clone)]
+struct PrefetchEntry {
+    /// Query that triggered prefetch
+    query: String,
+    /// Prefetched results
+    results: Vec<SearchResult>,
+    /// When prefetch was triggered
+    timestamp: std::time::Instant,
+}
+
 /// Gold Loan Voice Agent
 pub struct GoldLoanAgent {
     config: AgentConfig,
@@ -117,6 +129,8 @@ pub struct GoldLoanAgent {
     /// P1 FIX: Vector store for RAG search (optional, can be injected)
     vector_store: Option<Arc<VectorStore>>,
     event_tx: broadcast::Sender<AgentEvent>,
+    /// P2 FIX: Prefetch cache for VAD → RAG prefetch optimization
+    prefetch_cache: RwLock<Option<PrefetchEntry>>,
 }
 
 impl GoldLoanAgent {
@@ -160,6 +174,7 @@ impl GoldLoanAgent {
             retriever,
             vector_store: None,
             event_tx,
+            prefetch_cache: RwLock::new(None),
         }
     }
 
@@ -199,6 +214,7 @@ impl GoldLoanAgent {
             retriever,
             vector_store: None,
             event_tx,
+            prefetch_cache: RwLock::new(None),
         }
     }
 
@@ -231,6 +247,7 @@ impl GoldLoanAgent {
             retriever,
             vector_store: None,
             event_tx,
+            prefetch_cache: RwLock::new(None),
         }
     }
 
@@ -243,6 +260,154 @@ impl GoldLoanAgent {
     /// Subscribe to agent events
     pub fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {
         self.event_tx.subscribe()
+    }
+
+    /// P2 FIX: Prefetch RAG results based on partial transcript from STT
+    ///
+    /// This method should be called when VAD detects speech and STT provides
+    /// partial transcripts. It triggers RAG prefetch in the background so
+    /// results are ready when the full utterance completes.
+    ///
+    /// # Arguments
+    /// * `partial_transcript` - Partial text from STT
+    /// * `confidence` - STT confidence score (0.0 - 1.0)
+    ///
+    /// Returns true if prefetch was triggered, false if skipped (no RAG or low confidence)
+    pub async fn prefetch_on_partial(&self, partial_transcript: &str, confidence: f32) -> bool {
+        // Skip if RAG is disabled or components not available
+        if !self.config.rag_enabled {
+            return false;
+        }
+
+        let (retriever, vector_store) = match (&self.retriever, &self.vector_store) {
+            (Some(r), Some(vs)) => (r.clone(), vs.clone()),
+            _ => return false,
+        };
+
+        // Don't prefetch for very short partials
+        if partial_transcript.split_whitespace().count() < 2 {
+            return false;
+        }
+
+        // Clone for async task
+        let partial = partial_transcript.to_string();
+        let cache = self.prefetch_cache.read().clone();
+
+        // Skip if we already prefetched for similar query (within 2 seconds)
+        if let Some(entry) = &cache {
+            if entry.timestamp.elapsed().as_secs() < 2
+                && partial.contains(&entry.query) {
+                tracing::trace!("Skipping prefetch - similar query already cached");
+                return false;
+            }
+        }
+
+        tracing::debug!(
+            partial = %partial,
+            confidence = confidence,
+            "Triggering RAG prefetch on partial transcript"
+        );
+
+        // Run prefetch asynchronously
+        match retriever.prefetch(&partial, confidence, &vector_store).await {
+            Ok(results) if !results.is_empty() => {
+                tracing::debug!(
+                    count = results.len(),
+                    "RAG prefetch completed with results"
+                );
+                // Store in cache
+                *self.prefetch_cache.write() = Some(PrefetchEntry {
+                    query: partial,
+                    results,
+                    timestamp: std::time::Instant::now(),
+                });
+                true
+            }
+            Ok(_) => {
+                tracing::trace!("RAG prefetch returned no results");
+                false
+            }
+            Err(e) => {
+                tracing::warn!("RAG prefetch failed: {}", e);
+                false
+            }
+        }
+    }
+
+    /// P2 FIX: Spawn prefetch as a background task (non-blocking)
+    ///
+    /// Use this when you want to trigger prefetch without waiting for results.
+    /// The prefetch will run in the background and populate the cache.
+    pub fn prefetch_background(&self, partial_transcript: String, confidence: f32) {
+        if !self.config.rag_enabled {
+            return;
+        }
+
+        let (retriever, vector_store) = match (&self.retriever, &self.vector_store) {
+            (Some(r), Some(vs)) => (r.clone(), vs.clone()),
+            _ => return,
+        };
+
+        if partial_transcript.split_whitespace().count() < 2 {
+            return;
+        }
+
+        // Check cache under read lock, avoiding clone if possible
+        {
+            let cache = self.prefetch_cache.read();
+            if let Some(entry) = &*cache {
+                if entry.timestamp.elapsed().as_secs() < 2
+                    && partial_transcript.contains(&entry.query) {
+                    return;
+                }
+            }
+        }
+
+        // Spawn background prefetch task
+        // Note: Results are not cached in background mode - use prefetch_on_partial() for caching
+        // This is useful for warming up the retriever's internal caches
+        tokio::spawn(async move {
+            tracing::debug!(
+                partial = %partial_transcript,
+                confidence = confidence,
+                "Background RAG prefetch triggered"
+            );
+            match retriever.prefetch(&partial_transcript, confidence, &vector_store).await {
+                Ok(results) if !results.is_empty() => {
+                    tracing::debug!(count = results.len(), "Background prefetch completed");
+                    // Note: Results are not cached in background mode - use prefetch_on_partial for caching
+                }
+                Ok(_) => tracing::trace!("Background prefetch returned no results"),
+                Err(e) => tracing::warn!("Background prefetch failed: {}", e),
+            }
+        });
+    }
+
+    /// P2 FIX: Get prefetched results if available and relevant
+    ///
+    /// Returns cached prefetch results if they match the query and are fresh.
+    fn get_prefetch_results(&self, query: &str) -> Option<Vec<SearchResult>> {
+        let cache = self.prefetch_cache.read();
+        if let Some(entry) = &*cache {
+            // Check if cache is fresh (within 10 seconds)
+            if entry.timestamp.elapsed().as_secs() > 10 {
+                return None;
+            }
+            // Check if query is related to prefetched query
+            // Simple check: query contains prefetch query or vice versa
+            let query_lower = query.to_lowercase();
+            let cached_lower = entry.query.to_lowercase();
+            if query_lower.contains(&cached_lower) || cached_lower.contains(&query_lower) {
+                tracing::debug!("Using prefetched RAG results");
+                return Some(entry.results.clone());
+            }
+        }
+        None
+    }
+
+    /// P2 FIX: Clear prefetch cache
+    pub fn clear_prefetch_cache(&self) {
+        *self.prefetch_cache.write() = None;
     }
 
     /// Process user input and generate response
@@ -392,25 +557,57 @@ impl GoldLoanAgent {
         }
 
         // P1 FIX: Add RAG context if retriever and vector store are available
+        // P2 FIX: Use prefetched results if available, otherwise do fresh search
+        // P2 FIX: Stage-aware RAG - use rag_context_fraction to determine how much RAG to include
         if self.config.rag_enabled {
-            if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
-                match retriever.search(user_input, vector_store, None).await {
-                    Ok(results) if !results.is_empty() => {
+            let stage = self.conversation.stage();
+            let rag_fraction = stage.rag_context_fraction();
+
+            // Skip RAG entirely for stages that don't need it (greeting, farewell)
+            if rag_fraction > 0.0 {
+                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
+                    // First, try to use prefetched results
+                    let results = if let Some(prefetched) = self.get_prefetch_results(user_input) {
+                        tracing::debug!("Using {} prefetched RAG results", prefetched.len());
+                        // Clear cache after use
+                        self.clear_prefetch_cache();
+                        prefetched
+                    } else {
+                        // Fall back to fresh search
+                        match retriever.search(user_input, vector_store, None).await {
+                            Ok(r) => r,
+                            Err(e) => {
+                                tracing::warn!("RAG search failed, continuing without: {}", e);
+                                Vec::new()
+                            }
+                        }
+                    };
+
+                    if !results.is_empty() {
+                        // P2 FIX: Calculate how many results to include based on stage RAG fraction
+                        // Higher fraction = more results (1-5 based on fraction)
+                        let max_results = ((rag_fraction * 10.0).ceil() as usize).clamp(1, 5);
+
                         let rag_context = results.iter()
-                            .take(3) // Limit to top 3 results
+                            .take(max_results)
                             .map(|r| format!("- {}", r.text))
                             .collect::<Vec<_>>()
                             .join("\n");
                         builder = builder.with_context(&format!("## Relevant Information\n{}", rag_context));
-                        tracing::debug!("RAG retrieved {} results for query", results.len());
-                    }
-                    Ok(_) => {
+
+                        tracing::debug!(
+                            stage = ?stage,
+                            rag_fraction = rag_fraction,
+                            max_results = max_results,
+                            actual_results = results.len().min(max_results),
+                            "Stage-aware RAG context added"
+                        );
+                    } else {
                         tracing::debug!("RAG returned no results for query");
                     }
-                    Err(e) => {
-                        tracing::warn!("RAG search failed, continuing without: {}", e);
-                    }
                 }
+            } else {
+                tracing::trace!(stage = ?stage, "Skipping RAG for stage with rag_fraction=0");
             }
         }
 
@@ -442,9 +639,22 @@ impl GoldLoanAgent {
         // Add current user message
         builder = builder.user_message(user_input);
 
-        // P2 FIX: Use context window limit to truncate conversation history
-        // This prevents context overflow errors with long conversations
-        let messages = builder.build_with_limit(self.config.context_window_tokens);
+        // P2 FIX: Use stage-aware context budget to truncate conversation history
+        // Different stages need different amounts of context - early stages need less,
+        // presentation/objection handling stages need more for RAG and full history
+        let stage = self.conversation.stage();
+        let stage_budget = stage.context_budget_tokens();
+        // Use the minimum of configured limit and stage-aware budget
+        let effective_budget = self.config.context_window_tokens.min(stage_budget);
+
+        tracing::debug!(
+            stage = ?stage,
+            stage_budget = stage_budget,
+            effective_budget = effective_budget,
+            "Using stage-aware context budget"
+        );
+
+        let messages = builder.build_with_limit(effective_budget);
 
         // Try to use LLM backend if available
         if let Some(ref llm) = self.llm {
@@ -601,8 +811,17 @@ mod tests {
 
         let response = agent.process("Hello").await.unwrap();
 
+        // Response should not be empty
         assert!(!response.is_empty());
-        assert!(response.contains("Namaste") || response.contains("Hello"));
+        // After processing greeting, agent transitions to Discovery stage
+        // So response could be greeting OR discovery message
+        assert!(
+            response.contains("Namaste")
+            || response.contains("Hello")
+            || response.contains("understand")  // Discovery stage response
+            || response.contains("batayein"),   // Hindi Discovery response
+            "Unexpected response: {}", response
+        );
     }
 
     #[tokio::test]
@@ -632,11 +851,18 @@ mod tests {
 
         let response = agent.process("Hello").await.unwrap();
 
-        // English mode should produce English response
-        assert!(response.contains("Hello") || response.contains("assist"),
-            "Expected English response, got: {}", response);
-        assert!(!response.contains("Namaste"),
-            "Should not contain Hindi greeting in English mode");
+        // English mode should produce English response (may be from any stage)
+        // After processing greeting, may advance to Discovery stage
+        assert!(
+            response.contains("Hello")
+            || response.contains("assist")
+            || response.contains("understand")  // Discovery stage
+            || response.contains("needs"),      // Discovery stage
+            "Expected English response, got: {}", response
+        );
+        // Should NOT contain Hindi words in English mode
+        assert!(!response.contains("Namaste") && !response.contains("hoon") && !response.contains("batayein"),
+            "Should not contain Hindi in English mode, got: {}", response);
     }
 
     #[tokio::test]
@@ -653,5 +879,38 @@ mod tests {
         // Hindi mode should produce Hinglish response
         assert!(response.contains("Namaste") || response.contains("hoon"),
             "Expected Hinglish response, got: {}", response);
+    }
+
+    #[tokio::test]
+    async fn test_prefetch_requires_rag_components() {
+        // P2 FIX: Test prefetch behavior without vector store
+        let agent = GoldLoanAgent::without_llm("test-prefetch", AgentConfig::default());
+
+        // Should return false when vector_store is not set
+        let result = agent.prefetch_on_partial("gold loan interest rate", 0.8).await;
+        assert!(!result, "Prefetch should return false without vector store");
+    }
+
+    #[tokio::test]
+    async fn test_prefetch_skips_short_partials() {
+        // P2 FIX: Test that very short partials are skipped
+        let agent = GoldLoanAgent::without_llm("test-prefetch-short", AgentConfig::default());
+
+        // Single word should be skipped (returns false regardless of vector store)
+        let result = agent.prefetch_on_partial("hello", 0.9).await;
+        assert!(!result, "Prefetch should skip single-word partials");
+    }
+
+    #[test]
+    fn test_prefetch_cache_lifecycle() {
+        // P2 FIX: Test prefetch cache clear
+        let agent = GoldLoanAgent::without_llm("test-cache", AgentConfig::default());
+
+        // Initially empty
+        assert!(agent.get_prefetch_results("test query").is_none());
+
+        // After clear, still empty (no panic)
+        agent.clear_prefetch_cache();
+        assert!(agent.get_prefetch_results("test query").is_none());
     }
 }

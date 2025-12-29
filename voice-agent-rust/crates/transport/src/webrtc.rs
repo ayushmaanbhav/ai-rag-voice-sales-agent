@@ -14,11 +14,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use async_trait::async_trait;
 use parking_lot::RwLock;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use webrtc::api::API;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::setting_engine::SettingEngine;
 use webrtc::api::interceptor_registry::register_default_interceptors;
+use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
+use webrtc::ice_transport::ice_gatherer_state::RTCIceGathererState;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::media::Sample;
@@ -225,6 +227,32 @@ impl AudioSource for WebRtcAudioSource {
     }
 }
 
+/// P2 FIX: ICE candidate for trickle ICE signaling
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct IceCandidate {
+    /// Candidate string
+    pub candidate: String,
+    /// SDP media line index
+    pub sdp_m_line_index: Option<u16>,
+    /// SDP mid
+    pub sdp_mid: Option<String>,
+    /// Username fragment
+    pub username_fragment: Option<String>,
+}
+
+impl From<webrtc::ice_transport::ice_candidate::RTCIceCandidate> for IceCandidate {
+    fn from(c: webrtc::ice_transport::ice_candidate::RTCIceCandidate) -> Self {
+        // RTCIceCandidate doesn't contain SDP context fields (sdp_mid, sdp_mline_index)
+        // These are typically set based on the transceiver/media description context
+        Self {
+            candidate: c.to_string(),
+            sdp_m_line_index: Some(0), // Default to first media line (audio)
+            sdp_mid: Some("audio".to_string()),
+            username_fragment: None,
+        }
+    }
+}
+
 /// WebRTC transport implementation
 pub struct WebRtcTransport {
     session_id: String,
@@ -235,6 +263,10 @@ pub struct WebRtcTransport {
     audio_source: Option<Arc<WebRtcAudioSource>>,
     event_tx: Option<mpsc::Sender<TransportEvent>>,
     stats: Arc<RwLock<ConnectionStats>>,
+    /// P2 FIX: Channel for trickle ICE candidates
+    ice_candidate_tx: Option<mpsc::Sender<IceCandidate>>,
+    /// P2 FIX: Collected local ICE candidates
+    local_candidates: Arc<RwLock<Vec<IceCandidate>>>,
 }
 
 impl WebRtcTransport {
@@ -251,6 +283,95 @@ impl WebRtcTransport {
             audio_source: None,
             event_tx: None,
             stats: Arc::new(RwLock::new(ConnectionStats::default())),
+            ice_candidate_tx: None,
+            local_candidates: Arc::new(RwLock::new(Vec::new())),
+        })
+    }
+
+    /// P2 FIX: Set callback for trickle ICE candidates
+    ///
+    /// When set, local ICE candidates will be sent through this channel
+    /// as they are discovered. Use this for trickle ICE signaling.
+    pub fn set_ice_candidate_callback(&mut self, callback: mpsc::Sender<IceCandidate>) {
+        self.ice_candidate_tx = Some(callback);
+    }
+
+    /// P2 FIX: Get collected local ICE candidates
+    ///
+    /// Returns all ICE candidates discovered so far.
+    /// Useful for non-trickle ICE scenarios where all candidates
+    /// are bundled with the SDP.
+    pub fn local_candidates(&self) -> Vec<IceCandidate> {
+        self.local_candidates.read().clone()
+    }
+
+    /// P2 FIX: Add a remote ICE candidate (trickle ICE)
+    ///
+    /// Call this to add ICE candidates received from the remote peer.
+    pub async fn add_ice_candidate(&self, candidate: &IceCandidate) -> Result<(), TransportError> {
+        let pc = self.peer_connection.as_ref()
+            .ok_or_else(|| TransportError::ConnectionFailed("No peer connection".to_string()))?;
+
+        let init = RTCIceCandidateInit {
+            candidate: candidate.candidate.clone(),
+            sdp_mid: candidate.sdp_mid.clone(),
+            sdp_mline_index: candidate.sdp_m_line_index,
+            username_fragment: candidate.username_fragment.clone(),
+        };
+
+        pc.add_ice_candidate(init)
+            .await
+            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to add ICE candidate: {}", e)))?;
+
+        tracing::debug!(
+            candidate = %candidate.candidate,
+            "Added remote ICE candidate"
+        );
+
+        Ok(())
+    }
+
+    /// P2 FIX: Perform ICE restart
+    ///
+    /// Creates a new offer with ICE restart flag set. Use this when
+    /// network connectivity changes or ICE connection fails.
+    pub async fn ice_restart(&self) -> Result<String, TransportError> {
+        let pc = self.peer_connection.as_ref()
+            .ok_or_else(|| TransportError::ConnectionFailed("No peer connection".to_string()))?;
+
+        // Clear existing candidates
+        self.local_candidates.write().clear();
+
+        // Create offer with ICE restart
+        let offer_options = webrtc::peer_connection::offer_answer_options::RTCOfferOptions {
+            ice_restart: true,
+            ..Default::default()
+        };
+
+        let offer = pc.create_offer(Some(offer_options))
+            .await
+            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to create restart offer: {}", e)))?;
+
+        pc.set_local_description(offer.clone())
+            .await
+            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to set local description: {}", e)))?;
+
+        tracing::info!("ICE restart initiated");
+
+        Ok(offer.sdp)
+    }
+
+    /// P2 FIX: Get ICE gathering state
+    pub fn ice_gathering_state(&self) -> Option<String> {
+        self.peer_connection.as_ref().map(|pc| {
+            format!("{:?}", pc.ice_gathering_state())
+        })
+    }
+
+    /// P2 FIX: Get ICE connection state
+    pub fn ice_connection_state(&self) -> Option<String> {
+        self.peer_connection.as_ref().map(|pc| {
+            format!("{:?}", pc.ice_connection_state())
         })
     }
 
@@ -318,72 +439,8 @@ impl WebRtcTransport {
         }
     }
 
-    /// Handle incoming audio track
-    #[allow(dead_code)]
-    async fn handle_track(&self, track: Arc<TrackRemote>) {
-        let event_tx = self.event_tx.clone();
-
-        tokio::spawn(async move {
-            loop {
-                match track.read_rtp().await {
-                    Ok((rtp_packet, _attributes)) => {
-                        let payload = &rtp_packet.payload;
-                        if payload.is_empty() {
-                            continue;
-                        }
-
-                        // Decode Opus to PCM
-                        // TODO: Use opus crate for decoding
-                        let samples: Vec<f32> = payload
-                            .chunks(2)
-                            .map(|chunk| {
-                                let sample = i16::from_le_bytes([chunk[0], chunk.get(1).copied().unwrap_or(0)]);
-                                sample as f32 / 32768.0
-                            })
-                            .collect();
-
-                        if let Some(tx) = &event_tx {
-                            let timestamp_ms = (rtp_packet.header.timestamp as u64 * 1000) / 48000;
-                            let _ = tx.send(TransportEvent::AudioReceived {
-                                samples,
-                                timestamp_ms,
-                            }).await;
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Track read error: {}", e);
-                        break;
-                    }
-                }
-            }
-        });
-    }
-
-    /// Update connection state
-    #[allow(dead_code)]
-    fn update_state(&self, state: WebRtcState) {
-        *self.state.write() = state;
-
-        if let Some(tx) = &self.event_tx {
-            let event = match state {
-                WebRtcState::Connected => TransportEvent::Connected {
-                    session_id: self.session_id.clone(),
-                    remote_addr: None,
-                },
-                WebRtcState::Disconnected | WebRtcState::Failed | WebRtcState::Closed => {
-                    TransportEvent::Disconnected {
-                        reason: format!("{:?}", state),
-                    }
-                }
-                _ => return,
-            };
-
-            let tx = tx.clone();
-            tokio::spawn(async move {
-                let _ = tx.send(event).await;
-            });
-        }
-    }
+    // P2 FIX: Removed deprecated handle_track method that had incorrect Opus decoding
+    // The proper Opus decoding is now in the on_track handler set up in connect()
 }
 
 #[async_trait]
@@ -521,6 +578,64 @@ impl Transport for WebRtcTransport {
             })
         }));
 
+        // P2 FIX: Set up ICE candidate handler for trickle ICE
+        let local_candidates = self.local_candidates.clone();
+        let ice_tx = self.ice_candidate_tx.clone();
+        let event_tx_ice = self.event_tx.clone();
+
+        pc.on_ice_candidate(Box::new(move |candidate| {
+            let local_candidates = local_candidates.clone();
+            let ice_tx = ice_tx.clone();
+            let event_tx = event_tx_ice.clone();
+
+            Box::pin(async move {
+                if let Some(c) = candidate {
+                    // Use From impl which handles the conversion
+                    let ice_candidate: IceCandidate = c.into();
+
+                    tracing::debug!(
+                        candidate = %ice_candidate.candidate,
+                        "Local ICE candidate discovered"
+                    );
+
+                    // Store locally
+                    local_candidates.write().push(ice_candidate.clone());
+
+                    // Send via trickle ICE channel if set
+                    if let Some(tx) = ice_tx {
+                        let _ = tx.send(ice_candidate.clone()).await;
+                    }
+
+                    // Also send as transport event
+                    if let Some(tx) = event_tx {
+                        let _ = tx.send(TransportEvent::IceCandidate {
+                            candidate: ice_candidate.candidate,
+                            sdp_mid: ice_candidate.sdp_mid,
+                            sdp_m_line_index: ice_candidate.sdp_m_line_index,
+                        }).await;
+                    }
+                } else {
+                    // null candidate means gathering complete
+                    tracing::debug!("ICE gathering complete (end-of-candidates)");
+                }
+            })
+        }));
+
+        // P2 FIX: Set up ICE gathering state change handler
+        let (ice_complete_tx, ice_complete_rx) = oneshot::channel::<()>();
+        let ice_complete_tx = Arc::new(parking_lot::Mutex::new(Some(ice_complete_tx)));
+
+        pc.on_ice_gathering_state_change(Box::new(move |state: RTCIceGathererState| {
+            tracing::debug!(state = ?state, "ICE gathering state changed");
+
+            if state == RTCIceGathererState::Complete {
+                if let Some(tx) = ice_complete_tx.lock().take() {
+                    let _ = tx.send(());
+                }
+            }
+            Box::pin(async {})
+        }));
+
         // Parse and set remote description (offer)
         let offer_sdp = RTCSessionDescription::offer(offer.to_string())
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
@@ -534,15 +649,44 @@ impl Transport for WebRtcTransport {
             .await
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
 
-        // Set local description
+        // Set local description (this triggers ICE gathering)
         pc.set_local_description(answer.clone())
             .await
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
 
-        // Wait for ICE gathering to complete
-        // TODO: Add timeout and proper ICE candidate handling
+        // P2 FIX: Wait for ICE gathering to complete with timeout
+        let timeout_duration = std::time::Duration::from_secs(10);
+        match tokio::time::timeout(timeout_duration, ice_complete_rx).await {
+            Ok(Ok(())) => {
+                tracing::info!("ICE gathering completed successfully");
+            }
+            Ok(Err(_)) => {
+                // Channel closed - gathering may have completed before we subscribed
+                tracing::debug!("ICE gathering channel closed (possibly already complete)");
+            }
+            Err(_) => {
+                // Timeout - proceed anyway with partial candidates
+                tracing::warn!(
+                    "ICE gathering timed out after {:?}, proceeding with {} candidates",
+                    timeout_duration,
+                    self.local_candidates.read().len()
+                );
+            }
+        }
 
-        Ok(answer.sdp)
+        // P2 FIX: Get the final SDP with all candidates included
+        // The local description now contains all gathered ICE candidates
+        let final_sdp = pc.local_description()
+            .await
+            .map(|desc| desc.sdp)
+            .unwrap_or_else(|| answer.sdp.clone());
+
+        tracing::info!(
+            candidates = self.local_candidates.read().len(),
+            "WebRTC connection established, returning SDP with ICE candidates"
+        );
+
+        Ok(final_sdp)
     }
 
     async fn accept(&mut self, offer: &str) -> Result<String, TransportError> {
@@ -642,5 +786,57 @@ mod tests {
     async fn test_webrtc_transport_new() {
         let transport = WebRtcTransport::new(WebRtcConfig::default()).await;
         assert!(transport.is_ok());
+    }
+
+    #[test]
+    fn test_ice_candidate_creation() {
+        // P2 FIX: Test IceCandidate creation
+        let candidate = IceCandidate {
+            candidate: "candidate:1 1 udp 2130706431 192.168.1.1 54321 typ host".to_string(),
+            sdp_m_line_index: Some(0),
+            sdp_mid: Some("audio".to_string()),
+            username_fragment: Some("abc123".to_string()),
+        };
+
+        assert!(candidate.candidate.contains("host"));
+        assert_eq!(candidate.sdp_m_line_index, Some(0));
+        assert_eq!(candidate.sdp_mid, Some("audio".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_ice_candidate_methods() {
+        // P2 FIX: Test ICE candidate accessor methods
+        let mut transport = WebRtcTransport::new(WebRtcConfig::default()).await.unwrap();
+
+        // Should have no candidates initially
+        assert!(transport.local_candidates().is_empty());
+
+        // ICE gathering state should be None before connection
+        assert!(transport.ice_gathering_state().is_none());
+
+        // Add ICE candidate callback
+        let (tx, _rx) = mpsc::channel(10);
+        transport.set_ice_candidate_callback(tx);
+
+        // Verify callback was set (indirectly - should not panic)
+        assert!(transport.local_candidates().is_empty());
+    }
+
+    #[test]
+    fn test_ice_candidate_serialization() {
+        // P2 FIX: Test IceCandidate JSON serialization
+        let candidate = IceCandidate {
+            candidate: "candidate:1 1 udp 2130706431 192.168.1.1 54321 typ host".to_string(),
+            sdp_m_line_index: Some(0),
+            sdp_mid: Some("audio".to_string()),
+            username_fragment: None,
+        };
+
+        let json = serde_json::to_string(&candidate).unwrap();
+        assert!(json.contains("candidate:1"));
+        assert!(json.contains("audio"));
+
+        let parsed: IceCandidate = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.candidate, candidate.candidate);
     }
 }
