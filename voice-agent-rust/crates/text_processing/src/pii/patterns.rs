@@ -185,7 +185,11 @@ impl IndianPIIPatterns {
         matches
     }
 
-    /// Validate Aadhaar checksum (Verhoeff algorithm)
+    /// P3 FIX: Validate Aadhaar checksum using Verhoeff algorithm
+    ///
+    /// Aadhaar uses the Verhoeff algorithm for check digit validation.
+    /// The algorithm uses three tables: multiplication (d), permutation (p), and inverse (inv).
+    /// Reference: https://en.wikibooks.org/wiki/Algorithm_Implementation/Checksums/Verhoeff_Algorithm
     pub fn validate_aadhaar(number: &str) -> bool {
         let digits: Vec<u32> = number
             .chars()
@@ -202,8 +206,98 @@ impl IndianPIIPatterns {
             return false;
         }
 
-        // TODO: Implement Verhoeff checksum validation
-        true
+        // Verhoeff multiplication table
+        #[rustfmt::skip]
+        const D: [[u32; 10]; 10] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+            [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+            [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+            [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+            [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+            [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+            [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+            [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+            [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        ];
+
+        // Verhoeff permutation table
+        #[rustfmt::skip]
+        const P: [[u32; 10]; 8] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+            [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+            [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+            [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+            [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+            [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+            [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+        ];
+
+        // Compute checksum
+        let mut c: u32 = 0;
+        for (i, &digit) in digits.iter().rev().enumerate() {
+            let p_index = i % 8;
+            let p_value = P[p_index][digit as usize];
+            c = D[c as usize][p_value as usize];
+        }
+
+        // Valid if checksum is 0
+        c == 0
+    }
+
+    /// Generate Verhoeff check digit for Aadhaar
+    ///
+    /// Given the first 11 digits, returns the check digit (12th digit)
+    #[allow(dead_code)]
+    pub fn generate_aadhaar_checksum(digits_11: &[u32]) -> Option<u32> {
+        if digits_11.len() != 11 {
+            return None;
+        }
+
+        // Verhoeff multiplication table
+        #[rustfmt::skip]
+        const D: [[u32; 10]; 10] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+            [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+            [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+            [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+            [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+            [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+            [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+            [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+            [9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+        ];
+
+        // Verhoeff permutation table
+        #[rustfmt::skip]
+        const P: [[u32; 10]; 8] = [
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+            [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+            [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+            [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+            [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+            [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+            [7, 0, 4, 6, 9, 1, 3, 2, 5, 8],
+        ];
+
+        // Verhoeff inverse table
+        #[rustfmt::skip]
+        const INV: [u32; 10] = [0, 4, 3, 2, 1, 5, 6, 7, 8, 9];
+
+        // Compute intermediate checksum for 11 digits
+        let mut c: u32 = 0;
+        for (i, &digit) in digits_11.iter().rev().enumerate() {
+            // Position is i+1 because we're computing for position 12 (check digit)
+            let p_index = (i + 1) % 8;
+            let p_value = P[p_index][digit as usize];
+            c = D[c as usize][p_value as usize];
+        }
+
+        // The check digit is the inverse of c
+        Some(INV[c as usize])
     }
 
     /// Validate PAN format
@@ -297,5 +391,83 @@ mod tests {
             &[PIIType::PAN, PIIType::PhoneNumber, PIIType::Email],
         );
         assert_eq!(matches.len(), 3);
+    }
+
+    // P3 FIX: Verhoeff algorithm tests
+
+    #[test]
+    fn test_aadhaar_verhoeff_valid() {
+        // Known valid Aadhaar number with correct Verhoeff checksum
+        // Using test number: 234567890123 (starts with 2, 12 digits)
+        // Actually let's compute a valid one using the algorithm
+        // For testing, we'll use a number that passes the checksum
+
+        // Test number generation: given 11 digits, compute check digit
+        let digits_11: Vec<u32> = vec![2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2];
+        let check_digit = IndianPIIPatterns::generate_aadhaar_checksum(&digits_11);
+        assert!(check_digit.is_some());
+
+        // Construct full number and verify
+        let check = check_digit.unwrap();
+        let full_number = format!("23456789012{}", check);
+        assert!(IndianPIIPatterns::validate_aadhaar(&full_number), "Generated number should be valid");
+    }
+
+    #[test]
+    fn test_aadhaar_verhoeff_invalid() {
+        // Invalid Aadhaar numbers
+
+        // Too short
+        assert!(!IndianPIIPatterns::validate_aadhaar("1234567890"));
+
+        // Starts with 0
+        assert!(!IndianPIIPatterns::validate_aadhaar("012345678901"));
+
+        // Starts with 1
+        assert!(!IndianPIIPatterns::validate_aadhaar("123456789012"));
+    }
+
+    #[test]
+    fn test_aadhaar_verhoeff_with_spaces() {
+        // Aadhaar with spaces should be validated correctly
+        let digits_11: Vec<u32> = vec![2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2];
+        let check_digit = IndianPIIPatterns::generate_aadhaar_checksum(&digits_11).unwrap();
+
+        // Format with spaces: XXXX XXXX XXXX
+        let with_spaces = format!("2345 6789 012{}", check_digit);
+        assert!(IndianPIIPatterns::validate_aadhaar(&with_spaces), "Number with spaces should be valid");
+    }
+
+    #[test]
+    fn test_aadhaar_checksum_generation() {
+        // Test checksum generation consistency
+        let digits: Vec<u32> = vec![9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 9];
+        let check = IndianPIIPatterns::generate_aadhaar_checksum(&digits);
+        assert!(check.is_some());
+
+        // Verify the generated check digit makes the number valid
+        let check_digit = check.unwrap();
+        assert!(check_digit < 10, "Check digit should be single digit");
+
+        // Build full number and validate
+        let mut full_digits = digits.clone();
+        full_digits.push(check_digit);
+        let number_str: String = full_digits.iter().map(|d| char::from_digit(*d, 10).unwrap()).collect();
+        assert!(IndianPIIPatterns::validate_aadhaar(&number_str), "Number with generated checksum should be valid");
+    }
+
+    #[test]
+    fn test_verhoeff_single_digit_error_detection() {
+        // Verhoeff should detect single-digit errors
+        let digits_11: Vec<u32> = vec![2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2];
+        let check = IndianPIIPatterns::generate_aadhaar_checksum(&digits_11).unwrap();
+        let valid_number = format!("23456789012{}", check);
+
+        // Verify original is valid
+        assert!(IndianPIIPatterns::validate_aadhaar(&valid_number));
+
+        // Change one digit (not the first or check digit)
+        let invalid_number = format!("23456789022{}", check);
+        assert!(!IndianPIIPatterns::validate_aadhaar(&invalid_number), "Single digit change should invalidate");
     }
 }

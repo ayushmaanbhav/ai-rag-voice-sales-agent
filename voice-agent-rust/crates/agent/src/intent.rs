@@ -303,6 +303,128 @@ impl IntentDetector {
                 multiplier: None,
             },
 
+            // === P3 FIX: OTHER INDIC LANGUAGE MULTIPLIER PATTERNS ===
+
+            // Tamil: லட்சம் (lakh), கோடி (crore)
+            CompiledSlotPattern {
+                name: "tamil_lakh".to_string(),
+                regex: Regex::new(r"([௦-௯\d]+(?:\.[௦-௯\d]+)?)\s*(?:லட்சம்|இலட்சம்)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "tamil_crore".to_string(),
+                regex: Regex::new(r"([௦-௯\d]+(?:\.[௦-௯\d]+)?)\s*(?:கோடி)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Telugu: లక్ష (lakh), కోటి (crore)
+            CompiledSlotPattern {
+                name: "telugu_lakh".to_string(),
+                regex: Regex::new(r"([౦-౯\d]+(?:\.[౦-౯\d]+)?)\s*(?:లక్ష|లక్షలు)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "telugu_crore".to_string(),
+                regex: Regex::new(r"([౦-౯\d]+(?:\.[౦-౯\d]+)?)\s*(?:కోటి|కోట్లు)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Bengali: লক্ষ (lakh), কোটি (crore)
+            CompiledSlotPattern {
+                name: "bengali_lakh".to_string(),
+                regex: Regex::new(r"([০-৯\d]+(?:\.[০-৯\d]+)?)\s*(?:লক্ষ|লাখ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "bengali_crore".to_string(),
+                regex: Regex::new(r"([০-৯\d]+(?:\.[০-৯\d]+)?)\s*(?:কোটি)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Gujarati: લાખ (lakh), કરોડ (crore)
+            CompiledSlotPattern {
+                name: "gujarati_lakh".to_string(),
+                regex: Regex::new(r"([૦-૯\d]+(?:\.[૦-૯\d]+)?)\s*(?:લાખ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "gujarati_crore".to_string(),
+                regex: Regex::new(r"([૦-૯\d]+(?:\.[૦-૯\d]+)?)\s*(?:કરોડ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Kannada: ಲಕ್ಷ (lakh), ಕೋಟಿ (crore)
+            CompiledSlotPattern {
+                name: "kannada_lakh".to_string(),
+                regex: Regex::new(r"([೦-೯\d]+(?:\.[೦-೯\d]+)?)\s*(?:ಲಕ್ಷ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "kannada_crore".to_string(),
+                regex: Regex::new(r"([೦-೯\d]+(?:\.[೦-೯\d]+)?)\s*(?:ಕೋಟಿ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Malayalam: ലക്ഷം (lakh), കോടി (crore)
+            CompiledSlotPattern {
+                name: "malayalam_lakh".to_string(),
+                regex: Regex::new(r"([൦-൯\d]+(?:\.[൦-൯\d]+)?)\s*(?:ലക്ഷം)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "malayalam_crore".to_string(),
+                regex: Regex::new(r"([൦-൯\d]+(?:\.[൦-൯\d]+)?)\s*(?:കോടി)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Marathi: लाख (same as Hindi), कोटी (crore)
+            CompiledSlotPattern {
+                name: "marathi_crore".to_string(),
+                regex: Regex::new(r"([०-९\d]+(?:\.[०-९\d]+)?)\s*(?:कोटी)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Odia: ଲକ୍ଷ (lakh), କୋଟି (crore)
+            CompiledSlotPattern {
+                name: "odia_lakh".to_string(),
+                regex: Regex::new(r"([୦-୯\d]+(?:\.[୦-୯\d]+)?)\s*(?:ଲକ୍ଷ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "odia_crore".to_string(),
+                regex: Regex::new(r"([୦-୯\d]+(?:\.[୦-୯\d]+)?)\s*(?:କୋଟି)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
+            // Punjabi (Gurmukhi): ਲੱਖ (lakh), ਕਰੋੜ (crore)
+            CompiledSlotPattern {
+                name: "punjabi_lakh".to_string(),
+                regex: Regex::new(r"([੦-੯\d]+(?:\.[੦-੯\d]+)?)\s*(?:ਲੱਖ|ਲਾਖ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            CompiledSlotPattern {
+                name: "punjabi_crore".to_string(),
+                regex: Regex::new(r"([੦-੯\d]+(?:\.[੦-੯\d]+)?)\s*(?:ਕਰੋੜ)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+
             // === ENGLISH/ROMANIZED PATTERNS ===
 
             // Crore (10 million) - highest priority
@@ -521,6 +643,101 @@ impl IntentDetector {
         }).collect()
     }
 
+    /// P3 FIX: Convert all Indic script numerals to ASCII digits
+    ///
+    /// Supports all 11 major Indic scripts:
+    /// - Devanagari (Hindi, Marathi, Sanskrit, Nepali, Konkani, Maithili, Dogri, Bodo)
+    /// - Bengali/Assamese (Bengali, Assamese, Manipuri)
+    /// - Tamil
+    /// - Telugu
+    /// - Gujarati
+    /// - Kannada
+    /// - Malayalam
+    /// - Odia
+    /// - Gurmukhi (Punjabi)
+    /// - Ol Chiki (Santali)
+    /// - Arabic-Indic (Urdu, Sindhi, Kashmiri)
+    pub fn indic_numerals_to_ascii(s: &str) -> String {
+        s.chars().map(|c| {
+            match c {
+                // Devanagari (U+0966 - U+096F)
+                '०' => '0', '१' => '1', '२' => '2', '३' => '3', '४' => '4',
+                '५' => '5', '६' => '6', '७' => '7', '८' => '8', '९' => '9',
+
+                // Bengali/Assamese (U+09E6 - U+09EF)
+                '০' => '0', '১' => '1', '২' => '2', '৩' => '3', '৪' => '4',
+                '৫' => '5', '৬' => '6', '৭' => '7', '৮' => '8', '৯' => '9',
+
+                // Tamil (U+0BE6 - U+0BEF)
+                '௦' => '0', '௧' => '1', '௨' => '2', '௩' => '3', '௪' => '4',
+                '௫' => '5', '௬' => '6', '௭' => '7', '௮' => '8', '௯' => '9',
+
+                // Telugu (U+0C66 - U+0C6F)
+                '౦' => '0', '౧' => '1', '౨' => '2', '౩' => '3', '౪' => '4',
+                '౫' => '5', '౬' => '6', '౭' => '7', '౮' => '8', '౯' => '9',
+
+                // Gujarati (U+0AE6 - U+0AEF)
+                '૦' => '0', '૧' => '1', '૨' => '2', '૩' => '3', '૪' => '4',
+                '૫' => '5', '૬' => '6', '૭' => '7', '૮' => '8', '૯' => '9',
+
+                // Kannada (U+0CE6 - U+0CEF)
+                '೦' => '0', '೧' => '1', '೨' => '2', '೩' => '3', '೪' => '4',
+                '೫' => '5', '೬' => '6', '೭' => '7', '೮' => '8', '೯' => '9',
+
+                // Malayalam (U+0D66 - U+0D6F)
+                '൦' => '0', '൧' => '1', '൨' => '2', '൩' => '3', '൪' => '4',
+                '൫' => '5', '൬' => '6', '൭' => '7', '൮' => '8', '൯' => '9',
+
+                // Odia (U+0B66 - U+0B6F)
+                '୦' => '0', '୧' => '1', '୨' => '2', '୩' => '3', '୪' => '4',
+                '୫' => '5', '୬' => '6', '୭' => '7', '୮' => '8', '୯' => '9',
+
+                // Gurmukhi/Punjabi (U+0A66 - U+0A6F)
+                '੦' => '0', '੧' => '1', '੨' => '2', '੩' => '3', '੪' => '4',
+                '੫' => '5', '੬' => '6', '੭' => '7', '੮' => '8', '੯' => '9',
+
+                // Ol Chiki/Santali (U+1C50 - U+1C59)
+                '᱐' => '0', '᱑' => '1', '᱒' => '2', '᱓' => '3', '᱔' => '4',
+                '᱕' => '5', '᱖' => '6', '᱗' => '7', '᱘' => '8', '᱙' => '9',
+
+                // Extended Arabic-Indic (U+06F0 - U+06F9) - Used in Urdu, Sindhi, Kashmiri
+                '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+                '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+
+                // Pass through non-numeral characters
+                _ => c,
+            }
+        }).collect()
+    }
+
+    /// P3 FIX: Check if a character is an Indic numeral
+    pub fn is_indic_numeral(c: char) -> bool {
+        matches!(c,
+            // Devanagari
+            '०'..='९' |
+            // Bengali/Assamese
+            '০'..='৯' |
+            // Tamil
+            '௦'..='௯' |
+            // Telugu
+            '౦'..='౯' |
+            // Gujarati
+            '૦'..='૯' |
+            // Kannada
+            '೦'..='೯' |
+            // Malayalam
+            '൦'..='൯' |
+            // Odia
+            '୦'..='୯' |
+            // Gurmukhi
+            '੦'..='੯' |
+            // Ol Chiki
+            '᱐'..='᱙' |
+            // Extended Arabic-Indic
+            '۰'..='۹'
+        )
+    }
+
     /// P0 FIX: Convert Hindi number word to numeric value
     fn hindi_word_to_number(word: &str) -> Option<f64> {
         match word {
@@ -570,13 +787,13 @@ impl IntentDetector {
 
                     // Compute final value based on multiplier
                     let value = if let Some(multiplier) = pattern.multiplier {
-                        // P0 FIX: Handle Devanagari numerals and Hindi number words
+                        // P3 FIX: Handle all Indic script numerals and number words
                         let numeric_value = if pattern.name.starts_with("hindi_word") {
                             // Hindi number word - convert to numeric value
                             Self::hindi_word_to_number(raw_value).unwrap_or(1.0)
-                        } else if pattern.name.contains("devanagari") || raw_value.chars().any(|c| c >= '०' && c <= '९') {
-                            // Contains Devanagari numerals - convert to ASCII first
-                            let ascii_value = Self::devanagari_to_ascii(raw_value);
+                        } else if raw_value.chars().any(Self::is_indic_numeral) {
+                            // P3 FIX: Contains any Indic script numerals - convert to ASCII first
+                            let ascii_value = Self::indic_numerals_to_ascii(raw_value);
                             ascii_value.replace(",", "").parse::<f64>().unwrap_or(0.0)
                         } else {
                             // Regular ASCII number
@@ -592,8 +809,8 @@ impl IntentDetector {
                         // Remove commas for currency, keep as-is for others
                         match pattern.slot_type {
                             SlotType::Currency => {
-                                // P0 FIX: Also convert Devanagari for direct amounts
-                                let converted = Self::devanagari_to_ascii(raw_value);
+                                // P3 FIX: Also convert all Indic script numerals for direct amounts
+                                let converted = Self::indic_numerals_to_ascii(raw_value);
                                 converted.replace(",", "")
                             }
                             SlotType::Text => {
@@ -618,14 +835,27 @@ impl IntentDetector {
                     };
 
                     // Calculate confidence based on pattern specificity
-                    // P0 FIX: Hindi patterns get same high confidence as English
+                    // P3 FIX: All Indic language patterns get same high confidence
                     let confidence = match pattern.name.as_str() {
+                        // English patterns
                         "crore" | "lakh" | "rs_amount" => 0.95,
+                        // Hindi patterns
                         "hindi_crore_devanagari" | "hindi_crore_ascii" => 0.95,
                         "hindi_lakh_devanagari" | "hindi_lakh_ascii" => 0.95,
                         "hindi_word_lakh" | "hindi_word_crore" => 0.93,
                         "hindi_hazar_devanagari" | "hindi_hazar_ascii" => 0.90,
                         "hindi_rupees" => 0.92,
+                        // P3 FIX: Other Indic language patterns
+                        "tamil_lakh" | "tamil_crore" => 0.95,
+                        "telugu_lakh" | "telugu_crore" => 0.95,
+                        "bengali_lakh" | "bengali_crore" => 0.95,
+                        "gujarati_lakh" | "gujarati_crore" => 0.95,
+                        "kannada_lakh" | "kannada_crore" => 0.95,
+                        "malayalam_lakh" | "malayalam_crore" => 0.95,
+                        "marathi_crore" => 0.95,
+                        "odia_lakh" | "odia_crore" => 0.95,
+                        "punjabi_lakh" | "punjabi_crore" => 0.95,
+                        // General patterns
                         "thousand" | "grams" | "karat" => 0.90,
                         "plain_number" => 0.70,
                         _ => 0.85,
@@ -882,5 +1112,158 @@ mod tests {
         assert_eq!(IntentDetector::hindi_word_to_number("बीस"), Some(20.0));
         assert_eq!(IntentDetector::hindi_word_to_number("पचास"), Some(50.0));
         assert_eq!(IntentDetector::hindi_word_to_number("unknown"), None);
+    }
+
+    // P3 FIX: Tests for all 11 Indic script numerals
+
+    #[test]
+    fn test_indic_numerals_to_ascii_all_scripts() {
+        // Devanagari (Hindi, Marathi, Sanskrit, Nepali)
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("०१२३४५६७८९"), "0123456789");
+
+        // Bengali/Assamese
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("০১২৩৪৫৬৭৮৯"), "0123456789");
+
+        // Tamil
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("௦௧௨௩௪௫௬௭௮௯"), "0123456789");
+
+        // Telugu
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("౦౧౨౩౪౫౬౭౮౯"), "0123456789");
+
+        // Gujarati
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("૦૧૨૩૪૫૬૭૮૯"), "0123456789");
+
+        // Kannada
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("೦೧೨೩೪೫೬೭೮೯"), "0123456789");
+
+        // Malayalam
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("൦൧൨൩൪൫൬൭൮൯"), "0123456789");
+
+        // Odia
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("୦୧୨୩୪୫୬୭୮୯"), "0123456789");
+
+        // Gurmukhi (Punjabi)
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("੦੧੨੩੪੫੬੭੮੯"), "0123456789");
+
+        // Ol Chiki (Santali)
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("᱐᱑᱒᱓᱔᱕᱖᱗᱘᱙"), "0123456789");
+
+        // Extended Arabic-Indic (Urdu, Sindhi, Kashmiri)
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("۰۱۲۳۴۵۶۷۸۹"), "0123456789");
+    }
+
+    #[test]
+    fn test_indic_numerals_mixed_text() {
+        // Mix of scripts should all convert
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("Amount: ५०"), "Amount: 50");
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("Price ৫০ rupees"), "Price 50 rupees");
+        assert_eq!(IntentDetector::indic_numerals_to_ascii("கோடி ௫"), "கோடி 5");
+    }
+
+    #[test]
+    fn test_is_indic_numeral() {
+        // Test Devanagari
+        assert!(IntentDetector::is_indic_numeral('५'));
+        assert!(IntentDetector::is_indic_numeral('०'));
+
+        // Test Bengali
+        assert!(IntentDetector::is_indic_numeral('৫'));
+
+        // Test Tamil
+        assert!(IntentDetector::is_indic_numeral('௫'));
+
+        // Test Telugu
+        assert!(IntentDetector::is_indic_numeral('౫'));
+
+        // Test that ASCII is not considered Indic
+        assert!(!IntentDetector::is_indic_numeral('5'));
+        assert!(!IntentDetector::is_indic_numeral('0'));
+
+        // Test non-numerals
+        assert!(!IntentDetector::is_indic_numeral('a'));
+        assert!(!IntentDetector::is_indic_numeral('क'));
+    }
+
+    // P3 FIX: Tests for other Indic language multiplier patterns
+
+    #[test]
+    fn test_tamil_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 லட்சம் கடன்");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_telugu_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 లక్ష రూపాయలు");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_bengali_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("৫ লাখ টাকা");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_gujarati_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("૫ લાખ રૂપિયા");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_kannada_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 ಲಕ್ಷ ರೂಪಾಯಿ");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_malayalam_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 ലക്ഷം രൂപ");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_odia_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 ଲକ୍ଷ ଟଙ୍କା");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_punjabi_lakh_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("5 ਲੱਖ ਰੁਪਏ");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_bengali_crore_extraction() {
+        let detector = IntentDetector::new();
+        let slots = detector.extract_slots("১ কোটি টাকা");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("10000000".to_string()));
+    }
+
+    #[test]
+    fn test_telugu_native_numerals() {
+        let detector = IntentDetector::new();
+        // 5 in Telugu script with lakh
+        let slots = detector.extract_slots("౫ లక్ష");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
     }
 }

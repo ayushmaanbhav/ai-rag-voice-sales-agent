@@ -1,12 +1,15 @@
 //! PII detection and redaction module
 //!
 //! Supports India-specific PII types: Aadhaar, PAN, IFSC, etc.
+//! P3 FIX: Added NER-based detection for names and addresses.
 
 mod patterns;
 mod detector;
+mod ner;
 
 pub use patterns::IndianPIIPatterns;
 pub use detector::HybridPIIDetector;
+pub use ner::NameAddressDetector;
 
 use voice_agent_core::{PIIRedactor, PIIType, RedactionStrategy};
 use std::sync::Arc;
