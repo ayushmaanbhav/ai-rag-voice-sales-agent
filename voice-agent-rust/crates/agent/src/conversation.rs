@@ -260,21 +260,127 @@ impl Conversation {
     }
 
     /// Check and perform stage transitions based on intent
+    ///
+    /// P0 FIX: Added comprehensive intent→stage mappings for gold loan sales flow.
+    /// Covers all major intents: greeting, loan_inquiry, eligibility, interest_rate,
+    /// branch_locator, schedule_visit, objection, affirmative, negative, farewell, thank_you.
     fn check_stage_transitions(&self, intent: &DetectedIntent) {
         let current = self.stage();
 
-        // Intent-based transitions
+        // Record intent for stage requirement tracking
+        self.stage_manager.record_intent(&intent.intent);
+
+        // P0 FIX: Comprehensive intent-based transitions for gold loan sales flow
         let new_stage = match intent.intent.as_str() {
-            "farewell" => Some(ConversationStage::Farewell),
+            // Greeting -> Discovery: After initial greeting, move to discovery
+            "greeting" if current == ConversationStage::Greeting => {
+                // Only transition if we've had at least 1 turn (rapport built)
+                if self.stage_manager.current_stage_turns() >= 1 {
+                    Some(ConversationStage::Discovery)
+                } else {
+                    None
+                }
+            }
+
+            // Loan inquiry / eligibility query: Move to relevant stage
+            "loan_inquiry" | "eligibility_query" => {
+                match current {
+                    ConversationStage::Greeting => Some(ConversationStage::Discovery),
+                    ConversationStage::Discovery => Some(ConversationStage::Qualification),
+                    _ => None,
+                }
+            }
+
+            // Interest rate query: Customer interested in rates -> Presentation
+            "interest_rate_query" => {
+                match current {
+                    ConversationStage::Greeting | ConversationStage::Discovery => {
+                        Some(ConversationStage::Presentation)
+                    }
+                    ConversationStage::Qualification => Some(ConversationStage::Presentation),
+                    _ => None,
+                }
+            }
+
+            // Competitor reference: Need to understand their situation
+            "competitor_reference" => {
+                match current {
+                    ConversationStage::Greeting => Some(ConversationStage::Discovery),
+                    _ => None, // Stay in current stage but note the competitor info
+                }
+            }
+
+            // Branch locator: Ready to visit -> Closing
+            "branch_locator" => {
+                match current {
+                    ConversationStage::Presentation => Some(ConversationStage::Closing),
+                    ConversationStage::ObjectionHandling => Some(ConversationStage::Closing),
+                    _ => None,
+                }
+            }
+
+            // Schedule visit: Ready to book appointment -> Closing
+            "schedule_visit" | "schedule_appointment" | "book_appointment" => {
+                match current {
+                    ConversationStage::Presentation => Some(ConversationStage::Closing),
+                    ConversationStage::ObjectionHandling => Some(ConversationStage::Closing),
+                    ConversationStage::Discovery => Some(ConversationStage::Closing), // Fast track
+                    _ => None,
+                }
+            }
+
+            // Objection: Handle objection (from any sales stage)
             "objection" if current != ConversationStage::ObjectionHandling => {
-                Some(ConversationStage::ObjectionHandling)
+                match current {
+                    ConversationStage::Discovery
+                    | ConversationStage::Qualification
+                    | ConversationStage::Presentation
+                    | ConversationStage::Closing => Some(ConversationStage::ObjectionHandling),
+                    _ => None,
+                }
             }
-            "schedule_visit" if current == ConversationStage::Presentation => {
-                Some(ConversationStage::Closing)
+
+            // Affirmative: Agreement to proceed to next stage
+            "affirmative" => {
+                match current {
+                    ConversationStage::Greeting => Some(ConversationStage::Discovery),
+                    ConversationStage::Discovery => Some(ConversationStage::Qualification),
+                    ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
+                    ConversationStage::Presentation => Some(ConversationStage::Closing),
+                    ConversationStage::Closing => Some(ConversationStage::Farewell),
+                    _ => None,
+                }
             }
-            "affirmative" if current == ConversationStage::Closing => {
-                Some(ConversationStage::Farewell)
+
+            // Negative: Might need objection handling or early exit
+            "negative" => {
+                match current {
+                    ConversationStage::Closing => Some(ConversationStage::ObjectionHandling),
+                    ConversationStage::Presentation => Some(ConversationStage::ObjectionHandling),
+                    _ => None, // Don't force exit on negative, handle gracefully
+                }
             }
+
+            // Thank you: Positive signal, often near end
+            "thank_you" => {
+                match current {
+                    ConversationStage::Closing => Some(ConversationStage::Farewell),
+                    ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
+                    _ => None,
+                }
+            }
+
+            // Farewell: End conversation (from any stage)
+            "farewell" => Some(ConversationStage::Farewell),
+
+            // Confusion: May need to revisit discovery
+            "confusion" => {
+                match current {
+                    ConversationStage::Presentation => Some(ConversationStage::Discovery),
+                    _ => None,
+                }
+            }
+
             _ => None,
         };
 

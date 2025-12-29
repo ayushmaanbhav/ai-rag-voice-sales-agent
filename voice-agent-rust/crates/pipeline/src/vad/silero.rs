@@ -149,6 +149,11 @@ impl SileroVad {
     /// Process audio samples and return VAD result
     ///
     /// Buffers samples until chunk_size is reached, then runs inference.
+    ///
+    /// # Thread Safety
+    /// P0 FIX: Lock is held throughout the entire process to prevent race conditions.
+    /// The previous implementation released the lock before compute_probability(),
+    /// which could allow another thread to modify state between inference and update.
     pub fn process(&self, frame: &mut AudioFrame) -> Result<(VadState, f32, VadResult), PipelineError> {
         // Quick energy check for obvious silence
         if frame.energy_db < self.config.energy_floor_db {
@@ -159,22 +164,22 @@ impl SileroVad {
             return self.update_state_inner(&mut state, false, 0.0);
         }
 
-        // Add samples to buffer
+        // P0 FIX: Hold lock throughout entire process to prevent race conditions
         let mut state = self.mutable.lock();
         state.audio_buffer.extend_from_slice(&frame.samples);
 
         // If we have enough samples, run inference
         if state.audio_buffer.len() >= self.config.chunk_size {
             let chunk: Vec<f32> = state.audio_buffer.drain(..self.config.chunk_size).collect();
-            drop(state); // Release lock before inference
 
-            let speech_prob = self.compute_probability(&chunk)?;
+            // P0 FIX: Compute probability while holding lock, pass mutable state
+            let speech_prob = self.compute_probability_locked(&mut state, &chunk)?;
 
             frame.vad_probability = Some(speech_prob);
             let is_speech = speech_prob >= self.config.threshold;
             frame.is_speech = is_speech;
 
-            let mut state = self.mutable.lock();
+            // State update within same lock scope
             self.update_state_inner(&mut state, is_speech, speech_prob)
         } else {
             // Not enough samples yet, return current state
@@ -188,12 +193,17 @@ impl SileroVad {
         }
     }
 
-    /// Compute speech probability using ONNX model
+    /// Compute speech probability using ONNX model (lock-free version)
+    ///
+    /// P0 FIX: Takes mutable state as parameter to avoid double-locking.
+    /// Caller must hold the lock.
     #[cfg(feature = "onnx")]
-    fn compute_probability(&self, audio_chunk: &[f32]) -> Result<f32, PipelineError> {
+    fn compute_probability_locked(
+        &self,
+        state: &mut SileroMutableState,
+        audio_chunk: &[f32],
+    ) -> Result<f32, PipelineError> {
         use ndarray::{Array1, ArrayView2};
-
-        let mut state = self.mutable.lock();
 
         // Prepare input tensor [1, chunk_size]
         let input = Array1::from_vec(audio_chunk.to_vec())
@@ -244,9 +254,15 @@ impl SileroVad {
         Ok(speech_prob)
     }
 
-    /// Compute speech probability (energy-based fallback)
+    /// Compute speech probability (energy-based fallback, lock-free version)
+    ///
+    /// P0 FIX: Takes mutable state as parameter for consistency with ONNX version.
     #[cfg(not(feature = "onnx"))]
-    fn compute_probability(&self, audio_chunk: &[f32]) -> Result<f32, PipelineError> {
+    fn compute_probability_locked(
+        &self,
+        _state: &mut SileroMutableState,
+        audio_chunk: &[f32],
+    ) -> Result<f32, PipelineError> {
         // Simple energy-based VAD
         let energy: f32 = audio_chunk.iter().map(|s| s * s).sum::<f32>() / audio_chunk.len() as f32;
         let energy_db = 10.0 * energy.max(1e-10).log10();

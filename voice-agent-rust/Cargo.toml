@@ -10,6 +10,7 @@ members = [
     "crates/server",
     "crates/transport",
     "crates/text_processing",
+    "crates/persistence",
 ]
 resolver = "2"
 
@@ -105,6 +106,11 @@ voice-agent-tools = { path = "crates/tools" }
 voice-agent-agent = { path = "crates/agent" }
 voice-agent-transport = { path = "crates/transport" }
 voice-agent-text-processing = { path = "crates/text_processing" }
+voice-agent-persistence = { path = "crates/persistence" }
+
+# ScyllaDB
+scylla = "0.14"
+rand = "0.8"
 
 [profile.release]
 lto = "thin"

@@ -51,8 +51,9 @@ impl Default for SpeculativeConfig {
         Self {
             mode: SpeculativeMode::SlmFirst,
             complexity_threshold: 0.7,
-            // P0 FIX: Reduced from 2000ms to 200ms to meet 500ms E2E latency budget
-            slm_timeout_ms: 200,
+            // P0 FIX: Reduced from 2000ms to 100ms to meet 500ms E2E latency budget
+            // Budget: VAD ~32ms + STT ~100ms + LLM 100ms + TTS ~100ms = 332ms + overhead
+            slm_timeout_ms: 100,
             min_tokens_before_switch: 10,
             quality_threshold: 0.8,
             fallback_enabled: true,

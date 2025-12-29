@@ -1,0 +1,32 @@
+[package]
+name = "voice-agent-persistence"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# ScyllaDB driver
+scylla = "0.14"
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { version = "1", features = ["v4", "v1", "serde"] }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rand = "0.8"
+
+# Internal
+voice-agent-core = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"

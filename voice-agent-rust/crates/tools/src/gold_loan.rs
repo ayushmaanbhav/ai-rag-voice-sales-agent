@@ -192,6 +192,10 @@ impl Tool for EligibilityCheckTool {
         let max_loan = self.config.calculate_max_loan(gold_value);
         let available_loan = max_loan - existing_loan;
 
+        // P2 FIX: Use tiered interest rates based on loan amount
+        // Higher loan amounts get better rates
+        let interest_rate = self.config.get_tiered_rate(available_loan.max(0.0));
+
         let result = json!({
             "eligible": available_loan >= self.config.min_loan_amount,
             "gold_value_inr": gold_value.round(),
@@ -199,10 +203,21 @@ impl Tool for EligibilityCheckTool {
             "existing_loan_inr": existing_loan,
             "available_loan_inr": available_loan.max(0.0).round(),
             "ltv_percent": self.config.ltv_percent,
-            "interest_rate_percent": self.config.kotak_interest_rate,
+            "interest_rate_percent": interest_rate,
             "processing_fee_percent": self.config.processing_fee_percent,
+            // P2 FIX: Include rate tier info for transparency
+            "rate_tier": if available_loan <= 100000.0 {
+                "Standard"
+            } else if available_loan <= 500000.0 {
+                "Premium"
+            } else {
+                "Elite"
+            },
             "message": if available_loan >= self.config.min_loan_amount {
-                format!("You are eligible for a gold loan up to ₹{:.0}!", available_loan)
+                format!(
+                    "You are eligible for a gold loan up to ₹{:.0} at {}% interest!",
+                    available_loan, interest_rate
+                )
             } else if available_loan > 0.0 {
                 format!("You can get an additional ₹{:.0} on your gold.", available_loan)
             } else {
@@ -280,11 +295,12 @@ impl Tool for SavingsCalculatorTool {
             .and_then(|v| v.as_i64())
             .ok_or_else(|| ToolError::invalid_params("remaining_tenure_months is required"))?;
 
-        // Use config for Kotak rate
-        let kotak_rate = self.config.kotak_interest_rate;
+        // P2 FIX: Use tiered rate based on loan amount
+        // Higher loan amounts qualify for better rates
+        let kotak_rate = self.config.get_tiered_rate(loan_amount);
 
-        // Calculate monthly savings using config helper
-        let monthly_savings = self.config.calculate_monthly_savings(loan_amount, current_rate);
+        // Calculate monthly savings using tiered rates
+        let monthly_savings = self.config.calculate_monthly_savings_tiered(loan_amount, current_rate);
 
         // Calculate monthly payments
         let current_monthly = loan_amount * (current_rate / 100.0 / 12.0);
@@ -292,6 +308,15 @@ impl Tool for SavingsCalculatorTool {
 
         // Total interest over remaining tenure
         let total_savings = monthly_savings * tenure_months as f64;
+
+        // P2 FIX: Determine rate tier for customer communication
+        let rate_tier = if loan_amount <= 100000.0 {
+            "Standard"
+        } else if loan_amount <= 500000.0 {
+            "Premium"
+        } else {
+            "Elite"
+        };
 
         let result = json!({
             "current_lender": current_lender,
@@ -303,9 +328,11 @@ impl Tool for SavingsCalculatorTool {
             "monthly_savings_inr": monthly_savings.round(),
             "total_savings_inr": total_savings.round(),
             "tenure_months": tenure_months,
+            // P2 FIX: Include tier info for transparency
+            "rate_tier": rate_tier,
             "message": format!(
-                "By switching to Kotak, you can save ₹{:.0} per month and ₹{:.0} over the remaining {} months!",
-                monthly_savings, total_savings, tenure_months
+                "By switching to Kotak at our {} rate of {}%, you can save ₹{:.0} per month and ₹{:.0} over the remaining {} months!",
+                rate_tier, kotak_rate, monthly_savings, total_savings, tenure_months
             )
         });
 

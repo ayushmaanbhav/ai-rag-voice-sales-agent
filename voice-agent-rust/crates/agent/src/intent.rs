@@ -228,9 +228,83 @@ impl IntentDetector {
     /// This replaces the old register_slot_patterns() which stored patterns
     /// as strings but never used them. Now patterns are compiled once and
     /// reused for all extractions.
+    ///
+    /// P0 FIX (Dec 2025): Added Devanagari script support for Hindi users.
+    /// Includes:
+    /// - Devanagari numerals (०-९)
+    /// - Hindi number words (पांच, दस, बीस, etc.)
+    /// - Hindi multiplier words (लाख, करोड़, हज़ार)
     fn compile_slot_patterns(&mut self) {
-        // Loan amount patterns
+        // Loan amount patterns - P0 FIX: Added Devanagari support
         let loan_patterns = vec![
+            // === DEVANAGARI PATTERNS (Hindi) - Check first for proper Hindi support ===
+
+            // Hindi: करोड़ (crore) with Devanagari numerals
+            CompiledSlotPattern {
+                name: "hindi_crore_devanagari".to_string(),
+                regex: Regex::new(r"([०-९]+(?:\.[०-९]+)?)\s*(?:करोड़|करोड)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+            // Hindi: करोड़ (crore) with ASCII numerals
+            CompiledSlotPattern {
+                name: "hindi_crore_ascii".to_string(),
+                regex: Regex::new(r"(\d+(?:\.\d+)?)\s*(?:करोड़|करोड)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0),
+            },
+            // Hindi: लाख (lakh) with Devanagari numerals
+            CompiledSlotPattern {
+                name: "hindi_lakh_devanagari".to_string(),
+                regex: Regex::new(r"([०-९]+(?:\.[०-९]+)?)\s*(?:लाख|लख)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            // Hindi: लाख (lakh) with ASCII numerals
+            CompiledSlotPattern {
+                name: "hindi_lakh_ascii".to_string(),
+                regex: Regex::new(r"(\d+(?:\.\d+)?)\s*(?:लाख|लख)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0),
+            },
+            // Hindi: हज़ार (thousand) with Devanagari numerals
+            CompiledSlotPattern {
+                name: "hindi_hazar_devanagari".to_string(),
+                regex: Regex::new(r"([०-९]+(?:\.[०-९]+)?)\s*(?:हज़ार|हजार)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(1_000.0),
+            },
+            // Hindi: हज़ार (thousand) with ASCII numerals
+            CompiledSlotPattern {
+                name: "hindi_hazar_ascii".to_string(),
+                regex: Regex::new(r"(\d+(?:\.\d+)?)\s*(?:हज़ार|हजार)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(1_000.0),
+            },
+            // Hindi number words with लाख
+            CompiledSlotPattern {
+                name: "hindi_word_lakh".to_string(),
+                regex: Regex::new(r"(एक|दो|तीन|चार|पांच|पाँच|छह|छे|सात|आठ|नौ|दस|बीस|पच्चीस|तीस|पैंतीस|चालीस|पचास|साठ|सत्तर|अस्सी|नब्बे|सौ)\s*(?:लाख|लख)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(100_000.0), // Will be multiplied by word value
+            },
+            // Hindi number words with करोड़
+            CompiledSlotPattern {
+                name: "hindi_word_crore".to_string(),
+                regex: Regex::new(r"(एक|दो|तीन|चार|पांच|पाँच|छह|छे|सात|आठ|नौ|दस)\s*(?:करोड़|करोड)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: Some(10_000_000.0), // Will be multiplied by word value
+            },
+            // Hindi: रुपये amount with Devanagari
+            CompiledSlotPattern {
+                name: "hindi_rupees".to_string(),
+                regex: Regex::new(r"([०-९\d]+(?:,[०-९\d]+)*)\s*(?:रुपये|रूपये|रुपए|₹)").unwrap(),
+                slot_type: SlotType::Currency,
+                multiplier: None,
+            },
+
+            // === ENGLISH/ROMANIZED PATTERNS ===
+
             // Crore (10 million) - highest priority
             CompiledSlotPattern {
                 name: "crore".to_string(),
@@ -436,10 +510,53 @@ impl IntentDetector {
         slots
     }
 
+    /// P0 FIX: Convert Devanagari numerals to ASCII digits
+    fn devanagari_to_ascii(s: &str) -> String {
+        s.chars().map(|c| {
+            match c {
+                '०' => '0', '१' => '1', '२' => '2', '३' => '3', '४' => '4',
+                '५' => '5', '६' => '6', '७' => '7', '८' => '8', '९' => '9',
+                _ => c,
+            }
+        }).collect()
+    }
+
+    /// P0 FIX: Convert Hindi number word to numeric value
+    fn hindi_word_to_number(word: &str) -> Option<f64> {
+        match word {
+            "एक" => Some(1.0),
+            "दो" => Some(2.0),
+            "तीन" => Some(3.0),
+            "चार" => Some(4.0),
+            "पांच" | "पाँच" => Some(5.0),
+            "छह" | "छे" => Some(6.0),
+            "सात" => Some(7.0),
+            "आठ" => Some(8.0),
+            "नौ" => Some(9.0),
+            "दस" => Some(10.0),
+            "बीस" => Some(20.0),
+            "पच्चीस" => Some(25.0),
+            "तीस" => Some(30.0),
+            "पैंतीस" => Some(35.0),
+            "चालीस" => Some(40.0),
+            "पचास" => Some(50.0),
+            "साठ" => Some(60.0),
+            "सत्तर" => Some(70.0),
+            "अस्सी" => Some(80.0),
+            "नब्बे" => Some(90.0),
+            "सौ" => Some(100.0),
+            _ => None,
+        }
+    }
+
     /// P0 FIX: Extract slot value using compiled regex patterns
     ///
     /// Tries each pattern in order (highest priority first) and returns
     /// the first match with its computed value and confidence.
+    ///
+    /// P0 FIX (Dec 2025): Added support for:
+    /// - Devanagari numerals (०-९) conversion
+    /// - Hindi number words (पांच, दस, etc.)
     fn extract_slot_with_patterns(
         &self,
         text: &str,
@@ -453,17 +570,32 @@ impl IntentDetector {
 
                     // Compute final value based on multiplier
                     let value = if let Some(multiplier) = pattern.multiplier {
-                        // Parse as number and multiply
-                        let clean_value = raw_value.replace(",", "");
-                        if let Ok(num) = clean_value.parse::<f64>() {
-                            format!("{}", (num * multiplier) as i64)
+                        // P0 FIX: Handle Devanagari numerals and Hindi number words
+                        let numeric_value = if pattern.name.starts_with("hindi_word") {
+                            // Hindi number word - convert to numeric value
+                            Self::hindi_word_to_number(raw_value).unwrap_or(1.0)
+                        } else if pattern.name.contains("devanagari") || raw_value.chars().any(|c| c >= '०' && c <= '९') {
+                            // Contains Devanagari numerals - convert to ASCII first
+                            let ascii_value = Self::devanagari_to_ascii(raw_value);
+                            ascii_value.replace(",", "").parse::<f64>().unwrap_or(0.0)
+                        } else {
+                            // Regular ASCII number
+                            raw_value.replace(",", "").parse::<f64>().unwrap_or(0.0)
+                        };
+
+                        if numeric_value > 0.0 {
+                            format!("{}", (numeric_value * multiplier) as i64)
                         } else {
                             raw_value.to_string()
                         }
                     } else {
                         // Remove commas for currency, keep as-is for others
                         match pattern.slot_type {
-                            SlotType::Currency => raw_value.replace(",", ""),
+                            SlotType::Currency => {
+                                // P0 FIX: Also convert Devanagari for direct amounts
+                                let converted = Self::devanagari_to_ascii(raw_value);
+                                converted.replace(",", "")
+                            }
                             SlotType::Text => {
                                 // Capitalize lender names
                                 let s = raw_value.to_lowercase();
@@ -486,11 +618,17 @@ impl IntentDetector {
                     };
 
                     // Calculate confidence based on pattern specificity
+                    // P0 FIX: Hindi patterns get same high confidence as English
                     let confidence = match pattern.name.as_str() {
-                        "crore" | "lakh" | "rs_amount" => 0.95, // Very specific patterns
-                        "thousand" | "grams" | "karat" => 0.90, // Specific patterns
-                        "plain_number" => 0.70, // Less specific
-                        _ => 0.85, // Default
+                        "crore" | "lakh" | "rs_amount" => 0.95,
+                        "hindi_crore_devanagari" | "hindi_crore_ascii" => 0.95,
+                        "hindi_lakh_devanagari" | "hindi_lakh_ascii" => 0.95,
+                        "hindi_word_lakh" | "hindi_word_crore" => 0.93,
+                        "hindi_hazar_devanagari" | "hindi_hazar_ascii" => 0.90,
+                        "hindi_rupees" => 0.92,
+                        "thousand" | "grams" | "karat" => 0.90,
+                        "plain_number" => 0.70,
+                        _ => 0.85,
                     };
 
                     return Some((value, pattern.slot_type.clone(), confidence));
@@ -681,5 +819,68 @@ mod tests {
         assert!(slots.contains_key("gold_weight"));
         // 10 tola = 116.6 grams (truncated to 116)
         assert_eq!(slots.get("gold_weight").unwrap().value, Some("116".to_string()));
+    }
+
+    // P0 FIX: Hindi/Devanagari slot extraction tests
+
+    #[test]
+    fn test_hindi_lakh_with_ascii() {
+        let detector = IntentDetector::new();
+
+        let slots = detector.extract_slots("5 लाख का लोन चाहिए");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_hindi_lakh_with_devanagari_numerals() {
+        let detector = IntentDetector::new();
+
+        let slots = detector.extract_slots("५ लाख रुपये का लोन");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_hindi_word_lakh() {
+        let detector = IntentDetector::new();
+
+        let slots = detector.extract_slots("पांच लाख रुपये का लोन चाहिए");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("500000".to_string()));
+    }
+
+    #[test]
+    fn test_hindi_crore() {
+        let detector = IntentDetector::new();
+
+        let slots = detector.extract_slots("एक करोड़ का लोन");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("10000000".to_string()));
+    }
+
+    #[test]
+    fn test_hindi_hazar() {
+        let detector = IntentDetector::new();
+
+        let slots = detector.extract_slots("50 हज़ार रुपये");
+        assert!(slots.contains_key("loan_amount"));
+        assert_eq!(slots.get("loan_amount").unwrap().value, Some("50000".to_string()));
+    }
+
+    #[test]
+    fn test_devanagari_numeral_conversion() {
+        assert_eq!(IntentDetector::devanagari_to_ascii("५०"), "50");
+        assert_eq!(IntentDetector::devanagari_to_ascii("१२३४५"), "12345");
+        assert_eq!(IntentDetector::devanagari_to_ascii("mixed १२ and 34"), "mixed 12 and 34");
+    }
+
+    #[test]
+    fn test_hindi_number_word_conversion() {
+        assert_eq!(IntentDetector::hindi_word_to_number("पांच"), Some(5.0));
+        assert_eq!(IntentDetector::hindi_word_to_number("दस"), Some(10.0));
+        assert_eq!(IntentDetector::hindi_word_to_number("बीस"), Some(20.0));
+        assert_eq!(IntentDetector::hindi_word_to_number("पचास"), Some(50.0));
+        assert_eq!(IntentDetector::hindi_word_to_number("unknown"), None);
     }
 }
