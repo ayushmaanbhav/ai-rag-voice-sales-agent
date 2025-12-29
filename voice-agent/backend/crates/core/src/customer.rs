@@ -253,9 +253,14 @@ impl CustomerProfile {
             return self.segment;
         }
 
-        // High value: >100g gold
+        // High value: >100g gold OR loan amount > 5 lakhs
         if let Some(weight) = self.gold_weight {
             if weight >= 100.0 {
+                return Some(CustomerSegment::HighValue);
+            }
+        }
+        if let Some(amount) = self.loan_amount {
+            if amount >= 500_000.0 {
                 return Some(CustomerSegment::HighValue);
             }
         }
@@ -274,6 +279,220 @@ impl CustomerProfile {
         // First time: no current lender and no gold details
         if self.current_lender.is_none() && !self.has_gold_details() {
             return Some(CustomerSegment::FirstTime);
+        }
+
+        None
+    }
+}
+
+/// P3-2 FIX: Segment detector that analyzes conversation signals
+///
+/// Uses multiple signals to auto-detect customer segment:
+/// - Loan amount mentioned → High Value
+/// - Urgency signals → marks as urgent (influences persona)
+/// - Price/rate focus → Price Sensitive
+/// - Safety concerns → Trust Seeker
+/// - Comparison mentions → Price Sensitive
+#[derive(Debug, Clone)]
+pub struct SegmentDetector {
+    /// Weight for high-value detection (default: 100g)
+    pub high_value_gold_threshold: f64,
+    /// Amount for high-value detection (default: 5 lakhs)
+    pub high_value_amount_threshold: f64,
+}
+
+impl Default for SegmentDetector {
+    fn default() -> Self {
+        Self {
+            high_value_gold_threshold: 100.0,
+            high_value_amount_threshold: 500_000.0,
+        }
+    }
+}
+
+impl SegmentDetector {
+    /// Create a new segment detector
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create with custom thresholds
+    pub fn with_thresholds(gold_grams: f64, amount_inr: f64) -> Self {
+        Self {
+            high_value_gold_threshold: gold_grams,
+            high_value_amount_threshold: amount_inr,
+        }
+    }
+
+    /// Detect segment from text content (conversation transcript)
+    pub fn detect_from_text(&self, text: &str) -> Option<CustomerSegment> {
+        let lower = text.to_lowercase();
+
+        // High Value: Large amounts mentioned
+        if self.detect_high_value_amount(&lower) {
+            return Some(CustomerSegment::HighValue);
+        }
+
+        // Price Sensitive: Rate/price focused
+        if self.detect_price_sensitivity(&lower) {
+            return Some(CustomerSegment::PriceSensitive);
+        }
+
+        // Trust Seeker: Safety/security concerns
+        if self.detect_trust_seeking(&lower) {
+            return Some(CustomerSegment::TrustSeeker);
+        }
+
+        // First Time: New to gold loans
+        if self.detect_first_time(&lower) {
+            return Some(CustomerSegment::FirstTime);
+        }
+
+        None
+    }
+
+    /// Detect high-value customer from text
+    fn detect_high_value_amount(&self, text: &str) -> bool {
+        // Hindi: lakh, crore
+        // Look for amounts like "5 lakh", "10 lakh", "1 crore"
+        let high_value_patterns = [
+            "lakh", "lakhs", "lac", "lacs",
+            "crore", "crores",
+            "500000", "1000000",
+            "पाँच लाख", "दस लाख", "करोड़",
+        ];
+
+        // Check for large amounts
+        for pattern in &high_value_patterns {
+            if text.contains(pattern) {
+                // Extract number before lakh/crore
+                if pattern.contains("lakh") || pattern.contains("lac") {
+                    // Check if >= 5 lakhs
+                    if self.extract_lakh_amount(text) >= 5.0 {
+                        return true;
+                    }
+                } else if pattern.contains("crore") || pattern.contains("करोड़") {
+                    return true; // Any crore amount is high value
+                }
+            }
+        }
+
+        // Check for large gold weights
+        let gold_patterns = ["100 gram", "150 gram", "200 gram", "सौ ग्राम"];
+        for pattern in &gold_patterns {
+            if text.contains(pattern) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Extract lakh amount from text
+    fn extract_lakh_amount(&self, text: &str) -> f64 {
+        // Simple extraction: look for "N lakh" pattern
+        let words: Vec<&str> = text.split_whitespace().collect();
+        for (i, word) in words.iter().enumerate() {
+            if word.contains("lakh") || word.contains("lac") {
+                if i > 0 {
+                    if let Ok(n) = words[i - 1].parse::<f64>() {
+                        return n;
+                    }
+                    // Hindi number words
+                    match words[i - 1] {
+                        "एक" | "ek" => return 1.0,
+                        "दो" | "do" => return 2.0,
+                        "तीन" | "teen" => return 3.0,
+                        "चार" | "char" => return 4.0,
+                        "पाँच" | "paanch" | "panch" => return 5.0,
+                        "दस" | "das" => return 10.0,
+                        _ => {}
+                    }
+                }
+            }
+        }
+        0.0
+    }
+
+    /// Detect price-sensitive customer
+    fn detect_price_sensitivity(&self, text: &str) -> bool {
+        let price_patterns = [
+            // English
+            "interest rate", "lowest rate", "best rate", "cheaper",
+            "how much interest", "what rate", "rate kitna",
+            "compare rate", "other bank", "better rate",
+            "processing fee", "hidden charge", "total cost",
+            // Hindi
+            "kitna byaj", "byaj dar", "sasta", "mehnga",
+            "sabse kam", "ब्याज दर", "सस्ता", "महंगा",
+        ];
+
+        price_patterns.iter().any(|p| text.contains(p))
+    }
+
+    /// Detect trust-seeking customer
+    fn detect_trust_seeking(&self, text: &str) -> bool {
+        let trust_patterns = [
+            // Safety concerns
+            "gold safe", "safe hai", "surakshit",
+            "insurance", "vault", "locker",
+            "rbi", "regulated", "government",
+            // Past issues
+            "iifl", "muthoot", "manappuram",
+            "problem", "issue", "fraud", "cheat",
+            "lost gold", "gold missing",
+            // Hindi
+            "सोना सुरक्षित", "भरोसा", "विश्वास",
+        ];
+
+        trust_patterns.iter().any(|p| text.contains(p))
+    }
+
+    /// Detect first-time customer
+    fn detect_first_time(&self, text: &str) -> bool {
+        let first_time_patterns = [
+            "first time", "pehli baar", "pahli bar",
+            "never taken", "new to", "how does it work",
+            "kaise hota hai", "process kya hai",
+            "what is gold loan", "gold loan kya",
+            "पहली बार", "कैसे होता है",
+        ];
+
+        first_time_patterns.iter().any(|p| text.contains(p))
+    }
+
+    /// Detect urgency in text (doesn't map to segment but influences persona)
+    pub fn detect_urgency(&self, text: &str) -> bool {
+        let urgency_patterns = [
+            // English
+            "urgent", "emergency", "asap", "today",
+            "right now", "immediately", "quick", "fast",
+            "need money", "hospital", "medical",
+            // Hindi
+            "jaldi", "abhi", "turant", "fauran",
+            "जल्दी", "अभी", "तुरंत", "फौरन",
+            "paise chahiye", "पैसे चाहिए",
+        ];
+
+        urgency_patterns.iter().any(|p| text.contains(p))
+    }
+
+    /// Combined detection from profile and conversation text
+    pub fn detect_combined(
+        &self,
+        profile: &CustomerProfile,
+        conversation_text: Option<&str>,
+    ) -> Option<CustomerSegment> {
+        // First try profile-based detection
+        if let Some(segment) = profile.infer_segment() {
+            return Some(segment);
+        }
+
+        // Then try text-based detection
+        if let Some(text) = conversation_text {
+            if let Some(segment) = self.detect_from_text(text) {
+                return Some(segment);
+            }
         }
 
         None
@@ -360,5 +579,126 @@ mod tests {
         let messages = segment.key_messages();
         assert!(!messages.is_empty());
         assert!(messages.iter().any(|m| m.contains("RBI")));
+    }
+
+    // P3-2 FIX: Tests for SegmentDetector
+    #[test]
+    fn test_segment_detector_high_value() {
+        let detector = SegmentDetector::new();
+
+        // Amount mention in lakhs
+        assert_eq!(
+            detector.detect_from_text("I need 10 lakh rupees loan"),
+            Some(CustomerSegment::HighValue)
+        );
+
+        // Crore mention
+        assert_eq!(
+            detector.detect_from_text("mujhe 1 crore chahiye"),
+            Some(CustomerSegment::HighValue)
+        );
+
+        // Large gold weight
+        assert_eq!(
+            detector.detect_from_text("I have 150 gram gold"),
+            Some(CustomerSegment::HighValue)
+        );
+    }
+
+    #[test]
+    fn test_segment_detector_price_sensitive() {
+        let detector = SegmentDetector::new();
+
+        assert_eq!(
+            detector.detect_from_text("What is your interest rate?"),
+            Some(CustomerSegment::PriceSensitive)
+        );
+
+        assert_eq!(
+            detector.detect_from_text("other bank is offering better rate"),
+            Some(CustomerSegment::PriceSensitive)
+        );
+
+        // Hindi
+        assert_eq!(
+            detector.detect_from_text("byaj dar kitna hai"),
+            Some(CustomerSegment::PriceSensitive)
+        );
+    }
+
+    #[test]
+    fn test_segment_detector_trust_seeker() {
+        let detector = SegmentDetector::new();
+
+        assert_eq!(
+            detector.detect_from_text("Is my gold safe with you?"),
+            Some(CustomerSegment::TrustSeeker)
+        );
+
+        assert_eq!(
+            detector.detect_from_text("I had issues with Muthoot before"),
+            Some(CustomerSegment::TrustSeeker)
+        );
+
+        // RBI mention
+        assert_eq!(
+            detector.detect_from_text("Are you RBI regulated?"),
+            Some(CustomerSegment::TrustSeeker)
+        );
+    }
+
+    #[test]
+    fn test_segment_detector_first_time() {
+        let detector = SegmentDetector::new();
+
+        assert_eq!(
+            detector.detect_from_text("This is my first time taking a gold loan"),
+            Some(CustomerSegment::FirstTime)
+        );
+
+        assert_eq!(
+            detector.detect_from_text("Gold loan kaise hota hai?"),
+            Some(CustomerSegment::FirstTime)
+        );
+    }
+
+    #[test]
+    fn test_segment_detector_urgency() {
+        let detector = SegmentDetector::new();
+
+        assert!(detector.detect_urgency("I need money urgently for hospital"));
+        assert!(detector.detect_urgency("paise jaldi chahiye"));
+        assert!(detector.detect_urgency("emergency hai"));
+        assert!(!detector.detect_urgency("I'm just exploring options"));
+    }
+
+    #[test]
+    fn test_segment_detector_combined() {
+        let detector = SegmentDetector::new();
+
+        // Profile takes precedence
+        let profile = CustomerProfile::new().gold(150.0, "22K");
+        assert_eq!(
+            detector.detect_combined(&profile, Some("what is your rate")),
+            Some(CustomerSegment::HighValue)
+        );
+
+        // Falls back to text when profile doesn't determine segment
+        // (profile with gold details but not enough to be high value)
+        let profile = CustomerProfile::new().gold(20.0, "22K");
+        assert_eq!(
+            detector.detect_combined(&profile, Some("what is your interest rate")),
+            Some(CustomerSegment::PriceSensitive)
+        );
+    }
+
+    #[test]
+    fn test_high_value_from_loan_amount() {
+        // Test that loan_amount field also triggers high value
+        let profile = CustomerProfile {
+            loan_amount: Some(600_000.0),
+            ..CustomerProfile::new()
+        };
+        assert_eq!(profile.infer_segment(), Some(CustomerSegment::HighValue));
     }
 }

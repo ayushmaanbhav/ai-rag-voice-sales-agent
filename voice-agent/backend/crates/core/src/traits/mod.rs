@@ -15,6 +15,9 @@
 //! Language Models:
 //!   - LanguageModel: Text generation and tool calling
 //!
+//! Tools:
+//!   - Tool: MCP-compatible tool interface
+//!
 //! Retrieval:
 //!   - Retriever: Document retrieval for RAG
 //!
@@ -37,6 +40,7 @@ mod retriever;
 mod text_processing;
 mod pipeline;
 mod fsm;
+mod tool;
 
 pub use speech::{SpeechToText, TextToSpeech};
 // P1 FIX: Export VoiceActivityDetector trait and types
@@ -53,4 +57,9 @@ pub use fsm::{
     ConversationFSM, ConversationEvent, FSMAction, FSMError,
     FSMCheckpoint, FSMMetrics, ConversationOutcome, ObjectionType,
     TransitionRecord,
+};
+// P3 FIX: Export Tool trait and types
+pub use tool::{
+    Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
+    ToolSchema, InputSchema, PropertySchema,
 };

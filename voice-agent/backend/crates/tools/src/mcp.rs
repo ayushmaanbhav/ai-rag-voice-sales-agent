@@ -1,445 +1,411 @@
 //! MCP (Model Context Protocol) Tool Interface
 //!
-//! Provides a standardized tool interface compatible with MCP specification.
+//! Full MCP protocol compliance including:
+//! - JSON-RPC 2.0 request/response envelopes
+//! - Tool listing and execution
+//! - Resource management
+//! - Progress reporting
+//!
+//! P3 FIX: Tool trait and types are now defined in voice-agent-core
+//! and re-exported here for backwards compatibility.
 
-use std::collections::HashMap;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// Tool error with MCP error codes
+// Re-export all tool types from core crate
+pub use voice_agent_core::traits::{
+    Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
+    ToolSchema, InputSchema, PropertySchema,
+};
+
+// ============================================================================
+// P3-3 FIX: Full MCP Protocol Compliance
+// ============================================================================
+
+/// JSON-RPC 2.0 Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolError {
-    /// Error code (MCP compatible)
-    pub code: ErrorCode,
-    /// Human-readable message
+pub struct JsonRpcRequest {
+    /// JSON-RPC version (always "2.0")
+    pub jsonrpc: String,
+    /// Request ID (optional for notifications)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<RequestId>,
+    /// Method name
+    pub method: String,
+    /// Method parameters
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub params: Option<Value>,
+}
+
+impl JsonRpcRequest {
+    /// Create a new request
+    pub fn new(method: impl Into<String>, id: impl Into<RequestId>) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id: Some(id.into()),
+            method: method.into(),
+            params: None,
+        }
+    }
+
+    /// Create a request with parameters
+    pub fn with_params(method: impl Into<String>, id: impl Into<RequestId>, params: Value) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id: Some(id.into()),
+            method: method.into(),
+            params: Some(params),
+        }
+    }
+
+    /// Create a notification (no response expected)
+    pub fn notification(method: impl Into<String>) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id: None,
+            method: method.into(),
+            params: None,
+        }
+    }
+
+    /// Check if this is a notification
+    pub fn is_notification(&self) -> bool {
+        self.id.is_none()
+    }
+}
+
+/// JSON-RPC 2.0 Response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonRpcResponse {
+    /// JSON-RPC version (always "2.0")
+    pub jsonrpc: String,
+    /// Request ID
+    pub id: Option<RequestId>,
+    /// Result (present on success)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<Value>,
+    /// Error (present on failure)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<JsonRpcError>,
+}
+
+impl JsonRpcResponse {
+    /// Create a success response
+    pub fn success(id: impl Into<RequestId>, result: Value) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id: Some(id.into()),
+            result: Some(result),
+            error: None,
+        }
+    }
+
+    /// Create an error response
+    pub fn error(id: Option<RequestId>, error: JsonRpcError) -> Self {
+        Self {
+            jsonrpc: "2.0".to_string(),
+            id,
+            result: None,
+            error: Some(error),
+        }
+    }
+
+    /// Create error from ToolError
+    pub fn from_tool_error(id: Option<RequestId>, err: ToolError) -> Self {
+        Self::error(id, JsonRpcError::from(err))
+    }
+}
+
+/// JSON-RPC Error
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JsonRpcError {
+    /// Error code
+    pub code: i32,
+    /// Error message
     pub message: String,
-    /// Additional error data
+    /// Additional data
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
 
-impl ToolError {
-    pub fn invalid_params(message: impl Into<String>) -> Self {
+impl From<ToolError> for JsonRpcError {
+    fn from(err: ToolError) -> Self {
         Self {
-            code: ErrorCode::InvalidParams,
-            message: message.into(),
-            data: None,
-        }
-    }
-
-    pub fn internal(message: impl Into<String>) -> Self {
-        Self {
-            code: ErrorCode::InternalError,
-            message: message.into(),
-            data: None,
-        }
-    }
-
-    pub fn not_found(message: impl Into<String>) -> Self {
-        Self {
-            code: ErrorCode::MethodNotFound,
-            message: message.into(),
-            data: None,
-        }
-    }
-
-    /// P1 FIX: Timeout error for tool execution
-    pub fn timeout(tool_name: &str, timeout_secs: u64) -> Self {
-        Self {
-            code: ErrorCode::InternalError,
-            message: format!("Tool '{}' timed out after {}s", tool_name, timeout_secs),
-            data: None,
+            code: err.code.into(),
+            message: err.message,
+            data: err.data,
         }
     }
 }
 
-impl std::fmt::Display for ToolError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:?}] {}", self.code, self.message)
+/// Request ID (string or number)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum RequestId {
+    String(String),
+    Number(i64),
+}
+
+impl From<String> for RequestId {
+    fn from(s: String) -> Self {
+        RequestId::String(s)
     }
 }
 
-impl std::error::Error for ToolError {}
-
-/// MCP Error codes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "i32", try_from = "i32")]
-pub enum ErrorCode {
-    ParseError,
-    InvalidRequest,
-    MethodNotFound,
-    InvalidParams,
-    InternalError,
-    /// Custom error range
-    Custom(i32),
-}
-
-impl From<ErrorCode> for i32 {
-    fn from(code: ErrorCode) -> Self {
-        match code {
-            ErrorCode::ParseError => -32700,
-            ErrorCode::InvalidRequest => -32600,
-            ErrorCode::MethodNotFound => -32601,
-            ErrorCode::InvalidParams => -32602,
-            ErrorCode::InternalError => -32603,
-            ErrorCode::Custom(c) => c,
-        }
+impl From<&str> for RequestId {
+    fn from(s: &str) -> Self {
+        RequestId::String(s.to_string())
     }
 }
 
-impl TryFrom<i32> for ErrorCode {
-    type Error = &'static str;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Ok(match value {
-            -32700 => ErrorCode::ParseError,
-            -32600 => ErrorCode::InvalidRequest,
-            -32601 => ErrorCode::MethodNotFound,
-            -32602 => ErrorCode::InvalidParams,
-            -32603 => ErrorCode::InternalError,
-            c => ErrorCode::Custom(c),
-        })
+impl From<i64> for RequestId {
+    fn from(n: i64) -> Self {
+        RequestId::Number(n)
     }
 }
 
-/// Tool input
+impl From<i32> for RequestId {
+    fn from(n: i32) -> Self {
+        RequestId::Number(n as i64)
+    }
+}
+
+/// MCP Method names
+pub mod methods {
+    /// List available tools
+    pub const TOOLS_LIST: &str = "tools/list";
+    /// Call a tool
+    pub const TOOLS_CALL: &str = "tools/call";
+    /// List resources
+    pub const RESOURCES_LIST: &str = "resources/list";
+    /// Read a resource
+    pub const RESOURCES_READ: &str = "resources/read";
+    /// Subscribe to resource updates
+    pub const RESOURCES_SUBSCRIBE: &str = "resources/subscribe";
+    /// Unsubscribe from resource updates
+    pub const RESOURCES_UNSUBSCRIBE: &str = "resources/unsubscribe";
+    /// Report progress (notification)
+    pub const PROGRESS: &str = "$/progress";
+    /// Cancel request (notification)
+    pub const CANCEL: &str = "$/cancelRequest";
+}
+
+/// Tool call parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolInput {
+pub struct ToolCallParams {
     /// Tool name
     pub name: String,
-    /// Input arguments
+    /// Tool arguments
+    #[serde(default)]
     pub arguments: Value,
+    /// Progress token for progress reporting
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub progress_token: Option<ProgressToken>,
 }
 
-/// Tool output
+/// Progress token for tracking long operations
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum ProgressToken {
+    String(String),
+    Number(i64),
+}
+
+impl From<String> for ProgressToken {
+    fn from(s: String) -> Self {
+        ProgressToken::String(s)
+    }
+}
+
+impl From<i64> for ProgressToken {
+    fn from(n: i64) -> Self {
+        ProgressToken::Number(n)
+    }
+}
+
+/// Progress notification params
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolOutput {
-    /// Output content
-    pub content: Vec<ContentBlock>,
-    /// Is this an error response?
-    #[serde(default)]
-    pub is_error: bool,
+pub struct ProgressParams {
+    /// Progress token
+    pub token: ProgressToken,
+    /// Progress value (0.0 - 1.0)
+    pub value: f64,
+    /// Progress message
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
-impl ToolOutput {
-    pub fn text(text: impl Into<String>) -> Self {
+impl ProgressParams {
+    /// Create new progress notification
+    pub fn new(token: ProgressToken, value: f64) -> Self {
         Self {
-            content: vec![ContentBlock::Text { text: text.into() }],
-            is_error: false,
+            token,
+            value: value.clamp(0.0, 1.0),
+            message: None,
         }
     }
 
-    pub fn json(value: impl Serialize) -> Self {
-        let text = serde_json::to_string_pretty(&value).unwrap_or_default();
+    /// Create with message
+    pub fn with_message(token: ProgressToken, value: f64, message: impl Into<String>) -> Self {
         Self {
-            content: vec![ContentBlock::Text { text }],
-            is_error: false,
-        }
-    }
-
-    pub fn error(message: impl Into<String>) -> Self {
-        Self {
-            content: vec![ContentBlock::Text { text: message.into() }],
-            is_error: true,
-        }
-    }
-
-    /// P2 FIX: Create an audio output
-    pub fn audio(
-        data: impl Into<String>,
-        mime_type: impl Into<String>,
-        sample_rate: Option<u32>,
-        duration_ms: Option<u64>,
-    ) -> Self {
-        Self {
-            content: vec![ContentBlock::Audio {
-                data: data.into(),
-                mime_type: mime_type.into(),
-                sample_rate,
-                duration_ms,
-            }],
-            is_error: false,
+            token,
+            value: value.clamp(0.0, 1.0),
+            message: Some(message.into()),
         }
     }
 }
 
-/// Content block types
+/// Resource definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ContentBlock {
-    Text { text: String },
-    Image { data: String, mime_type: String },
-    Resource { uri: String, mime_type: Option<String> },
-    /// P2 FIX: Audio content block for voice response support.
-    /// Supports base64-encoded audio data with sample rate and format info.
-    Audio {
-        /// Base64-encoded audio data
-        data: String,
-        /// MIME type (e.g., "audio/wav", "audio/mp3", "audio/opus")
-        mime_type: String,
-        /// Sample rate in Hz (e.g., 16000, 22050, 44100)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        sample_rate: Option<u32>,
-        /// Duration in milliseconds
-        #[serde(skip_serializing_if = "Option::is_none")]
-        duration_ms: Option<u64>,
-    },
-}
-
-/// Tool schema (JSON Schema format)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolSchema {
-    /// Tool name
+pub struct Resource {
+    /// Resource URI
+    pub uri: String,
+    /// Resource name
     pub name: String,
-    /// Tool description
-    pub description: String,
-    /// Input schema (JSON Schema)
-    pub input_schema: InputSchema,
-}
-
-/// Input schema
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InputSchema {
-    #[serde(rename = "type")]
-    pub schema_type: String,
-    #[serde(default)]
-    pub properties: HashMap<String, PropertySchema>,
-    #[serde(default)]
-    pub required: Vec<String>,
-}
-
-impl InputSchema {
-    pub fn object() -> Self {
-        Self {
-            schema_type: "object".to_string(),
-            properties: HashMap::new(),
-            required: Vec::new(),
-        }
-    }
-
-    pub fn property(mut self, name: &str, schema: PropertySchema, required: bool) -> Self {
-        self.properties.insert(name.to_string(), schema);
-        if required {
-            self.required.push(name.to_string());
-        }
-        self
-    }
-}
-
-/// Property schema
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PropertySchema {
-    #[serde(rename = "type")]
-    pub prop_type: String,
+    /// Resource description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// MIME type
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<Value>,
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    pub enum_values: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub minimum: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub maximum: Option<f64>,
+    pub mime_type: Option<String>,
 }
 
-impl PropertySchema {
-    pub fn string(description: impl Into<String>) -> Self {
+impl Resource {
+    /// Create a new resource
+    pub fn new(uri: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
-            prop_type: "string".to_string(),
-            description: Some(description.into()),
-            default: None,
-            enum_values: None,
-            minimum: None,
-            maximum: None,
+            uri: uri.into(),
+            name: name.into(),
+            description: None,
+            mime_type: None,
         }
     }
 
-    pub fn number(description: impl Into<String>) -> Self {
-        Self {
-            prop_type: "number".to_string(),
-            description: Some(description.into()),
-            default: None,
-            enum_values: None,
-            minimum: None,
-            maximum: None,
-        }
-    }
-
-    pub fn integer(description: impl Into<String>) -> Self {
-        Self {
-            prop_type: "integer".to_string(),
-            description: Some(description.into()),
-            default: None,
-            enum_values: None,
-            minimum: None,
-            maximum: None,
-        }
-    }
-
-    pub fn boolean(description: impl Into<String>) -> Self {
-        Self {
-            prop_type: "boolean".to_string(),
-            description: Some(description.into()),
-            default: None,
-            enum_values: None,
-            minimum: None,
-            maximum: None,
-        }
-    }
-
-    pub fn enum_type(description: impl Into<String>, values: Vec<String>) -> Self {
-        Self {
-            prop_type: "string".to_string(),
-            description: Some(description.into()),
-            default: None,
-            enum_values: Some(values),
-            minimum: None,
-            maximum: None,
-        }
-    }
-
-    pub fn with_default(mut self, default: Value) -> Self {
-        self.default = Some(default);
+    /// Add description
+    pub fn with_description(mut self, desc: impl Into<String>) -> Self {
+        self.description = Some(desc.into());
         self
     }
 
-    pub fn with_range(mut self, min: f64, max: f64) -> Self {
-        self.minimum = Some(min);
-        self.maximum = Some(max);
+    /// Add MIME type
+    pub fn with_mime_type(mut self, mime: impl Into<String>) -> Self {
+        self.mime_type = Some(mime.into());
         self
     }
 }
 
-/// Tool trait
-#[async_trait]
-pub trait Tool: Send + Sync {
-    /// Get tool name
-    fn name(&self) -> &str;
+/// Resource content
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceContent {
+    /// Resource URI
+    pub uri: String,
+    /// MIME type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    /// Text content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Binary content (base64)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blob: Option<String>,
+}
 
-    /// Get tool description
-    fn description(&self) -> &str;
-
-    /// Get input schema
-    fn schema(&self) -> ToolSchema;
-
-    /// Execute the tool
-    async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError>;
-
-    /// Validate input (optional, default uses schema)
-    ///
-    /// P2 FIX: Enhanced validation that checks types, enum values, and ranges,
-    /// not just required fields.
-    fn validate(&self, input: &Value) -> Result<(), ToolError> {
-        let schema = self.schema();
-
-        if let Value::Object(obj) = input {
-            // Check required fields
-            for required in &schema.input_schema.required {
-                if !obj.contains_key(required) {
-                    return Err(ToolError::invalid_params(format!(
-                        "Missing required field: {}",
-                        required
-                    )));
-                }
-            }
-
-            // P2 FIX: Validate each property's type and constraints
-            for (name, value) in obj {
-                if let Some(prop_schema) = schema.input_schema.properties.get(name) {
-                    validate_property(name, value, prop_schema)?;
-                }
-                // Unknown properties are allowed (no additionalProperties: false)
-            }
-
-            Ok(())
-        } else if schema.input_schema.properties.is_empty() {
-            // No properties required
-            Ok(())
-        } else {
-            Err(ToolError::invalid_params("Input must be an object"))
+impl ResourceContent {
+    /// Create text resource
+    pub fn text(uri: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            uri: uri.into(),
+            mime_type: Some("text/plain".to_string()),
+            text: Some(content.into()),
+            blob: None,
         }
     }
 
-    /// P5 FIX: Get per-tool timeout in seconds
-    ///
-    /// Tools can override this to specify custom timeouts.
-    /// Default is 30 seconds.
-    fn timeout_secs(&self) -> u64 {
-        30 // Default timeout
+    /// Create JSON resource
+    pub fn json(uri: impl Into<String>, value: &impl Serialize) -> Self {
+        Self {
+            uri: uri.into(),
+            mime_type: Some("application/json".to_string()),
+            text: serde_json::to_string_pretty(value).ok(),
+            blob: None,
+        }
+    }
+
+    /// Create binary resource
+    pub fn binary(uri: impl Into<String>, data: &[u8], mime_type: impl Into<String>) -> Self {
+        use base64::Engine;
+        Self {
+            uri: uri.into(),
+            mime_type: Some(mime_type.into()),
+            text: None,
+            blob: Some(base64::engine::general_purpose::STANDARD.encode(data)),
+        }
     }
 }
 
-/// P2 FIX: Validate a property value against its schema
-fn validate_property(name: &str, value: &Value, schema: &PropertySchema) -> Result<(), ToolError> {
-    // Check type
-    let type_valid = match schema.prop_type.as_str() {
-        "string" => value.is_string(),
-        "number" => value.is_number(),
-        "integer" => value.is_i64() || value.is_u64(),
-        "boolean" => value.is_boolean(),
-        "array" => value.is_array(),
-        "object" => value.is_object(),
-        "null" => value.is_null(),
-        _ => true, // Unknown types pass through
-    };
+/// Resource provider trait
+pub trait ResourceProvider: Send + Sync {
+    /// List available resources
+    fn list(&self) -> Vec<Resource>;
 
-    if !type_valid {
-        return Err(ToolError::invalid_params(format!(
-            "Field '{}' must be of type '{}', got '{}'",
-            name,
-            schema.prop_type,
-            json_type_name(value)
-        )));
+    /// Read a resource by URI
+    fn read(&self, uri: &str) -> Option<ResourceContent>;
+
+    /// Check if provider supports subscriptions
+    fn supports_subscriptions(&self) -> bool {
+        false
     }
-
-    // Check enum values
-    if let Some(enum_values) = &schema.enum_values {
-        if let Some(s) = value.as_str() {
-            if !enum_values.contains(&s.to_string()) {
-                return Err(ToolError::invalid_params(format!(
-                    "Field '{}' must be one of: [{}], got '{}'",
-                    name,
-                    enum_values.join(", "),
-                    s
-                )));
-            }
-        }
-    }
-
-    // Check numeric range
-    if let Some(num) = value.as_f64() {
-        if let Some(min) = schema.minimum {
-            if num < min {
-                return Err(ToolError::invalid_params(format!(
-                    "Field '{}' must be >= {}, got {}",
-                    name, min, num
-                )));
-            }
-        }
-        if let Some(max) = schema.maximum {
-            if num > max {
-                return Err(ToolError::invalid_params(format!(
-                    "Field '{}' must be <= {}, got {}",
-                    name, max, num
-                )));
-            }
-        }
-    }
-
-    Ok(())
 }
 
-/// Get a human-readable type name for a JSON value
-fn json_type_name(value: &Value) -> &'static str {
-    match value {
-        Value::Null => "null",
-        Value::Bool(_) => "boolean",
-        Value::Number(_) => "number",
-        Value::String(_) => "string",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
+/// MCP Server capabilities
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerCapabilities {
+    /// Tool capabilities
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<ToolCapabilities>,
+    /// Resource capabilities
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resources: Option<ResourceCapabilities>,
+    /// Experimental features
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub experimental: Option<Value>,
+}
+
+/// Tool capabilities
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ToolCapabilities {
+    /// Server supports listing tools that have changed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_changed: Option<bool>,
+}
+
+/// Resource capabilities
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ResourceCapabilities {
+    /// Server supports subscriptions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscribe: Option<bool>,
+    /// Server supports listing resources that have changed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_changed: Option<bool>,
+}
+
+impl ServerCapabilities {
+    /// Create capabilities with tools support
+    pub fn with_tools() -> Self {
+        Self {
+            tools: Some(ToolCapabilities::default()),
+            ..Default::default()
+        }
+    }
+
+    /// Add resources support
+    pub fn with_resources(mut self, subscribe: bool) -> Self {
+        self.resources = Some(ResourceCapabilities {
+            subscribe: Some(subscribe),
+            list_changed: Some(true),
+        });
+        self
     }
 }
 

@@ -32,7 +32,7 @@ pub use audio::{AudioFrame, AudioEncoding, Channels, SampleRate};
 pub use error::{Error, Result};
 pub use transcript::{TranscriptResult, WordTimestamp};
 pub use conversation::{Turn, TurnRole, ConversationStage};
-pub use customer::{CustomerProfile, CustomerSegment};
+pub use customer::{CustomerProfile, CustomerSegment, SegmentDetector};
 
 // Re-exports from new modules
 pub use language::{Language, Script};

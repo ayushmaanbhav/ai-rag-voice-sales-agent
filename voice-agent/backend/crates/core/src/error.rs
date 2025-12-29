@@ -156,6 +156,24 @@ pub enum ToolError {
     Internal(String),
 }
 
+/// P3 FIX: Convert MCP ToolError (from traits module) to error::ToolError
+impl From<crate::traits::ToolError> for ToolError {
+    fn from(err: crate::traits::ToolError) -> Self {
+        match err.code {
+            crate::traits::ErrorCode::MethodNotFound => ToolError::NotFound(err.message),
+            crate::traits::ErrorCode::InvalidParams => ToolError::InvalidInput(err.message),
+            _ => ToolError::ExecutionFailed(err.message),
+        }
+    }
+}
+
+/// P3 FIX: Convert MCP ToolError to top-level Error
+impl From<crate::traits::ToolError> for Error {
+    fn from(err: crate::traits::ToolError) -> Self {
+        Error::Tool(err.into())
+    }
+}
+
 /// Agent errors
 #[derive(Error, Debug)]
 pub enum AgentError {

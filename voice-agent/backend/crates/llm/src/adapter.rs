@@ -108,7 +108,6 @@ impl LanguageModel for LanguageModelAdapter {
             let (tx, mut rx) = mpsc::channel::<String>(100);
 
             // Spawn the streaming task
-            let model_for_task = model.clone();
             let stream_task = tokio::spawn(async move {
                 backend.generate_stream(&messages, tx).await
             });

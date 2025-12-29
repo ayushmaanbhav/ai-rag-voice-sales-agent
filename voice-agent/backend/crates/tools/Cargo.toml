@@ -31,6 +31,8 @@ parking_lot.workspace = true
 uuid = { version = "1.6", features = ["v4", "serde"] }
 chrono = { workspace = true }
 once_cell.workspace = true
+# P3-3 FIX: Base64 encoding for MCP resource binary content
+base64 = "0.21"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -8,7 +8,17 @@ pub mod registry;
 pub mod gold_loan;
 pub mod integrations;
 
-pub use mcp::{Tool, ToolInput, ToolOutput, ToolSchema, ToolError};
+pub use mcp::{
+    // Core tool types (from voice_agent_core)
+    Tool, ToolInput, ToolOutput, ToolSchema, ToolError, InputSchema, PropertySchema,
+    ContentBlock, ErrorCode,
+    // P3-3 FIX: Full MCP protocol types
+    JsonRpcRequest, JsonRpcResponse, JsonRpcError, RequestId,
+    ToolCallParams, ProgressToken, ProgressParams,
+    Resource, ResourceContent, ResourceProvider,
+    ServerCapabilities, ToolCapabilities, ResourceCapabilities,
+    methods,
+};
 pub use registry::{
     ToolRegistry, ToolExecutor, IntegrationConfig, FullIntegrationConfig,
     create_registry_with_integrations, create_registry_with_persistence,
@@ -36,12 +46,9 @@ pub use integrations::{
     IntegrationError,
 };
 
-/// P2 FIX: Removed redundant ToolsError enum.
-/// Use mcp::ToolError for tool execution errors instead.
-/// This unifies error handling across the tools crate.
-
-impl From<ToolError> for voice_agent_core::Error {
-    fn from(err: ToolError) -> Self {
-        voice_agent_core::Error::Tool(voice_agent_core::error::ToolError::ExecutionFailed(err.to_string()))
-    }
-}
+// P2 FIX: Removed redundant ToolsError enum.
+// Use mcp::ToolError for tool execution errors instead.
+// This unifies error handling across the tools crate.
+//
+// P3 FIX: The From<ToolError> impl is now in voice_agent_core::error
+// since both types are defined in the core crate.
