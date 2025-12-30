@@ -147,7 +147,9 @@ impl DomainContext {
     /// Check if a word is domain vocabulary
     pub fn is_vocabulary(&self, word: &str) -> bool {
         let word_lower = word.to_lowercase();
-        self.vocabulary.iter().any(|v| v.to_lowercase() == word_lower)
+        self.vocabulary
+            .iter()
+            .any(|v| v.to_lowercase() == word_lower)
     }
 
     /// Check if text contains a competitor name

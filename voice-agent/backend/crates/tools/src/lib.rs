@@ -3,47 +3,68 @@
 //! Implements MCP (Model Context Protocol) compatible tool interface
 //! with domain-specific tools for gold loan operations.
 
-pub mod mcp;
-pub mod registry;
 pub mod gold_loan;
 pub mod integrations;
+pub mod mcp;
+pub mod registry;
 
-pub use mcp::{
-    // Core tool types (from voice_agent_core)
-    Tool, ToolInput, ToolOutput, ToolSchema, ToolError, InputSchema, PropertySchema,
-    ContentBlock, ErrorCode,
-    // P3-3 FIX: Full MCP protocol types
-    JsonRpcRequest, JsonRpcResponse, JsonRpcError, RequestId,
-    ToolCallParams, ProgressToken, ProgressParams,
-    Resource, ResourceContent, ResourceProvider,
-    ServerCapabilities, ToolCapabilities, ResourceCapabilities,
-    methods,
-};
-pub use registry::{
-    ToolRegistry, ToolExecutor, IntegrationConfig, FullIntegrationConfig,
-    create_registry_with_integrations, create_registry_with_persistence,
-    // P0-4 FIX: Domain config wiring with hot-reload
-    create_registry_with_config, create_registry_with_domain_config,
-    ConfigurableToolRegistry,
-};
 pub use gold_loan::{
-    EligibilityCheckTool,
-    SavingsCalculatorTool,
-    LeadCaptureTool,
-    AppointmentSchedulerTool,
-    BranchLocatorTool,
-    BranchData,
     get_branches,
     reload_branches,
+    AppointmentSchedulerTool,
+    BranchData,
+    BranchLocatorTool,
+    EligibilityCheckTool,
+    EscalateToHumanTool,
     // P0 FIX: New missing MCP tools
     GetGoldPriceTool,
-    EscalateToHumanTool,
+    LeadCaptureTool,
+    SavingsCalculatorTool,
     SendSmsTool,
 };
 pub use integrations::{
-    CrmIntegration, StubCrmIntegration, CrmLead, LeadSource, LeadStatus, InterestLevel,
-    CalendarIntegration, StubCalendarIntegration, Appointment, AppointmentPurpose, AppointmentStatus, TimeSlot,
-    IntegrationError,
+    Appointment, AppointmentPurpose, AppointmentStatus, CalendarIntegration, CrmIntegration,
+    CrmLead, IntegrationError, InterestLevel, LeadSource, LeadStatus, StubCalendarIntegration,
+    StubCrmIntegration, TimeSlot,
+};
+pub use mcp::{
+    methods,
+    ContentBlock,
+    ErrorCode,
+    InputSchema,
+    JsonRpcError,
+    // P3-3 FIX: Full MCP protocol types
+    JsonRpcRequest,
+    JsonRpcResponse,
+    ProgressParams,
+    ProgressToken,
+    PropertySchema,
+    RequestId,
+    Resource,
+    ResourceCapabilities,
+    ResourceContent,
+    ResourceProvider,
+    ServerCapabilities,
+    // Core tool types (from voice_agent_core)
+    Tool,
+    ToolCallParams,
+    ToolCapabilities,
+    ToolError,
+    ToolInput,
+    ToolOutput,
+    ToolSchema,
+};
+pub use registry::{
+    // P0-4 FIX: Domain config wiring with hot-reload
+    create_registry_with_config,
+    create_registry_with_domain_config,
+    create_registry_with_integrations,
+    create_registry_with_persistence,
+    ConfigurableToolRegistry,
+    FullIntegrationConfig,
+    IntegrationConfig,
+    ToolExecutor,
+    ToolRegistry,
 };
 
 // P2 FIX: Removed redundant ToolsError enum.

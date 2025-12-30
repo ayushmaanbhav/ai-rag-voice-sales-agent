@@ -49,7 +49,8 @@ impl FlowMatcher {
         let mut timesteps = Vec::with_capacity(num_steps + 1);
 
         for i in 0..=num_steps {
-            let t = self.config.t_max - (i as f32 / num_steps as f32) * (self.config.t_max - self.config.t_min);
+            let t = self.config.t_max
+                - (i as f32 / num_steps as f32) * (self.config.t_max - self.config.t_min);
             let t_sway = self.sway_schedule(t);
             timesteps.push(t_sway);
         }
@@ -147,7 +148,11 @@ impl FlowMatcher {
         // Pad reference mel to total_len if needed
         let ref_len = ref_mel.dim(1)?;
         let ref_padded = if ref_len < total_len {
-            let padding = Tensor::zeros((batch_size, total_len - ref_len, n_mels), DType::F32, device)?;
+            let padding = Tensor::zeros(
+                (batch_size, total_len - ref_len, n_mels),
+                DType::F32,
+                device,
+            )?;
             Tensor::cat(&[ref_mel.clone(), padding], 1)?
         } else {
             ref_mel.narrow(1, 0, total_len)?
@@ -156,9 +161,9 @@ impl FlowMatcher {
         // x = mask * noise + (1 - mask) * ref
         let ones = Tensor::ones_like(&mask_expanded)?;
         let inv_mask = ones.broadcast_sub(&mask_expanded)?;
-        let mut x = mask_expanded.broadcast_mul(&noise)?.broadcast_add(
-            &inv_mask.broadcast_mul(&ref_padded)?
-        )?;
+        let mut x = mask_expanded
+            .broadcast_mul(&noise)?
+            .broadcast_add(&inv_mask.broadcast_mul(&ref_padded)?)?;
 
         // Get timesteps
         let timesteps = self.get_timesteps(device)?;
@@ -188,9 +193,9 @@ impl FlowMatcher {
             x = x.broadcast_add(&x_update_masked)?;
 
             // Keep reference positions fixed
-            x = mask_expanded.broadcast_mul(&x)?.broadcast_add(
-                &inv_mask.broadcast_mul(&ref_padded)?
-            )?;
+            x = mask_expanded
+                .broadcast_mul(&x)?
+                .broadcast_add(&inv_mask.broadcast_mul(&ref_padded)?)?;
         }
 
         Ok(x)

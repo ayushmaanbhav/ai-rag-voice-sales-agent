@@ -105,7 +105,7 @@ impl Default for IndicF5Config {
             head_dim: 64,
             ff_mult: 4.0,
             n_mels: 100,
-            vocab_size: 256,  // Character-level for Hindi
+            vocab_size: 256, // Character-level for Hindi
             max_seq_len: 4096,
             dropout: 0.0,
             use_rope: true,
@@ -116,7 +116,7 @@ impl Default for IndicF5Config {
             time_dim: 256,
             sample_rate: 24000,
             hop_length: 256,
-            audio_segment_length: 24000 * 30,  // 30 seconds
+            audio_segment_length: 24000 * 30, // 30 seconds
             quantization: TtsQuantization::F32,
         }
     }
@@ -157,7 +157,7 @@ impl IndicF5Config {
             head_dim: 64,
             ff_mult: 4.0,
             n_mels: 100,
-            vocab_size: 2545,  // IndicF5 Hindi vocabulary
+            vocab_size: 2545, // IndicF5 Hindi vocabulary
             max_seq_len: 4096,
             dropout: 0.0,
             use_rope: true,
@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn test_ff_dim() {
         let config = IndicF5Config::default();
-        assert_eq!(config.ff_dim(), 4096);  // 1024 * 4.0
+        assert_eq!(config.ff_dim(), 4096); // 1024 * 4.0
     }
 
     #[test]
@@ -336,6 +336,6 @@ mod tests {
         let config = IndicF5Config::default();
         // 1 second at 24kHz with hop_length 256
         let frames = config.frames_for_duration(1.0);
-        assert_eq!(frames, 94);  // ceil(24000 / 256)
+        assert_eq!(frames, 94); // ceil(24000 / 256)
     }
 }

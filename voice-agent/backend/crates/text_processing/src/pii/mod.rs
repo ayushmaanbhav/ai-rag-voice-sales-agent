@@ -3,17 +3,17 @@
 //! Supports India-specific PII types: Aadhaar, PAN, IFSC, etc.
 //! P3 FIX: Added NER-based detection for names and addresses.
 
-mod patterns;
 mod detector;
 mod ner;
+mod patterns;
 
-pub use patterns::IndianPIIPatterns;
 pub use detector::HybridPIIDetector;
 pub use ner::NameAddressDetector;
+pub use patterns::IndianPIIPatterns;
 
-use voice_agent_core::{PIIRedactor, PIIType, RedactionStrategy};
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use voice_agent_core::{PIIRedactor, PIIType, RedactionStrategy};
 
 /// PII detection configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,9 +77,13 @@ impl From<RedactionStrategyConfig> for RedactionStrategy {
         match config {
             RedactionStrategyConfig::Mask => RedactionStrategy::Mask,
             RedactionStrategyConfig::TypeMask => RedactionStrategy::TypeMask,
-            RedactionStrategyConfig::PartialMask { visible_start, visible_end } => {
-                RedactionStrategy::PartialMask { visible_start, visible_end }
-            }
+            RedactionStrategyConfig::PartialMask {
+                visible_start,
+                visible_end,
+            } => RedactionStrategy::PartialMask {
+                visible_start,
+                visible_end,
+            },
             RedactionStrategyConfig::Remove => RedactionStrategy::Remove,
             RedactionStrategyConfig::Hash => RedactionStrategy::Hash,
         }
@@ -123,11 +127,18 @@ struct NoopDetector;
 
 #[async_trait::async_trait]
 impl PIIRedactor for NoopDetector {
-    async fn detect(&self, _text: &str) -> voice_agent_core::Result<Vec<voice_agent_core::PIIEntity>> {
+    async fn detect(
+        &self,
+        _text: &str,
+    ) -> voice_agent_core::Result<Vec<voice_agent_core::PIIEntity>> {
         Ok(vec![])
     }
 
-    async fn redact(&self, text: &str, _strategy: &RedactionStrategy) -> voice_agent_core::Result<String> {
+    async fn redact(
+        &self,
+        text: &str,
+        _strategy: &RedactionStrategy,
+    ) -> voice_agent_core::Result<String> {
         Ok(text.to_string())
     }
 

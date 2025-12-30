@@ -20,19 +20,20 @@
 //! assert!(result.confidence > 0.7);
 //! ```
 
-use std::collections::HashSet;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 /// Sentiment categories for customer interactions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum Sentiment {
     /// Customer is positive, interested, agreeable
     Positive,
     /// Customer is negative, unhappy, disagreeable
     Negative,
     /// Customer is neutral, informational
+    #[default]
     Neutral,
     /// Customer is specifically frustrated (subset of Negative)
     Frustrated,
@@ -60,12 +61,6 @@ impl Sentiment {
             Sentiment::Negative => -0.5,
             Sentiment::Frustrated => -1.0,
         }
-    }
-}
-
-impl Default for Sentiment {
-    fn default() -> Self {
-        Sentiment::Neutral
     }
 }
 
@@ -121,45 +116,141 @@ impl Default for SentimentConfig {
 // Positive patterns (English)
 static POSITIVE_ENGLISH: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "thank you", "thanks", "great", "good", "excellent", "perfect",
-        "wonderful", "amazing", "helpful", "appreciate", "happy", "glad",
-        "pleased", "satisfied", "love", "like", "yes", "sure", "okay",
-        "sounds good", "that's great", "works for me", "i agree",
-        "interested", "tell me more", "go ahead", "proceed",
-    ].into_iter().collect()
+        "thank you",
+        "thanks",
+        "great",
+        "good",
+        "excellent",
+        "perfect",
+        "wonderful",
+        "amazing",
+        "helpful",
+        "appreciate",
+        "happy",
+        "glad",
+        "pleased",
+        "satisfied",
+        "love",
+        "like",
+        "yes",
+        "sure",
+        "okay",
+        "sounds good",
+        "that's great",
+        "works for me",
+        "i agree",
+        "interested",
+        "tell me more",
+        "go ahead",
+        "proceed",
+    ]
+    .into_iter()
+    .collect()
 });
 
 // Positive patterns (Hindi/Hinglish)
 static POSITIVE_HINDI: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "धन्यवाद", "शुक्रिया", "बहुत अच्छा", "अच्छा", "बढ़िया", "शानदार",
-        "हाँ", "हां", "जी हाँ", "जी", "ठीक है", "ठीक", "चलो",
-        "मुझे पसंद", "खुश", "संतुष्ट", "shukriya", "bahut accha",
-        "accha", "badhiya", "haan", "ji", "theek hai", "theek",
-        "mujhe pasand", "khush", "interested hun", "batao",
-    ].into_iter().collect()
+        "धन्यवाद",
+        "शुक्रिया",
+        "बहुत अच्छा",
+        "अच्छा",
+        "बढ़िया",
+        "शानदार",
+        "हाँ",
+        "हां",
+        "जी हाँ",
+        "जी",
+        "ठीक है",
+        "ठीक",
+        "चलो",
+        "मुझे पसंद",
+        "खुश",
+        "संतुष्ट",
+        "shukriya",
+        "bahut accha",
+        "accha",
+        "badhiya",
+        "haan",
+        "ji",
+        "theek hai",
+        "theek",
+        "mujhe pasand",
+        "khush",
+        "interested hun",
+        "batao",
+    ]
+    .into_iter()
+    .collect()
 });
 
 // Negative patterns (English)
 static NEGATIVE_ENGLISH: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "no", "not interested", "don't want", "bad", "poor", "terrible",
-        "awful", "horrible", "disappointed", "unhappy", "angry", "upset",
-        "annoyed", "frustrated", "confused", "don't understand",
-        "waste of time", "not helpful", "useless", "wrong", "incorrect",
-        "stop", "cancel", "end", "quit", "bye", "goodbye",
-    ].into_iter().collect()
+        "no",
+        "not interested",
+        "don't want",
+        "bad",
+        "poor",
+        "terrible",
+        "awful",
+        "horrible",
+        "disappointed",
+        "unhappy",
+        "angry",
+        "upset",
+        "annoyed",
+        "frustrated",
+        "confused",
+        "don't understand",
+        "waste of time",
+        "not helpful",
+        "useless",
+        "wrong",
+        "incorrect",
+        "stop",
+        "cancel",
+        "end",
+        "quit",
+        "bye",
+        "goodbye",
+    ]
+    .into_iter()
+    .collect()
 });
 
 // Negative patterns (Hindi/Hinglish)
 static NEGATIVE_HINDI: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "नहीं", "नही", "मुझे नहीं चाहिए", "बुरा", "खराब", "गलत",
-        "निराश", "नाराज़", "परेशान", "समझ नहीं आया", "बंद करो",
-        "रुको", "छोड़ो", "nahi", "nahi chahiye", "bura", "kharab",
-        "galat", "nirash", "naraz", "pareshan", "samajh nahi aaya",
-        "band karo", "ruko", "chodo", "time waste",
-    ].into_iter().collect()
+        "नहीं",
+        "नही",
+        "मुझे नहीं चाहिए",
+        "बुरा",
+        "खराब",
+        "गलत",
+        "निराश",
+        "नाराज़",
+        "परेशान",
+        "समझ नहीं आया",
+        "बंद करो",
+        "रुको",
+        "छोड़ो",
+        "nahi",
+        "nahi chahiye",
+        "bura",
+        "kharab",
+        "galat",
+        "nirash",
+        "naraz",
+        "pareshan",
+        "samajh nahi aaya",
+        "band karo",
+        "ruko",
+        "chodo",
+        "time waste",
+    ]
+    .into_iter()
+    .collect()
 });
 
 // Frustration patterns (stronger negative signals)
@@ -167,18 +258,46 @@ static NEGATIVE_HINDI: Lazy<HashSet<&'static str>> = Lazy::new(|| {
 static FRUSTRATION_PATTERNS: Lazy<Vec<(Regex, f32)>> = Lazy::new(|| {
     vec![
         // English frustration (standard weight)
-        (Regex::new(r"(?i)\b(frustrat|irritat|annoy|angry|furious|fed up)\w*\b").unwrap(), 0.7),
-        (Regex::new(r"(?i)\b(waste\s+(of\s+)?(my\s+)?time)\b").unwrap(), 0.5),
-        (Regex::new(r"(?i)\b(not\s+listening|don'?t\s+understand|how\s+many\s+times)\b").unwrap(), 0.5),
+        (
+            Regex::new(r"(?i)\b(frustrat|irritat|annoy|angry|furious|fed up)\w*\b").unwrap(),
+            0.7,
+        ),
+        (
+            Regex::new(r"(?i)\b(waste\s+(of\s+)?(my\s+)?time)\b").unwrap(),
+            0.5,
+        ),
+        (
+            Regex::new(r"(?i)\b(not\s+listening|don'?t\s+understand|how\s+many\s+times)\b")
+                .unwrap(),
+            0.5,
+        ),
         // Escalation patterns - wanting to talk to human (high weight - strong frustration signal)
-        (Regex::new(r"(?i)(talk|speak|connect).*(human|person|real)").unwrap(), 0.7),
-        (Regex::new(r"(?i)(want|need).*(human|person|agent|manager)").unwrap(), 0.7),
-        (Regex::new(r"(?i)\b(this\s+is\s+(so\s+)?(stupid|useless|ridiculous))\b").unwrap(), 0.7),
+        (
+            Regex::new(r"(?i)(talk|speak|connect).*(human|person|real)").unwrap(),
+            0.7,
+        ),
+        (
+            Regex::new(r"(?i)(want|need).*(human|person|agent|manager)").unwrap(),
+            0.7,
+        ),
+        (
+            Regex::new(r"(?i)\b(this\s+is\s+(so\s+)?(stupid|useless|ridiculous))\b").unwrap(),
+            0.7,
+        ),
         // Hindi frustration
-        (Regex::new(r"(?i)(परेशान|गुस्सा|नाराज़|तंग|थक गया|बोर)").unwrap(), 0.7),
-        (Regex::new(r"(?i)(समझ\s+में\s+नहीं|क्या\s+बकवास|कितनी\s+बार)").unwrap(), 0.6),
+        (
+            Regex::new(r"(?i)(परेशान|गुस्सा|नाराज़|तंग|थक गया|बोर)").unwrap(),
+            0.7,
+        ),
+        (
+            Regex::new(r"(?i)(समझ\s+में\s+नहीं|क्या\s+बकवास|कितनी\s+बार)").unwrap(),
+            0.6,
+        ),
         (Regex::new(r"(?i)insaan\s*se\s*baat").unwrap(), 0.7),
-        (Regex::new(r"(?i)(aadmi\s+se\s+connect|manager\s+se)").unwrap(), 0.7),
+        (
+            Regex::new(r"(?i)(aadmi\s+se\s+connect|manager\s+se)").unwrap(),
+            0.7,
+        ),
     ]
 });
 
@@ -189,7 +308,8 @@ static SATISFACTION_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
         Regex::new(r"(?i)\b(very\s+help(ful|ed)|really\s+(good|great|helpful))\b").unwrap(),
         Regex::new(r"(?i)\b(exactly\s+what\s+i\s+(need|want)ed?)\b").unwrap(),
         Regex::new(r"(?i)\b(thank\s+you\s+(so\s+much|very\s+much))\b").unwrap(),
-        Regex::new(r"(?i)\b(excellent|perfect|wonderful|amazing)\s+(service|help|information)\b").unwrap(),
+        Regex::new(r"(?i)\b(excellent|perfect|wonderful|amazing)\s+(service|help|information)\b")
+            .unwrap(),
         Regex::new(r"(?i)\b(i('m|\s+am)\s+(very\s+)?(happy|pleased|satisfied))\b").unwrap(),
         // Hindi satisfaction
         Regex::new(r"(?i)(बहुत\s+(अच्छा|बढ़िया|शुक्रिया|धन्यवाद))").unwrap(),
@@ -201,19 +321,39 @@ static SATISFACTION_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
 // Domain-specific positive patterns (gold loan context)
 static DOMAIN_POSITIVE: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "good rate", "better rate", "lower interest", "quick process",
-        "easy documentation", "nearby branch", "same day",
-        "achcha rate", "kam interest", "jaldi", "aasan",
-    ].into_iter().collect()
+        "good rate",
+        "better rate",
+        "lower interest",
+        "quick process",
+        "easy documentation",
+        "nearby branch",
+        "same day",
+        "achcha rate",
+        "kam interest",
+        "jaldi",
+        "aasan",
+    ]
+    .into_iter()
+    .collect()
 });
 
 // Domain-specific negative patterns (gold loan context)
 static DOMAIN_NEGATIVE: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "high interest", "too expensive", "too far", "complicated",
-        "too much documentation", "hidden charges", "not safe",
-        "zyada interest", "bahut door", "mushkil", "safe nahi",
-    ].into_iter().collect()
+        "high interest",
+        "too expensive",
+        "too far",
+        "complicated",
+        "too much documentation",
+        "hidden charges",
+        "not safe",
+        "zyada interest",
+        "bahut door",
+        "mushkil",
+        "safe nahi",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Sentiment Analyzer for customer conversations
@@ -340,20 +480,36 @@ impl SentimentAnalyzer {
         let mut matched = Vec::new();
 
         // English patterns
-        let english_set = if positive { &*POSITIVE_ENGLISH } else { &*NEGATIVE_ENGLISH };
+        let english_set = if positive {
+            &*POSITIVE_ENGLISH
+        } else {
+            &*NEGATIVE_ENGLISH
+        };
         for pattern in english_set.iter() {
             if text.contains(pattern) {
-                matched.push(format!("{}:{}", if positive { "pos" } else { "neg" }, pattern));
+                matched.push(format!(
+                    "{}:{}",
+                    if positive { "pos" } else { "neg" },
+                    pattern
+                ));
                 score += 0.2;
             }
         }
 
         // Hindi patterns
         if self.config.enable_hindi {
-            let hindi_set = if positive { &*POSITIVE_HINDI } else { &*NEGATIVE_HINDI };
+            let hindi_set = if positive {
+                &*POSITIVE_HINDI
+            } else {
+                &*NEGATIVE_HINDI
+            };
             for pattern in hindi_set.iter() {
                 if text.contains(pattern) {
-                    matched.push(format!("{}:{}", if positive { "pos_hi" } else { "neg_hi" }, pattern));
+                    matched.push(format!(
+                        "{}:{}",
+                        if positive { "pos_hi" } else { "neg_hi" },
+                        pattern
+                    ));
                     score += 0.2;
                 }
             }
@@ -361,10 +517,18 @@ impl SentimentAnalyzer {
 
         // Domain patterns
         if self.config.enable_domain_patterns {
-            let domain_set = if positive { &*DOMAIN_POSITIVE } else { &*DOMAIN_NEGATIVE };
+            let domain_set = if positive {
+                &*DOMAIN_POSITIVE
+            } else {
+                &*DOMAIN_NEGATIVE
+            };
             for pattern in domain_set.iter() {
                 if text.contains(pattern) {
-                    matched.push(format!("{}:{}", if positive { "domain_pos" } else { "domain_neg" }, pattern));
+                    matched.push(format!(
+                        "{}:{}",
+                        if positive { "domain_pos" } else { "domain_neg" },
+                        pattern
+                    ));
                     score += 0.25;
                 }
             }
@@ -513,7 +677,7 @@ mod tests {
     fn test_conversation_analysis() {
         let analyzer = SentimentAnalyzer::new();
         let texts = vec![
-            "What is the interest rate?",  // Neutral
+            "What is the interest rate?",   // Neutral
             "That seems high",              // Slight negative
             "Actually, that's a good rate", // Positive
             "Thank you, I'm interested!",   // Positive

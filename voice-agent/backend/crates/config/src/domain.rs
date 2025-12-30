@@ -2,17 +2,14 @@
 //!
 //! Unified interface for loading and accessing all domain-specific configuration.
 
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use parking_lot::RwLock;
 
 use crate::{
-    GoldLoanConfig, ConfigError,
-    branch::BranchConfig,
-    product::ProductConfig,
-    competitor::CompetitorConfig,
-    prompts::PromptTemplates,
+    branch::BranchConfig, competitor::CompetitorConfig, product::ProductConfig,
+    prompts::PromptTemplates, ConfigError, GoldLoanConfig,
 };
 
 /// Complete domain configuration
@@ -76,11 +73,10 @@ impl DomainConfig {
             return Err(ConfigError::FileNotFound(path.display().to_string()));
         }
 
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
+        let content =
+            std::fs::read_to_string(path).map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
-        serde_yaml::from_str(&content)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))
+        serde_yaml::from_str(&content).map_err(|e| ConfigError::ParseError(e.to_string()))
     }
 
     /// Load from JSON file
@@ -90,20 +86,18 @@ impl DomainConfig {
             return Err(ConfigError::FileNotFound(path.display().to_string()));
         }
 
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
+        let content =
+            std::fs::read_to_string(path).map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))
+        serde_json::from_str(&content).map_err(|e| ConfigError::ParseError(e.to_string()))
     }
 
     /// Save to YAML file
     pub fn to_yaml_file(&self, path: impl AsRef<Path>) -> Result<(), ConfigError> {
-        let content = serde_yaml::to_string(self)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))?;
+        let content =
+            serde_yaml::to_string(self).map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
-        std::fs::write(path, content)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))
+        std::fs::write(path, content).map_err(|e| ConfigError::ParseError(e.to_string()))
     }
 
     /// Save to JSON file
@@ -111,8 +105,7 @@ impl DomainConfig {
         let content = serde_json::to_string_pretty(self)
             .map_err(|e| ConfigError::ParseError(e.to_string()))?;
 
-        std::fs::write(path, content)
-            .map_err(|e| ConfigError::ParseError(e.to_string()))
+        std::fs::write(path, content).map_err(|e| ConfigError::ParseError(e.to_string()))
     }
 
     /// Validate configuration
@@ -140,10 +133,7 @@ impl DomainConfig {
 
         // LTV validation (0-90% per RBI guidelines for gold loans)
         if gl.ltv_percent <= 0.0 || gl.ltv_percent > 90.0 {
-            errors.push(format!(
-                "LTV {} out of valid range (0-90%)",
-                gl.ltv_percent
-            ));
+            errors.push(format!("LTV {} out of valid range (0-90%)", gl.ltv_percent));
         }
 
         // Tiered rate ordering validation (higher tiers should have lower rates)
@@ -327,7 +317,10 @@ impl DomainConfig {
 
         // Add competitors from other
         for (id, competitor) in &other.competitors.competitors {
-            self.competitors.competitors.entry(id.clone()).or_insert(competitor.clone());
+            self.competitors
+                .competitors
+                .entry(id.clone())
+                .or_insert(competitor.clone());
         }
     }
 }
@@ -374,7 +367,9 @@ impl DomainConfigManager {
 
     /// Reload configuration from file
     pub fn reload(&self) -> Result<(), ConfigError> {
-        let path = self.config_path.as_ref()
+        let path = self
+            .config_path
+            .as_ref()
             .ok_or_else(|| ConfigError::FileNotFound("No config path set".to_string()))?;
 
         let new_config = if path.ends_with(".yaml") || path.ends_with(".yml") {
@@ -450,12 +445,20 @@ impl DomainConfigManager {
     ) -> Option<crate::competitor::MonthlySavings> {
         let config = self.config.read();
         let kotak_rate = config.gold_loan.get_tiered_rate(loan_amount);
-        config.competitors.calculate_savings(competitor, loan_amount, kotak_rate)
+        config
+            .competitors
+            .calculate_savings(competitor, loan_amount, kotak_rate)
     }
 
     /// Find nearby branches
     pub fn find_branches_by_city(&self, city: &str) -> Vec<crate::branch::Branch> {
-        self.config.read().branches.find_by_city(city).into_iter().cloned().collect()
+        self.config
+            .read()
+            .branches
+            .find_by_city(city)
+            .into_iter()
+            .cloned()
+            .collect()
     }
 
     /// Check doorstep service availability
@@ -465,7 +468,10 @@ impl DomainConfigManager {
 
     /// Get system prompt for stage
     pub fn get_system_prompt(&self, stage: Option<&str>, customer_name: Option<&str>) -> String {
-        self.config.read().prompts.build_system_prompt(stage, customer_name)
+        self.config
+            .read()
+            .prompts
+            .build_system_prompt(stage, customer_name)
     }
 
     /// Get greeting for current time
@@ -484,7 +490,7 @@ impl Default for DomainConfigManager {
 
 /// Global domain configuration instance
 static DOMAIN_CONFIG: once_cell::sync::Lazy<DomainConfigManager> =
-    once_cell::sync::Lazy::new(|| DomainConfigManager::new());
+    once_cell::sync::Lazy::new(DomainConfigManager::new);
 
 /// Get global domain configuration
 pub fn domain_config() -> &'static DomainConfigManager {
@@ -550,7 +556,10 @@ mod tests {
         config.gold_loan.tiered_rates.tier2_rate = 10.0;
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().iter().any(|e| e.contains("Tier 1 rate")));
+        assert!(result
+            .unwrap_err()
+            .iter()
+            .any(|e| e.contains("Tier 1 rate")));
     }
 
     #[test]
@@ -572,7 +581,10 @@ mod tests {
         config.gold_loan.processing_fee_percent = 6.0;
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().iter().any(|e| e.contains("Processing fee")));
+        assert!(result
+            .unwrap_err()
+            .iter()
+            .any(|e| e.contains("Processing fee")));
     }
 
     #[test]

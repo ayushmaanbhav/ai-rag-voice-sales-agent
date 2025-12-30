@@ -4,15 +4,15 @@
 //! - Whisper (via ONNX)
 //! - IndicConformer (for Indian languages)
 
-mod streaming;
 mod decoder;
-mod vocab;
 mod indicconformer;
+mod streaming;
+mod vocab;
 
+pub use decoder::{DecoderConfig, EnhancedDecoder};
+pub use indicconformer::{IndicConformerConfig, IndicConformerStt, MelFilterbank};
 pub use streaming::{StreamingStt, SttConfig, SttEngine};
-pub use decoder::{EnhancedDecoder, DecoderConfig};
-pub use vocab::{Vocabulary, load_vocabulary, load_domain_vocab};
-pub use indicconformer::{IndicConformerStt, IndicConformerConfig, MelFilterbank};
+pub use vocab::{load_domain_vocab, load_vocabulary, Vocabulary};
 
 use crate::PipelineError;
 use voice_agent_core::TranscriptResult;
@@ -21,7 +21,10 @@ use voice_agent_core::TranscriptResult;
 #[async_trait::async_trait]
 pub trait SttBackend: Send + Sync {
     /// Process audio chunk and return partial transcript
-    async fn process_chunk(&mut self, audio: &[f32]) -> Result<Option<TranscriptResult>, PipelineError>;
+    async fn process_chunk(
+        &mut self,
+        audio: &[f32],
+    ) -> Result<Option<TranscriptResult>, PipelineError>;
 
     /// Finalize and return final transcript
     async fn finalize(&mut self) -> Result<TranscriptResult, PipelineError>;

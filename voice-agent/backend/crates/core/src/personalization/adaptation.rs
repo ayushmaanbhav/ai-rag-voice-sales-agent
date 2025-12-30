@@ -6,9 +6,9 @@
 //! - Value proposition customization
 //! - Competitive positioning
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::CustomerSegment;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Feature to emphasize in responses
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -137,10 +137,7 @@ impl Objection {
             return Some(Objection::TooMuchPaperwork);
         }
 
-        if lower.contains("switch")
-            || lower.contains("change")
-            || lower.contains("badalna")
-        {
+        if lower.contains("switch") || lower.contains("change") || lower.contains("badalna") {
             return Some(Objection::DontWantToSwitch);
         }
 
@@ -152,24 +149,15 @@ impl Objection {
             return Some(Objection::NeedsTime);
         }
 
-        if lower.contains("trust")
-            || lower.contains("bharosa")
-            || lower.contains("fraud")
-        {
+        if lower.contains("trust") || lower.contains("bharosa") || lower.contains("fraud") {
             return Some(Objection::TrustIssues);
         }
 
-        if lower.contains("hidden")
-            || lower.contains("chhupe")
-            || lower.contains("extra charge")
-        {
+        if lower.contains("hidden") || lower.contains("chhupe") || lower.contains("extra charge") {
             return Some(Objection::ExpectsHiddenCharges);
         }
 
-        if lower.contains("slow")
-            || lower.contains("time lag")
-            || lower.contains("kitna din")
-        {
+        if lower.contains("slow") || lower.contains("time lag") || lower.contains("kitna din") {
             return Some(Objection::TooSlow);
         }
 
@@ -181,10 +169,7 @@ impl Objection {
             return Some(Objection::NoNearbyBranch);
         }
 
-        if lower.contains("other loan")
-            || lower.contains("already")
-            || lower.contains("pehle se")
-        {
+        if lower.contains("other loan") || lower.contains("already") || lower.contains("pehle se") {
             return Some(Objection::ExistingLoans);
         }
 
@@ -308,7 +293,8 @@ impl SegmentAdapter {
         self.value_propositions.insert(
             CustomerSegment::TrustSeeker,
             vec![
-                "Kotak is an RBI-regulated scheduled bank with highest safety standards".to_string(),
+                "Kotak is an RBI-regulated scheduled bank with highest safety standards"
+                    .to_string(),
                 "Your gold is stored in bank-grade security vaults with full insurance".to_string(),
                 "Digital tracking lets you monitor your gold status anytime".to_string(),
             ],
@@ -509,7 +495,8 @@ impl SegmentAdapter {
         objection: Objection,
         response: ObjectionResponse,
     ) {
-        self.objection_responses.insert((segment, objection), response);
+        self.objection_responses
+            .insert((segment, objection), response);
     }
 }
 
@@ -525,7 +512,10 @@ mod tests {
 
     #[test]
     fn test_feature_display() {
-        assert_eq!(Feature::LowRates.display_name(), "Competitive Interest Rates");
+        assert_eq!(
+            Feature::LowRates.display_name(),
+            "Competitive Interest Rates"
+        );
         assert_eq!(Feature::Security.hindi_name(), "Surakshit");
     }
 

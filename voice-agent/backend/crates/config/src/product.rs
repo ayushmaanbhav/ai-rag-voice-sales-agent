@@ -78,7 +78,8 @@ impl ProductVariant {
         Self {
             id: "standard".to_string(),
             name: "Kotak Gold Loan".to_string(),
-            description: "Standard gold loan with competitive rates and flexible repayment".to_string(),
+            description: "Standard gold loan with competitive rates and flexible repayment"
+                .to_string(),
             target_segment: vec!["all".to_string()],
             interest_rate_min: 9.5,
             interest_rate_max: 11.5,
@@ -135,7 +136,8 @@ impl ProductVariant {
         Self {
             id: "overdraft".to_string(),
             name: "Kotak Gold Overdraft".to_string(),
-            description: "Revolving credit against gold - pay interest only on used amount".to_string(),
+            description: "Revolving credit against gold - pay interest only on used amount"
+                .to_string(),
             target_segment: vec!["high_value".to_string(), "business".to_string()],
             interest_rate_min: 10.5,
             interest_rate_max: 12.5,
@@ -321,13 +323,11 @@ impl Default for DocumentationConfig {
                     ],
                 },
             ],
-            optional: vec![
-                DocumentRequirement {
-                    name: "Passport Photo".to_string(),
-                    description: "Recent passport-size photograph".to_string(),
-                    alternatives: vec![],
-                },
-            ],
+            optional: vec![DocumentRequirement {
+                name: "Passport Photo".to_string(),
+                description: "Recent passport-size photograph".to_string(),
+                alternatives: vec![],
+            }],
             ekyc_enabled: true,
             video_kyc_enabled: true,
         }
@@ -369,7 +369,8 @@ impl Default for ProductFeatures {
             key_selling_points: vec![
                 SellingPoint {
                     headline: "30-Minute Approval".to_string(),
-                    description: "Get your loan approved in just 30 minutes at the branch".to_string(),
+                    description: "Get your loan approved in just 30 minutes at the branch"
+                        .to_string(),
                     icon: "clock".to_string(),
                 },
                 SellingPoint {
@@ -615,7 +616,10 @@ impl ProductConfig {
             .iter()
             .filter(|v| {
                 v.active
-                    && (v.target_segment.iter().any(|s| s.to_lowercase() == segment_lower)
+                    && (v
+                        .target_segment
+                        .iter()
+                        .any(|s| s.to_lowercase() == segment_lower)
                         || v.target_segment.contains(&"all".to_string()))
             })
             .collect()
@@ -635,7 +639,7 @@ impl ProductConfig {
                 let min = self.fees.processing_fee.min_amount.unwrap_or(0.0);
                 let max = self.fees.processing_fee.max_amount.unwrap_or(f64::MAX);
                 fee.max(min).min(max)
-            }
+            },
             FeeType::Free | FeeType::Included => 0.0,
         }
     }

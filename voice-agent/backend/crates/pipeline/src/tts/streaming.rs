@@ -2,9 +2,9 @@
 //!
 //! Word-level streaming with barge-in support.
 
+use parking_lot::Mutex;
 use std::path::Path;
 use std::sync::Arc;
-use parking_lot::Mutex;
 use tokio::sync::mpsc;
 
 #[cfg(feature = "onnx")]
@@ -12,7 +12,7 @@ use ndarray::Array2;
 #[cfg(feature = "onnx")]
 use ort::{GraphOptimizationLevel, Session};
 
-use super::chunker::{WordChunker, ChunkerConfig, ChunkStrategy, TextChunk};
+use super::chunker::{ChunkStrategy, ChunkerConfig, TextChunk, WordChunker};
 use super::TtsBackend;
 use crate::PipelineError;
 
@@ -173,7 +173,9 @@ impl StreamingTts {
         if *self.barge_in.lock() {
             *self.synthesizing.lock() = false;
             let word_idx = *self.current_word.lock();
-            return Ok(Some(TtsEvent::BargedIn { word_index: word_idx }));
+            return Ok(Some(TtsEvent::BargedIn {
+                word_index: word_idx,
+            }));
         }
 
         if !*self.synthesizing.lock() {
@@ -199,11 +201,11 @@ impl StreamingTts {
                     word_indices: text_chunk.word_indices,
                     is_final: text_chunk.is_final,
                 }))
-            }
+            },
             None => {
                 *self.synthesizing.lock() = false;
                 Ok(Some(TtsEvent::Complete))
-            }
+            },
         }
     }
 
@@ -217,38 +219,30 @@ impl StreamingTts {
                 // Return silence of appropriate length (sample_rate samples per second)
                 let duration_samples = chunk.text.len() * (self.config.sample_rate as usize / 20); // ~50ms per char
                 return Ok(vec![0.0f32; duration_samples]);
-            }
+            },
         };
 
-        let text_ids: Vec<i64> = chunk.text.chars()
-            .map(|c| c as i64)
-            .collect();
+        let text_ids: Vec<i64> = chunk.text.chars().map(|c| c as i64).collect();
 
-        let input = Array2::from_shape_vec(
-            (1, text_ids.len()),
-            text_ids,
-        ).map_err(|e| PipelineError::Tts(e.to_string()))?;
+        let input = Array2::from_shape_vec((1, text_ids.len()), text_ids)
+            .map_err(|e| PipelineError::Tts(e.to_string()))?;
 
-        let input_lengths = Array2::from_shape_vec(
-            (1, 1),
-            vec![chunk.text.len() as i64],
-        ).map_err(|e| PipelineError::Tts(e.to_string()))?;
+        let input_lengths = Array2::from_shape_vec((1, 1), vec![chunk.text.len() as i64])
+            .map_err(|e| PipelineError::Tts(e.to_string()))?;
 
-        let scales = Array2::from_shape_vec(
-            (1, 3),
-            vec![
-                0.667,
-                self.config.speaking_rate,
-                0.8,
-            ],
-        ).map_err(|e| PipelineError::Tts(e.to_string()))?;
+        let scales = Array2::from_shape_vec((1, 3), vec![0.667, self.config.speaking_rate, 0.8])
+            .map_err(|e| PipelineError::Tts(e.to_string()))?;
 
-        let outputs = session.run(ort::inputs![
-            "input" => input.view(),
-            "input_lengths" => input_lengths.view(),
-            "scales" => scales.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(e.to_string()))?;
+        let outputs = session
+            .run(
+                ort::inputs![
+                    "input" => input.view(),
+                    "input_lengths" => input_lengths.view(),
+                    "scales" => scales.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         let audio = outputs
             .get("output")

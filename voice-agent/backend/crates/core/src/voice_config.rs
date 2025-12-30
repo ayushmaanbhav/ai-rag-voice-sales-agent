@@ -1,7 +1,7 @@
 //! Voice configuration types for TTS
 
-use serde::{Deserialize, Serialize};
 use crate::language::Language;
+use serde::{Deserialize, Serialize};
 
 /// Voice configuration for TTS
 #[derive(Debug, Clone, Serialize, Deserialize)]

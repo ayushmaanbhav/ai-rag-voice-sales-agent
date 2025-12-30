@@ -42,7 +42,9 @@ impl Module for LayerNorm {
         let x_centered = x.broadcast_sub(&mean)?;
         let var = x_centered.sqr()?.mean_keepdim(candle_core::D::Minus1)?;
         let x_norm = x_centered.broadcast_div(&(var + self.eps)?.sqrt()?)?;
-        let out = x_norm.broadcast_mul(&self.weight)?.broadcast_add(&self.bias)?;
+        let out = x_norm
+            .broadcast_mul(&self.weight)?
+            .broadcast_add(&self.bias)?;
         out.to_dtype(x_dtype)
     }
 }
@@ -142,7 +144,8 @@ impl AdaLayerNorm {
     /// Apply modulation to input: x * (1 + scale) + shift
     pub fn modulate(x: &Tensor, shift: &Tensor, scale: &Tensor) -> Result<Tensor> {
         let ones = Tensor::ones_like(scale)?;
-        x.broadcast_mul(&ones.broadcast_add(scale)?)?.broadcast_add(shift)
+        x.broadcast_mul(&ones.broadcast_add(scale)?)?
+            .broadcast_add(shift)
     }
 }
 

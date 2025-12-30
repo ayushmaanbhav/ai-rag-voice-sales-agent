@@ -2,24 +2,30 @@
 //!
 //! Main agent implementation combining all components.
 
+use parking_lot::RwLock;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use parking_lot::RwLock;
 
-use voice_agent_llm::{PromptBuilder, Message, Role, OllamaBackend, LlmConfig, LanguageModelAdapter};
+use voice_agent_llm::{
+    LanguageModelAdapter, LlmConfig, Message, OllamaBackend, PromptBuilder, Role,
+};
 // P1 FIX: Use LanguageModel trait from core for proper abstraction
 use voice_agent_core::LanguageModel;
+// P0-2 FIX: Import ToolDefinition and FinishReason for LLM tool calling
+use voice_agent_core::{FinishReason, ToolDefinition};
 // P0 FIX: Import PersonaConfig from the single source of truth
 use voice_agent_config::PersonaConfig;
-use voice_agent_tools::{ToolRegistry, ToolExecutor};
+use voice_agent_tools::{ToolExecutor, ToolRegistry};
 // P1 FIX: Import RAG components for retrieval-augmented generation
-use voice_agent_rag::{HybridRetriever, RetrieverConfig, RerankerConfig, VectorStore, SearchResult};
+use voice_agent_rag::{
+    HybridRetriever, RerankerConfig, RetrieverConfig, SearchResult, VectorStore,
+};
 // P4 FIX: Import personalization engine for dynamic response adaptation
-use voice_agent_core::personalization::{PersonalizationEngine, PersonalizationContext};
+use voice_agent_core::personalization::{PersonalizationContext, PersonalizationEngine};
 // P5 FIX: Import translator for Translate-Think-Translate pattern
 use voice_agent_core::{Language, Translator};
 use voice_agent_text_processing::translation::{
-    CandleIndicTrans2Translator, CandleIndicTrans2Config,
+    CandleIndicTrans2Config, CandleIndicTrans2Translator,
 };
 
 use crate::conversation::{Conversation, ConversationConfig, ConversationEvent, EndReason};
@@ -165,10 +171,7 @@ impl GoldLoanAgent {
     pub fn new(session_id: impl Into<String>, config: AgentConfig) -> Self {
         let (event_tx, _) = broadcast::channel(100);
 
-        let conversation = Arc::new(Conversation::new(
-            session_id,
-            config.conversation.clone(),
-        ));
+        let conversation = Arc::new(Conversation::new(session_id, config.conversation.clone()));
 
         let tools = Arc::new(voice_agent_tools::registry::create_default_registry());
 
@@ -200,8 +203,7 @@ impl GoldLoanAgent {
         let personalization_ctx = PersonalizationContext::new();
 
         // P5 FIX: Parse user language and create translator if not English
-        let user_language = Language::from_str_loose(&config.language)
-            .unwrap_or(Language::Hindi);
+        let user_language = Language::from_str_loose(&config.language).unwrap_or(Language::Hindi);
 
         // Only create translator if user language is not English
         let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
@@ -213,14 +215,14 @@ impl GoldLoanAgent {
                         "Translator initialized for Translate-Think-Translate pattern"
                     );
                     Some(Arc::new(t) as Arc<dyn Translator>)
-                }
+                },
                 Err(e) => {
                     tracing::warn!(
                         error = %e,
                         "Failed to create translator, responses will be in English"
                     );
                     None
-                }
+                },
             }
         } else {
             tracing::debug!("English language selected, translator not needed");
@@ -256,10 +258,7 @@ impl GoldLoanAgent {
     ) -> Self {
         let (event_tx, _) = broadcast::channel(100);
 
-        let conversation = Arc::new(Conversation::new(
-            session_id,
-            config.conversation.clone(),
-        ));
+        let conversation = Arc::new(Conversation::new(session_id, config.conversation.clone()));
 
         let tools = Arc::new(voice_agent_tools::registry::create_default_registry());
 
@@ -281,8 +280,7 @@ impl GoldLoanAgent {
         let personalization_ctx = PersonalizationContext::new();
 
         // P5 FIX: Parse user language and create translator if not English
-        let user_language = Language::from_str_loose(&config.language)
-            .unwrap_or(Language::Hindi);
+        let user_language = Language::from_str_loose(&config.language).unwrap_or(Language::Hindi);
 
         let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
             Self::create_default_translator()
@@ -316,10 +314,7 @@ impl GoldLoanAgent {
     pub fn without_llm(session_id: impl Into<String>, config: AgentConfig) -> Self {
         let (event_tx, _) = broadcast::channel(100);
 
-        let conversation = Arc::new(Conversation::new(
-            session_id,
-            config.conversation.clone(),
-        ));
+        let conversation = Arc::new(Conversation::new(session_id, config.conversation.clone()));
 
         let tools = Arc::new(voice_agent_tools::registry::create_default_registry());
 
@@ -338,8 +333,7 @@ impl GoldLoanAgent {
         let personalization_ctx = PersonalizationContext::new();
 
         // P5 FIX: Parse user language and create translator if not English
-        let user_language = Language::from_str_loose(&config.language)
-            .unwrap_or(Language::Hindi);
+        let user_language = Language::from_str_loose(&config.language).unwrap_or(Language::Hindi);
 
         let translator: Option<Arc<dyn Translator>> = if user_language != Language::English {
             Self::create_default_translator()
@@ -372,6 +366,16 @@ impl GoldLoanAgent {
     /// P1 FIX: Set vector store for RAG search
     pub fn with_vector_store(mut self, vector_store: Arc<VectorStore>) -> Self {
         self.vector_store = Some(vector_store);
+        self
+    }
+
+    /// P0 FIX: Set custom tool registry (with persistence wired)
+    ///
+    /// Use this to inject a ToolRegistry that has been configured with
+    /// persistence services (SMS, GoldPrice, Appointments) from AppState.
+    /// Without this, the agent uses a default registry without persistence.
+    pub fn with_tools(mut self, tools: Arc<ToolRegistry>) -> Self {
+        self.tools = tools;
         self
     }
 
@@ -458,8 +462,7 @@ impl GoldLoanAgent {
         // Skip if we already prefetched for similar query (strategy-aware TTL)
         let cache_ttl = strategy.cache_ttl_secs();
         if let Some(entry) = &cache {
-            if entry.timestamp.elapsed().as_secs() < cache_ttl
-                && partial.contains(&entry.query) {
+            if entry.timestamp.elapsed().as_secs() < cache_ttl && partial.contains(&entry.query) {
                 tracing::trace!("Skipping prefetch - similar query already cached");
                 return false;
             }
@@ -474,12 +477,12 @@ impl GoldLoanAgent {
         );
 
         // Run prefetch asynchronously
-        match retriever.prefetch(&partial, confidence, &vector_store).await {
+        match retriever
+            .prefetch(&partial, confidence, &vector_store)
+            .await
+        {
             Ok(results) if !results.is_empty() => {
-                tracing::debug!(
-                    count = results.len(),
-                    "RAG prefetch completed with results"
-                );
+                tracing::debug!(count = results.len(), "RAG prefetch completed with results");
                 // Store in cache
                 *self.prefetch_cache.write() = Some(PrefetchEntry {
                     query: partial,
@@ -487,15 +490,15 @@ impl GoldLoanAgent {
                     timestamp: std::time::Instant::now(),
                 });
                 true
-            }
+            },
             Ok(_) => {
                 tracing::trace!("RAG prefetch returned no results");
                 false
-            }
+            },
             Err(e) => {
                 tracing::warn!("RAG prefetch failed: {}", e);
                 false
-            }
+            },
         }
     }
 
@@ -522,7 +525,8 @@ impl GoldLoanAgent {
             let cache = self.prefetch_cache.read();
             if let Some(entry) = &*cache {
                 if entry.timestamp.elapsed().as_secs() < 2
-                    && partial_transcript.contains(&entry.query) {
+                    && partial_transcript.contains(&entry.query)
+                {
                     return;
                 }
             }
@@ -537,11 +541,14 @@ impl GoldLoanAgent {
                 confidence = confidence,
                 "Background RAG prefetch triggered"
             );
-            match retriever.prefetch(&partial_transcript, confidence, &vector_store).await {
+            match retriever
+                .prefetch(&partial_transcript, confidence, &vector_store)
+                .await
+            {
                 Ok(results) if !results.is_empty() => {
                     tracing::debug!(count = results.len(), "Background prefetch completed");
                     // Note: Results are not cached in background mode - use prefetch_on_partial for caching
-                }
+                },
                 Ok(_) => tracing::trace!("Background prefetch returned no results"),
                 Err(e) => tracing::warn!("Background prefetch failed: {}", e),
             }
@@ -589,7 +596,10 @@ impl GoldLoanAgent {
         // This implements the "Translate" part of Translate-Think-Translate
         let english_input = if self.user_language != Language::English {
             if let Some(ref translator) = self.translator {
-                match translator.translate(user_input, self.user_language, Language::English).await {
+                match translator
+                    .translate(user_input, self.user_language, Language::English)
+                    .await
+                {
                     Ok(translated) => {
                         tracing::debug!(
                             from = ?self.user_language,
@@ -598,14 +608,14 @@ impl GoldLoanAgent {
                             "Translated user input to English"
                         );
                         translated
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!(
                             error = %e,
                             "Translation failed, using original input"
                         );
                         user_input.to_string()
-                    }
+                    },
                 }
             } else {
                 // No translator available, use original input
@@ -632,9 +642,11 @@ impl GoldLoanAgent {
         }
 
         // Forward conversation events
-        let _ = self.event_tx.send(AgentEvent::Conversation(
-            ConversationEvent::IntentDetected(intent.clone())
-        ));
+        let _ = self
+            .event_tx
+            .send(AgentEvent::Conversation(ConversationEvent::IntentDetected(
+                intent.clone(),
+            )));
 
         // Check for tool calls based on intent
         let tool_result = if self.config.tools_enabled {
@@ -645,13 +657,18 @@ impl GoldLoanAgent {
 
         // Build prompt for LLM (using English input for better LLM performance)
         // This is the "Think" part of Translate-Think-Translate
-        let english_response = self.generate_response(&english_input, tool_result.as_deref()).await?;
+        let english_response = self
+            .generate_response(&english_input, tool_result.as_deref())
+            .await?;
 
         // P5 FIX: Translate response back to user's language if needed
         // This is the second "Translate" part of Translate-Think-Translate
         let response = if self.user_language != Language::English {
             if let Some(ref translator) = self.translator {
-                match translator.translate(&english_response, Language::English, self.user_language).await {
+                match translator
+                    .translate(&english_response, Language::English, self.user_language)
+                    .await
+                {
                     Ok(translated) => {
                         tracing::debug!(
                             to = ?self.user_language,
@@ -660,14 +677,14 @@ impl GoldLoanAgent {
                             "Translated response to user language"
                         );
                         translated
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!(
                             error = %e,
                             "Response translation failed, using English response"
                         );
                         english_response
-                    }
+                    },
                 }
             } else {
                 english_response
@@ -727,7 +744,8 @@ impl GoldLoanAgent {
         // P5 FIX: Translate user input to English if needed
         let english_input = if self.user_language != Language::English {
             if let Some(ref translator) = self.translator {
-                translator.translate(user_input, self.user_language, Language::English)
+                translator
+                    .translate(user_input, self.user_language, Language::English)
                     .await
                     .unwrap_or_else(|_| user_input.to_string())
             } else {
@@ -747,9 +765,11 @@ impl GoldLoanAgent {
         }
 
         // Forward intent event
-        let _ = self.event_tx.send(AgentEvent::Conversation(
-            ConversationEvent::IntentDetected(intent.clone())
-        ));
+        let _ = self
+            .event_tx
+            .send(AgentEvent::Conversation(ConversationEvent::IntentDetected(
+                intent.clone(),
+            )));
 
         // Check for tool calls
         let tool_result = if self.config.tools_enabled {
@@ -759,7 +779,9 @@ impl GoldLoanAgent {
         };
 
         // Build prompt (same as in generate_response)
-        let prompt_request = self.build_llm_request(&english_input, tool_result.as_deref()).await?;
+        let prompt_request = self
+            .build_llm_request(&english_input, tool_result.as_deref())
+            .await?;
 
         // Create output channel
         let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
@@ -816,11 +838,11 @@ impl GoldLoanAgent {
                             if chunk.is_final {
                                 break;
                             }
-                        }
+                        },
                         Err(e) => {
                             tracing::warn!("LLM stream error: {}", e);
                             break;
-                        }
+                        },
                     }
                 }
 
@@ -894,7 +916,8 @@ impl GoldLoanAgent {
             let ctx = self.personalization_ctx.read();
             let instructions = self.personalization.generate_instructions(&ctx);
             if !instructions.is_empty() {
-                builder = builder.with_context(&format!("## Personalization Guidance\n{}", instructions));
+                builder =
+                    builder.with_context(&format!("## Personalization Guidance\n{}", instructions));
             }
         }
 
@@ -910,24 +933,29 @@ impl GoldLoanAgent {
             let rag_fraction = stage.rag_context_fraction();
 
             if rag_fraction > 0.0 {
-                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
-                    let results = if let Some(prefetched) = self.get_prefetch_results(english_input) {
+                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store)
+                {
+                    let results = if let Some(prefetched) = self.get_prefetch_results(english_input)
+                    {
                         self.clear_prefetch_cache();
                         prefetched
                     } else {
-                        retriever.search(english_input, vector_store, None)
+                        retriever
+                            .search(english_input, vector_store, None)
                             .await
                             .unwrap_or_default()
                     };
 
                     if !results.is_empty() {
                         let max_results = ((rag_fraction * 10.0).ceil() as usize).clamp(1, 5);
-                        let rag_context = results.iter()
+                        let rag_context = results
+                            .iter()
                             .take(max_results)
                             .map(|r| format!("- {}", r.text))
                             .collect::<Vec<_>>()
                             .join("\n");
-                        builder = builder.with_context(&format!("## Relevant Information\n{}", rag_context));
+                        builder = builder
+                            .with_context(&format!("## Relevant Information\n{}", rag_context));
                     }
                 }
             }
@@ -942,7 +970,10 @@ impl GoldLoanAgent {
         builder = builder.with_stage_guidance(self.conversation.stage().display_name());
 
         // Add persuasion guidance
-        if let Some(objection_response) = self.persuasion.handle_objection(english_input, self.user_language) {
+        if let Some(objection_response) = self
+            .persuasion
+            .handle_objection(english_input, self.user_language)
+        {
             let guidance = format!(
                 "## Objection Handling Guidance\n\
                 1. **Acknowledge**: {}\n\
@@ -958,7 +989,9 @@ impl GoldLoanAgent {
         }
 
         // Add conversation history
-        let history: Vec<Message> = self.conversation.get_messages()
+        let history: Vec<Message> = self
+            .conversation
+            .get_messages()
             .into_iter()
             .map(|(role, content)| {
                 let r = match role.as_str() {
@@ -976,13 +1009,19 @@ impl GoldLoanAgent {
 
         // Build with context budget
         let stage = self.conversation.stage();
-        let effective_budget = self.config.context_window_tokens.min(stage.context_budget_tokens());
+        let effective_budget = self
+            .config
+            .context_window_tokens
+            .min(stage.context_budget_tokens());
 
         Ok(builder.build_request_with_limit(effective_budget))
     }
 
     /// Maybe call a tool based on intent
-    async fn maybe_call_tool(&self, intent: &crate::intent::DetectedIntent) -> Result<Option<String>, AgentError> {
+    async fn maybe_call_tool(
+        &self,
+        intent: &crate::intent::DetectedIntent,
+    ) -> Result<Option<String>, AgentError> {
         let tool_name = match intent.intent.as_str() {
             "eligibility_check" => {
                 // Check if we have required slots
@@ -991,51 +1030,57 @@ impl GoldLoanAgent {
                 } else {
                     None
                 }
-            }
+            },
             "switch_lender" => {
                 if intent.slots.contains_key("current_lender") {
                     Some("calculate_savings")
                 } else {
                     None
                 }
-            }
+            },
             "schedule_visit" => Some("find_branches"),
             // P4 FIX: Add intent mappings for CRM/Calendar integrations
             "capture_lead" | "interested" | "callback_request" => {
                 // Capture lead when customer shows interest
-                if intent.slots.contains_key("customer_name") || intent.slots.contains_key("phone_number") {
+                if intent.slots.contains_key("customer_name")
+                    || intent.slots.contains_key("phone_number")
+                {
                     Some("capture_lead")
                 } else {
                     None
                 }
-            }
+            },
             "schedule_appointment" | "book_appointment" | "visit_branch" => {
                 // Schedule appointment when customer wants to visit
-                if intent.slots.contains_key("preferred_date") || intent.slots.contains_key("branch_id") {
+                if intent.slots.contains_key("preferred_date")
+                    || intent.slots.contains_key("branch_id")
+                {
                     Some("schedule_appointment")
                 } else {
                     // If no specific date/branch, first find branches
                     Some("find_branches")
                 }
-            }
+            },
             // P1 FIX: Add missing tool intent mappings
             "gold_price" | "check_gold_price" | "price_inquiry" | "current_rate" => {
                 // Gold price inquiry - no required slots
                 Some("get_gold_price")
-            }
+            },
             "escalate" | "human_agent" | "speak_to_person" | "talk_to_human" | "real_person" => {
                 // Escalation to human agent - no required slots
                 Some("escalate_to_human")
-            }
+            },
             "send_sms" | "send_message" | "text_me" | "send_details" | "sms_info" => {
                 // Send SMS - phone_number slot is optional (can use customer's registered number)
                 Some("send_sms")
-            }
+            },
             _ => None,
         };
 
         if let Some(name) = tool_name {
-            let _ = self.event_tx.send(AgentEvent::ToolCall { name: name.to_string() });
+            let _ = self.event_tx.send(AgentEvent::ToolCall {
+                name: name.to_string(),
+            });
 
             // Build arguments from slots
             let mut args = serde_json::Map::new();
@@ -1049,23 +1094,38 @@ impl GoldLoanAgent {
             let defaults = &self.config.tool_defaults;
 
             if name == "check_eligibility" && !args.contains_key("gold_purity") {
-                args.insert("gold_purity".to_string(), serde_json::json!(&defaults.default_gold_purity));
+                args.insert(
+                    "gold_purity".to_string(),
+                    serde_json::json!(&defaults.default_gold_purity),
+                );
             }
 
             if name == "calculate_savings" {
                 if !args.contains_key("current_interest_rate") {
-                    args.insert("current_interest_rate".to_string(), serde_json::json!(defaults.default_competitor_rate));
+                    args.insert(
+                        "current_interest_rate".to_string(),
+                        serde_json::json!(defaults.default_competitor_rate),
+                    );
                 }
                 if !args.contains_key("current_loan_amount") {
-                    args.insert("current_loan_amount".to_string(), serde_json::json!(defaults.default_loan_amount));
+                    args.insert(
+                        "current_loan_amount".to_string(),
+                        serde_json::json!(defaults.default_loan_amount),
+                    );
                 }
                 if !args.contains_key("remaining_tenure_months") {
-                    args.insert("remaining_tenure_months".to_string(), serde_json::json!(defaults.default_tenure_months));
+                    args.insert(
+                        "remaining_tenure_months".to_string(),
+                        serde_json::json!(defaults.default_tenure_months),
+                    );
                 }
             }
 
             if name == "find_branches" && !args.contains_key("city") {
-                args.insert("city".to_string(), serde_json::json!(&defaults.default_city));
+                args.insert(
+                    "city".to_string(),
+                    serde_json::json!(&defaults.default_city),
+                );
             }
 
             // P4 FIX: Handle capture_lead tool arguments
@@ -1083,7 +1143,11 @@ impl GoldLoanAgent {
                 }
                 // Default interest level based on intent confidence
                 if !args.contains_key("interest_level") {
-                    let level = if intent.confidence > 0.8 { "High" } else { "Medium" };
+                    let level = if intent.confidence > 0.8 {
+                        "High"
+                    } else {
+                        "Medium"
+                    };
                     args.insert("interest_level".to_string(), serde_json::json!(level));
                 }
             }
@@ -1118,7 +1182,10 @@ impl GoldLoanAgent {
                 }
             }
 
-            let result = self.tools.execute(name, serde_json::Value::Object(args)).await;
+            let result = self
+                .tools
+                .execute(name, serde_json::Value::Object(args))
+                .await;
 
             let success = result.is_ok();
             let _ = self.event_tx.send(AgentEvent::ToolResult {
@@ -1129,19 +1196,23 @@ impl GoldLoanAgent {
             match result {
                 Ok(output) => {
                     // Extract text from output
-                    let text = output.content.iter()
+                    let text = output
+                        .content
+                        .iter()
                         .filter_map(|c| match c {
-                            voice_agent_tools::mcp::ContentBlock::Text { text } => Some(text.clone()),
+                            voice_agent_tools::mcp::ContentBlock::Text { text } => {
+                                Some(text.clone())
+                            },
                             _ => None,
                         })
                         .collect::<Vec<_>>()
                         .join("\n");
                     Ok(Some(text))
-                }
+                },
                 Err(e) => {
                     tracing::warn!("Tool error: {}", e);
                     Ok(None)
-                }
+                },
             }
         } else {
             Ok(None)
@@ -1193,7 +1264,8 @@ impl GoldLoanAgent {
 
             // Skip RAG entirely for stages that don't need it (greeting, farewell)
             if rag_fraction > 0.0 {
-                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
+                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store)
+                {
                     // First, try to use prefetched results
                     let results = if let Some(prefetched) = self.get_prefetch_results(user_input) {
                         tracing::debug!("Using {} prefetched RAG results", prefetched.len());
@@ -1207,7 +1279,7 @@ impl GoldLoanAgent {
                             Err(e) => {
                                 tracing::warn!("RAG search failed, continuing without: {}", e);
                                 Vec::new()
-                            }
+                            },
                         }
                     };
 
@@ -1216,12 +1288,14 @@ impl GoldLoanAgent {
                         // Higher fraction = more results (1-5 based on fraction)
                         let max_results = ((rag_fraction * 10.0).ceil() as usize).clamp(1, 5);
 
-                        let rag_context = results.iter()
+                        let rag_context = results
+                            .iter()
                             .take(max_results)
                             .map(|r| format!("- {}", r.text))
                             .collect::<Vec<_>>()
                             .join("\n");
-                        builder = builder.with_context(&format!("## Relevant Information\n{}", rag_context));
+                        builder = builder
+                            .with_context(&format!("## Relevant Information\n{}", rag_context));
 
                         tracing::debug!(
                             stage = ?stage,
@@ -1245,13 +1319,14 @@ impl GoldLoanAgent {
         }
 
         // Add stage guidance
-        builder = builder.with_stage_guidance(
-            self.conversation.stage().display_name()
-        );
+        builder = builder.with_stage_guidance(self.conversation.stage().display_name());
 
         // P0 FIX: Detect objections and add persuasion guidance to prompt
         // Uses acknowledge-reframe-evidence pattern from PersuasionEngine
-        if let Some(objection_response) = self.persuasion.handle_objection(user_input, self.user_language) {
+        if let Some(objection_response) = self
+            .persuasion
+            .handle_objection(user_input, self.user_language)
+        {
             let persuasion_guidance = format!(
                 "## Objection Handling Guidance\n\
                 The customer appears to have a concern. Use this framework:\n\
@@ -1273,7 +1348,9 @@ impl GoldLoanAgent {
         }
 
         // Add conversation history
-        let history: Vec<Message> = self.conversation.get_messages()
+        let history: Vec<Message> = self
+            .conversation
+            .get_messages()
             .into_iter()
             .map(|(role, content)| {
                 let r = match role.as_str() {
@@ -1312,24 +1389,129 @@ impl GoldLoanAgent {
         if let Some(ref llm) = self.llm {
             // Check if LLM is available
             if llm.is_available().await {
-                match llm.generate(request).await {
+                // P0-2 FIX: Use generate_with_tools for LLM tool calling
+                // Convert tool schemas to tool definitions for the LLM
+                let tool_defs: Vec<ToolDefinition> = if self.config.tools_enabled {
+                    self.tools
+                        .list_tools()
+                        .iter()
+                        .map(ToolDefinition::from_schema)
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+
+                let has_tools = !tool_defs.is_empty();
+                tracing::debug!(
+                    tool_count = tool_defs.len(),
+                    tools_enabled = self.config.tools_enabled,
+                    "Calling LLM with tool definitions"
+                );
+
+                // P0-2 FIX: Use generate_with_tools when tools are available
+                let result = if has_tools {
+                    llm.generate_with_tools(request, &tool_defs).await
+                } else {
+                    llm.generate(request).await
+                };
+
+                match result {
                     Ok(response) => {
                         // P1 FIX: Use GenerateResponse fields (LanguageModel trait)
-                        let tokens = response.usage
+                        let tokens = response
+                            .usage
                             .as_ref()
                             .map(|u| u.completion_tokens)
                             .unwrap_or(0);
                         tracing::debug!(
-                            "LLM generated {} tokens, finish_reason={:?}",
+                            "LLM generated {} tokens, finish_reason={:?}, tool_calls={}",
                             tokens,
-                            response.finish_reason
+                            response.finish_reason,
+                            response.tool_calls.len()
                         );
+
+                        // P0-2 FIX: Handle tool calls from LLM
+                        if response.finish_reason == FinishReason::ToolCalls
+                            && !response.tool_calls.is_empty()
+                        {
+                            tracing::info!(
+                                tool_calls = response.tool_calls.len(),
+                                "LLM requested tool calls"
+                            );
+
+                            // Execute each tool call and collect results
+                            let mut tool_results = Vec::new();
+                            for tool_call in &response.tool_calls {
+                                let _ = self.event_tx.send(AgentEvent::ToolCall {
+                                    name: tool_call.name.clone(),
+                                });
+
+                                // Convert HashMap arguments to serde_json::Value
+                                let args = serde_json::to_value(&tool_call.arguments)
+                                    .unwrap_or(serde_json::json!({}));
+
+                                match self.tools.execute(&tool_call.name, args).await {
+                                    Ok(output) => {
+                                        let _ = self.event_tx.send(AgentEvent::ToolResult {
+                                            name: tool_call.name.clone(),
+                                            success: true,
+                                        });
+
+                                        // Extract text from output
+                                        let text = output
+                                            .content
+                                            .iter()
+                                            .filter_map(|c| match c {
+                                                voice_agent_tools::mcp::ContentBlock::Text {
+                                                    text,
+                                                } => Some(text.clone()),
+                                                _ => None,
+                                            })
+                                            .collect::<Vec<_>>()
+                                            .join("\n");
+
+                                        tool_results.push(format!(
+                                            "Tool '{}' result:\n{}",
+                                            tool_call.name, text
+                                        ));
+                                        tracing::debug!(
+                                            tool = %tool_call.name,
+                                            "Tool execution successful"
+                                        );
+                                    },
+                                    Err(e) => {
+                                        let _ = self.event_tx.send(AgentEvent::ToolResult {
+                                            name: tool_call.name.clone(),
+                                            success: false,
+                                        });
+                                        tool_results.push(format!(
+                                            "Tool '{}' failed: {}",
+                                            tool_call.name, e
+                                        ));
+                                        tracing::warn!(
+                                            tool = %tool_call.name,
+                                            error = %e,
+                                            "Tool execution failed"
+                                        );
+                                    },
+                                }
+                            }
+
+                            // Recursive call with tool results to get final response
+                            // Use Box::pin to avoid infinitely-sized future
+                            let combined_results = tool_results.join("\n\n");
+                            return Box::pin(
+                                self.generate_response(user_input, Some(&combined_results)),
+                            )
+                            .await;
+                        }
+
                         return Ok(response.text);
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!("LLM generation failed, falling back to mock: {}", e);
                         // Fall through to mock response
-                    }
+                    },
                 }
             } else {
                 tracing::debug!("LLM not available, using mock response");
@@ -1377,49 +1559,49 @@ impl GoldLoanAgent {
                         name
                     )
                 }
-            }
+            },
             ConversationStage::Discovery => {
                 if is_english {
                     "I'd like to understand your needs better. Do you currently have a gold loan with another lender?".to_string()
                 } else {
                     "Achha, aap batayein, aapka abhi kahan se gold loan hai? Main aapko dekhti hoon ki hum aapki kaise madad kar sakte hain.".to_string()
                 }
-            }
+            },
             ConversationStage::Qualification => {
                 if is_english {
                     "That's helpful. Could you tell me how much gold you have pledged currently? And what interest rate are you paying?".to_string()
                 } else {
                     "Bahut achha. Aapke paas kitna gold pledged hai abhi? Aur current rate kya chal raha hai?".to_string()
                 }
-            }
+            },
             ConversationStage::Presentation => {
                 if is_english {
                     "At Kotak, we offer just 10.5% interest rate, which is much lower than the 18-20% NBFCs charge. Plus, you get the security of an RBI regulated bank. Would you be interested?".to_string()
                 } else {
                     "Dekhiye, Kotak mein aapko sirf 10.5% rate milega, jo NBFC ke 18-20% se bahut kam hai. Aur hamare yahan RBI regulated bank ki security bhi hai. Aap interested hain?".to_string()
                 }
-            }
+            },
             ConversationStage::ObjectionHandling => {
                 if is_english {
                     "I understand your concern. We offer a bridge loan facility that makes the transfer process seamless. Your gold is never left unprotected during the transition.".to_string()
                 } else {
                     "Main samajh sakti hoon aapki chinta. Lekin dekhiye, hum ek bridge loan dete hain jo aapke transfer process ko seamless banata hai. Aapka gold kabhi bhi unprotected nahi rehta.".to_string()
                 }
-            }
+            },
             ConversationStage::Closing => {
                 if is_english {
                     "Shall I schedule an appointment for you? You can visit your nearest branch for gold valuation.".to_string()
                 } else {
                     "Toh kya main aapke liye ek appointment schedule kar doon? Aap apne nearest branch mein aa sakte hain gold valuation ke liye.".to_string()
                 }
-            }
+            },
             ConversationStage::Farewell => {
                 if is_english {
                     "Thank you for your time! If you have any questions, please don't hesitate to call us. Have a great day!".to_string()
                 } else {
                     "Dhanyavaad aapka samay dene ke liye! Agar koi bhi sawal ho toh zaroor call karein. Have a nice day!".to_string()
                 }
-            }
+            },
         }
     }
 
@@ -1492,7 +1674,7 @@ impl GoldLoanAgent {
 }
 
 // P1-1 FIX: Implement Agent trait for GoldLoanAgent
-use crate::traits::{Agent, PrefetchingAgent, PersonalizableAgent};
+use crate::traits::{Agent, PersonalizableAgent, PrefetchingAgent};
 
 #[async_trait::async_trait]
 impl Agent for GoldLoanAgent {
@@ -1501,7 +1683,10 @@ impl Agent for GoldLoanAgent {
         GoldLoanAgent::process(self, input).await
     }
 
-    async fn process_stream(&self, input: &str) -> Result<tokio::sync::mpsc::Receiver<String>, AgentError> {
+    async fn process_stream(
+        &self,
+        input: &str,
+    ) -> Result<tokio::sync::mpsc::Receiver<String>, AgentError> {
         // Delegate to the inherent method
         GoldLoanAgent::process_stream(self, input).await
     }
@@ -1611,8 +1796,9 @@ mod tests {
             response.contains("Namaste")
             || response.contains("Hello")
             || response.contains("understand")  // Discovery stage response
-            || response.contains("batayein"),   // Hindi Discovery response
-            "Unexpected response: {}", response
+            || response.contains("batayein"), // Hindi Discovery response
+            "Unexpected response: {}",
+            response
         );
     }
 
@@ -1624,7 +1810,10 @@ mod tests {
         let _ = agent.process("Hello").await.unwrap();
 
         // Should be able to transition to discovery
-        agent.conversation().transition_stage(ConversationStage::Discovery).unwrap();
+        agent
+            .conversation()
+            .transition_stage(ConversationStage::Discovery)
+            .unwrap();
 
         // Discovery question
         let response = agent.process("I have a loan from Muthoot").await.unwrap();
@@ -1649,12 +1838,18 @@ mod tests {
             response.contains("Hello")
             || response.contains("assist")
             || response.contains("understand")  // Discovery stage
-            || response.contains("needs"),      // Discovery stage
-            "Expected English response, got: {}", response
+            || response.contains("needs"), // Discovery stage
+            "Expected English response, got: {}",
+            response
         );
         // Should NOT contain Hindi words in English mode
-        assert!(!response.contains("Namaste") && !response.contains("hoon") && !response.contains("batayein"),
-            "Should not contain Hindi in English mode, got: {}", response);
+        assert!(
+            !response.contains("Namaste")
+                && !response.contains("hoon")
+                && !response.contains("batayein"),
+            "Should not contain Hindi in English mode, got: {}",
+            response
+        );
     }
 
     #[tokio::test]
@@ -1669,8 +1864,11 @@ mod tests {
         let response = agent.process("Hello").await.unwrap();
 
         // Hindi mode should produce Hinglish response
-        assert!(response.contains("Namaste") || response.contains("hoon"),
-            "Expected Hinglish response, got: {}", response);
+        assert!(
+            response.contains("Namaste") || response.contains("hoon"),
+            "Expected Hinglish response, got: {}",
+            response
+        );
     }
 
     #[tokio::test]
@@ -1679,7 +1877,9 @@ mod tests {
         let agent = GoldLoanAgent::without_llm("test-prefetch", AgentConfig::default());
 
         // Should return false when vector_store is not set
-        let result = agent.prefetch_on_partial("gold loan interest rate", 0.8).await;
+        let result = agent
+            .prefetch_on_partial("gold loan interest rate", 0.8)
+            .await;
         assert!(!result, "Prefetch should return false without vector store");
     }
 

@@ -3,23 +3,22 @@
 //! REST API for the voice agent.
 
 use axum::{
-    routing::{get, post, delete},
-    Router,
-    extract::{State, Path, Json},
-    http::{StatusCode, HeaderValue, Method},
+    extract::{Json, Path, State},
+    http::{HeaderValue, Method, StatusCode},
     response::IntoResponse,
-    Extension,
+    routing::{delete, get, post},
+    Extension, Router,
 };
 use serde::{Deserialize, Serialize};
-use tower_http::cors::{CorsLayer, Any};
-use tower_http::trace::TraceLayer;
 use tower_http::compression::CompressionLayer;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 
-use crate::state::AppState;
-use crate::websocket::{WebSocketHandler, create_session};
-use crate::webrtc;  // P2 FIX: WebRTC signaling
-use crate::metrics::metrics_handler;
 use crate::auth::auth_middleware;
+use crate::metrics::metrics_handler;
+use crate::state::AppState;
+use crate::webrtc; // P2 FIX: WebRTC signaling
+use crate::websocket::{create_session, WebSocketHandler};
 use voice_agent_tools::ToolExecutor;
 
 /// Create the application router
@@ -36,45 +35,43 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/sessions/:id", get(get_session))
         .route("/api/sessions/:id", delete(delete_session))
         .route("/api/sessions", get(list_sessions))
-
         // Chat endpoint (non-streaming)
         .route("/api/chat/:session_id", post(chat))
-
         // Tool endpoints
         .route("/api/tools", get(list_tools))
         .route("/api/tools/:name", post(call_tool))
-
         // Health check
         .route("/health", get(health_check))
         .route("/ready", get(readiness_check))
-
         // P0 FIX: Prometheus metrics endpoint
         .route("/metrics", get(metrics_handler))
-
         // P1 FIX: Config reload endpoint (admin only)
         .route("/admin/reload-config", post(reload_config))
-
         // P4 FIX: Domain config reload endpoint
         .route("/admin/reload-domain-config", post(reload_domain_config))
-
         // P4 FIX: Domain config info endpoint
         .route("/api/domain/info", get(domain_info))
-
         // WebSocket
         .route("/ws/:session_id", get(ws_handler))
-
         // P2 FIX: WebRTC signaling endpoints for low-latency audio transport
         .route("/api/webrtc/:session_id/offer", post(webrtc::handle_offer))
-        .route("/api/webrtc/:session_id/ice", post(webrtc::add_ice_candidate))
-        .route("/api/webrtc/:session_id/candidates", get(webrtc::get_ice_candidates))
+        .route(
+            "/api/webrtc/:session_id/ice",
+            post(webrtc::add_ice_candidate),
+        )
+        .route(
+            "/api/webrtc/:session_id/candidates",
+            get(webrtc::get_ice_candidates),
+        )
         .route("/api/webrtc/:session_id/status", get(webrtc::get_status))
         .route("/api/webrtc/:session_id/restart", post(webrtc::ice_restart))
-
         // Middleware (order matters - auth runs after CORS but before handlers)
         // P1 FIX: Apply auth middleware layer via Extension
-        .layer(axum::middleware::from_fn(|req: axum::extract::Request, next: axum::middleware::Next| async move {
-            auth_middleware(req, next).await
-        }))
+        .layer(axum::middleware::from_fn(
+            |req: axum::extract::Request, next: axum::middleware::Next| async move {
+                auth_middleware(req, next).await
+            },
+        ))
         .layer(Extension(state.config.clone()))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
@@ -135,8 +132,7 @@ async fn get_session(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let session = state.sessions.get(&id)
-        .ok_or(StatusCode::NOT_FOUND)?;
+    let session = state.sessions.get(&id).ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(serde_json::json!({
         "session_id": session.id,
@@ -147,18 +143,13 @@ async fn get_session(
 }
 
 /// Delete session
-async fn delete_session(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> StatusCode {
+async fn delete_session(State(state): State<AppState>, Path(id): Path<String>) -> StatusCode {
     state.sessions.remove(&id);
     StatusCode::NO_CONTENT
 }
 
 /// List sessions
-async fn list_sessions(
-    State(state): State<AppState>,
-) -> Json<serde_json::Value> {
+async fn list_sessions(State(state): State<AppState>) -> Json<serde_json::Value> {
     let sessions = state.sessions.list();
     Json(serde_json::json!({
         "sessions": sessions,
@@ -186,36 +177,38 @@ async fn chat(
     Path(session_id): Path<String>,
     Json(request): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, StatusCode> {
-    let session = state.sessions.get(&session_id)
+    let session = state
+        .sessions
+        .get(&session_id)
         .ok_or(StatusCode::NOT_FOUND)?;
 
     session.touch();
 
     match session.agent.process(&request.message).await {
-        Ok(response) => {
-            Ok(Json(ChatResponse {
-                response,
-                stage: session.agent.stage().display_name().to_string(),
-                turn_count: session.agent.conversation().turn_count(),
-            }))
-        }
+        Ok(response) => Ok(Json(ChatResponse {
+            response,
+            stage: session.agent.stage().display_name().to_string(),
+            turn_count: session.agent.conversation().turn_count(),
+        })),
         Err(e) => {
             tracing::error!("Chat error: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
+        },
     }
 }
 
 /// List tools
-async fn list_tools(
-    State(state): State<AppState>,
-) -> Json<serde_json::Value> {
-    let tools: Vec<serde_json::Value> = state.tools.list_tools()
+async fn list_tools(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let tools: Vec<serde_json::Value> = state
+        .tools
+        .list_tools()
         .into_iter()
-        .map(|t| serde_json::json!({
-            "name": t.name,
-            "description": t.description,
-        }))
+        .map(|t| {
+            serde_json::json!({
+                "name": t.name,
+                "description": t.description,
+            })
+        })
         .collect();
 
     Json(serde_json::json!({
@@ -268,73 +261,90 @@ async fn call_tool(
                 "content": content,
                 "is_error": output.is_error,
             })))
-        }
+        },
         Err(e) => {
             tracing::error!("Tool error: {:?}", e);
             Ok(Json(serde_json::json!({
                 "content": [{ "type": "text", "text": e.message }],
                 "is_error": true,
             })))
-        }
+        },
     }
 }
 
 /// P2 FIX: Enhanced health check that verifies actual dependencies
-async fn health_check(
-    State(state): State<AppState>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn health_check(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
     let config = state.get_config();
     let mut checks = serde_json::Map::new();
     let mut all_healthy = true;
 
     // Check 1: Tool registry initialized
     let tool_count = state.tools.list_tools().len();
-    checks.insert("tools".to_string(), serde_json::json!({
-        "status": if tool_count > 0 { "ok" } else { "degraded" },
-        "count": tool_count
-    }));
+    checks.insert(
+        "tools".to_string(),
+        serde_json::json!({
+            "status": if tool_count > 0 { "ok" } else { "degraded" },
+            "count": tool_count
+        }),
+    );
 
     // Check 2: VAD model exists
     let vad_path = std::path::Path::new(&config.models.vad);
     let vad_ok = vad_path.exists();
-    checks.insert("vad_model".to_string(), serde_json::json!({
-        "status": if vad_ok { "ok" } else { "missing" },
-        "path": config.models.vad.clone()
-    }));
-    if !vad_ok { all_healthy = false; }
+    checks.insert(
+        "vad_model".to_string(),
+        serde_json::json!({
+            "status": if vad_ok { "ok" } else { "missing" },
+            "path": config.models.vad.clone()
+        }),
+    );
+    if !vad_ok {
+        all_healthy = false;
+    }
 
     // Check 3: TTS model
     let tts_path = std::path::Path::new(&config.models.tts);
     let tts_ok = tts_path.exists() || tts_path.parent().map(|p| p.exists()).unwrap_or(false);
-    checks.insert("tts_model".to_string(), serde_json::json!({
-        "status": if tts_ok { "ok" } else { "missing" },
-        "path": config.models.tts.clone()
-    }));
+    checks.insert(
+        "tts_model".to_string(),
+        serde_json::json!({
+            "status": if tts_ok { "ok" } else { "missing" },
+            "path": config.models.tts.clone()
+        }),
+    );
 
     // Check 4: STT model
     let stt_path = std::path::Path::new(&config.models.stt);
     let stt_ok = stt_path.exists() || stt_path.parent().map(|p| p.exists()).unwrap_or(false);
-    checks.insert("stt_model".to_string(), serde_json::json!({
-        "status": if stt_ok { "ok" } else { "missing" },
-        "path": config.models.stt.clone()
-    }));
+    checks.insert(
+        "stt_model".to_string(),
+        serde_json::json!({
+            "status": if stt_ok { "ok" } else { "missing" },
+            "path": config.models.stt.clone()
+        }),
+    );
 
     drop(config);
 
     let status = if all_healthy { "healthy" } else { "degraded" };
-    let status_code = if all_healthy { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    let status_code = if all_healthy {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
 
-    (status_code, Json(serde_json::json!({
-        "status": status,
-        "version": env!("CARGO_PKG_VERSION"),
-        "checks": checks
-    })))
+    (
+        status_code,
+        Json(serde_json::json!({
+            "status": status,
+            "version": env!("CARGO_PKG_VERSION"),
+            "checks": checks
+        })),
+    )
 }
 
 /// P2 FIX: Enhanced readiness check with LLM backend connectivity
-async fn readiness_check(
-    State(state): State<AppState>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn readiness_check(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
     let session_count = state.sessions.count();
 
     // Extract config values before any await - parking_lot guards aren't Send
@@ -347,36 +357,57 @@ async fn readiness_check(
     let mut ready = true;
 
     // Check 1: Sessions system
-    checks.insert("sessions".to_string(), serde_json::json!({
-        "status": "ok",
-        "count": session_count
-    }));
+    checks.insert(
+        "sessions".to_string(),
+        serde_json::json!({
+            "status": "ok",
+            "count": session_count
+        }),
+    );
 
     // Check 2: LLM backend (Ollama) connectivity
     let llm_url = format!("{}/api/tags", llm_endpoint);
 
-    let llm_status = match tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        reqwest::get(&llm_url)
-    ).await {
-        Ok(Ok(resp)) if resp.status().is_success() => "ok",
-        Ok(Ok(_)) => { ready = false; "error" },
-        Ok(Err(_)) => { ready = false; "unreachable" },
-        Err(_) => { ready = false; "timeout" },
-    };
+    let llm_status =
+        match tokio::time::timeout(std::time::Duration::from_secs(2), reqwest::get(&llm_url)).await
+        {
+            Ok(Ok(resp)) if resp.status().is_success() => "ok",
+            Ok(Ok(_)) => {
+                ready = false;
+                "error"
+            },
+            Ok(Err(_)) => {
+                ready = false;
+                "unreachable"
+            },
+            Err(_) => {
+                ready = false;
+                "timeout"
+            },
+        };
 
-    checks.insert("llm_backend".to_string(), serde_json::json!({
-        "status": llm_status,
-        "url": llm_url
-    }));
+    checks.insert(
+        "llm_backend".to_string(),
+        serde_json::json!({
+            "status": llm_status,
+            "url": llm_url
+        }),
+    );
 
     let status = if ready { "ready" } else { "not_ready" };
-    let status_code = if ready { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE };
+    let status_code = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
 
-    (status_code, Json(serde_json::json!({
-        "status": status,
-        "checks": checks
-    })))
+    (
+        status_code,
+        Json(serde_json::json!({
+            "status": status,
+            "checks": checks
+        })),
+    )
 }
 
 /// P1 FIX: Config reload endpoint
@@ -385,23 +416,25 @@ async fn readiness_check(
 ///
 /// Reloads configuration from disk. Useful for updating settings without restart.
 /// Note: Some settings (like CORS) are only applied at startup.
-async fn reload_config(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+async fn reload_config(State(state): State<AppState>) -> impl IntoResponse {
     match state.reload_config() {
-        Ok(()) => {
-            (StatusCode::OK, Json(serde_json::json!({
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
                 "status": "success",
                 "message": "Configuration reloaded successfully"
-            })))
-        }
+            })),
+        ),
         Err(e) => {
             tracing::error!("Config reload failed: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-                "status": "error",
-                "message": e
-            })))
-        }
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "status": "error",
+                    "message": e
+                })),
+            )
+        },
     }
 }
 
@@ -410,23 +443,25 @@ async fn reload_config(
 /// POST /admin/reload-domain-config
 ///
 /// Hot-reloads domain configuration (gold loan settings, prompts, competitor info).
-async fn reload_domain_config(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+async fn reload_domain_config(State(state): State<AppState>) -> impl IntoResponse {
     match state.reload_domain_config() {
-        Ok(()) => {
-            (StatusCode::OK, Json(serde_json::json!({
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
                 "status": "success",
                 "message": "Domain configuration reloaded successfully"
-            })))
-        }
+            })),
+        ),
         Err(e) => {
             tracing::error!("Domain config reload failed: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-                "status": "error",
-                "message": e
-            })))
-        }
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "status": "error",
+                    "message": e
+                })),
+            )
+        },
     }
 }
 
@@ -435,9 +470,7 @@ async fn reload_domain_config(
 /// GET /api/domain/info
 ///
 /// Returns current domain configuration summary for debugging/monitoring.
-async fn domain_info(
-    State(state): State<AppState>,
-) -> Json<serde_json::Value> {
+async fn domain_info(State(state): State<AppState>) -> Json<serde_json::Value> {
     let domain = state.get_domain_config();
     let config = domain.get();
 

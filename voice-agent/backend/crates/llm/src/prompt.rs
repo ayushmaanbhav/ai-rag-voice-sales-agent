@@ -2,8 +2,8 @@
 //!
 //! Constructs prompts for the gold loan voice agent.
 
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // P0 FIX: Re-export PersonaConfig from config crate (single source of truth)
 pub use voice_agent_config::PersonaConfig;
@@ -85,10 +85,17 @@ impl ToolBuilder {
     ) -> Self {
         let name = name.into();
         let mut prop = serde_json::Map::new();
-        prop.insert("type".to_string(), serde_json::Value::String(param_type.to_string()));
-        prop.insert("description".to_string(), serde_json::Value::String(description.into()));
+        prop.insert(
+            "type".to_string(),
+            serde_json::Value::String(param_type.to_string()),
+        );
+        prop.insert(
+            "description".to_string(),
+            serde_json::Value::String(description.into()),
+        );
 
-        self.properties.insert(name.clone(), serde_json::Value::Object(prop));
+        self.properties
+            .insert(name.clone(), serde_json::Value::Object(prop));
 
         if required {
             self.required.push(name);
@@ -142,43 +149,70 @@ pub fn gold_loan_tools() -> Vec<ToolDefinition> {
     vec![
         ToolBuilder::new(
             "check_eligibility",
-            "Check if customer is eligible for a gold loan based on their gold weight and purity"
+            "Check if customer is eligible for a gold loan based on their gold weight and purity",
         )
-            .param("gold_weight", "number", "Weight of gold in grams", true)
-            .param("gold_purity", "string", "Purity of gold (e.g., '22K', '18K')", false)
-            .string_enum("gold_purity", &["24K", "22K", "18K", "14K"])
-            .number_range("gold_weight", Some(1.0), Some(10000.0))
-            .build(),
-
+        .param("gold_weight", "number", "Weight of gold in grams", true)
+        .param(
+            "gold_purity",
+            "string",
+            "Purity of gold (e.g., '22K', '18K')",
+            false,
+        )
+        .string_enum("gold_purity", &["24K", "22K", "18K", "14K"])
+        .number_range("gold_weight", Some(1.0), Some(10000.0))
+        .build(),
         ToolBuilder::new(
             "calculate_savings",
-            "Calculate monthly savings when switching from competitor to Kotak"
+            "Calculate monthly savings when switching from competitor to Kotak",
         )
-            .param("current_lender", "string", "Name of current lender (e.g., 'Muthoot', 'Manappuram')", true)
-            .param("current_interest_rate", "number", "Current interest rate in percentage", false)
-            .param("current_loan_amount", "number", "Current loan amount in INR", false)
-            .param("remaining_tenure_months", "integer", "Remaining tenure in months", false)
-            .number_range("current_interest_rate", Some(0.0), Some(50.0))
-            .number_range("current_loan_amount", Some(1000.0), Some(100000000.0))
-            .number_range("remaining_tenure_months", Some(1.0), Some(360.0))
-            .build(),
-
+        .param(
+            "current_lender",
+            "string",
+            "Name of current lender (e.g., 'Muthoot', 'Manappuram')",
+            true,
+        )
+        .param(
+            "current_interest_rate",
+            "number",
+            "Current interest rate in percentage",
+            false,
+        )
+        .param(
+            "current_loan_amount",
+            "number",
+            "Current loan amount in INR",
+            false,
+        )
+        .param(
+            "remaining_tenure_months",
+            "integer",
+            "Remaining tenure in months",
+            false,
+        )
+        .number_range("current_interest_rate", Some(0.0), Some(50.0))
+        .number_range("current_loan_amount", Some(1000.0), Some(100000000.0))
+        .number_range("remaining_tenure_months", Some(1.0), Some(360.0))
+        .build(),
         ToolBuilder::new(
             "find_branches",
-            "Find nearby Kotak Mahindra Bank branches that offer gold loans"
+            "Find nearby Kotak Mahindra Bank branches that offer gold loans",
         )
-            .param("city", "string", "City name to search branches in", true)
-            .param("area", "string", "Specific area or locality (optional)", false)
-            .build(),
-
+        .param("city", "string", "City name to search branches in", true)
+        .param(
+            "area",
+            "string",
+            "Specific area or locality (optional)",
+            false,
+        )
+        .build(),
         ToolBuilder::new(
             "schedule_callback",
-            "Schedule a callback from Kotak branch team"
+            "Schedule a callback from Kotak branch team",
         )
-            .param("phone", "string", "Customer phone number (10 digits)", true)
-            .param("preferred_time", "string", "Preferred callback time", false)
-            .string_enum("preferred_time", &["morning", "afternoon", "evening"])
-            .build(),
+        .param("phone", "string", "Customer phone number (10 digits)", true)
+        .param("preferred_time", "string", "Preferred callback time", false)
+        .string_enum("preferred_time", &["morning", "afternoon", "evening"])
+        .build(),
     ]
 }
 
@@ -201,7 +235,10 @@ pub fn parse_tool_call(response: &str) -> Option<ParsedToolCall> {
     // Parse the JSON
     let value: serde_json::Value = serde_json::from_str(json_str).ok()?;
     let name = value.get("name")?.as_str()?.to_string();
-    let arguments = value.get("arguments").cloned().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    let arguments = value
+        .get("arguments")
+        .cloned()
+        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
 
     // Extract the text before and after the tool call
     let text_before = response[..start_idx].trim().to_string();
@@ -318,7 +355,11 @@ impl PromptBuilder {
 Respond naturally as if speaking on a phone call. Do not use bullet points, headers, or markdown formatting. Keep responses brief and conversational."#,
             name = self.persona.name,
             traits = persona_traits,
-            language_style = if language == "hi" { "Hindi-English (Hinglish)" } else { "English" },
+            language_style = if language == "hi" {
+                "Hindi-English (Hinglish)"
+            } else {
+                "English"
+            },
         );
 
         self.messages.push(Message::system(system));
@@ -362,7 +403,12 @@ Respond naturally as if speaking on a phone call. Do not use bullet points, head
     }
 
     /// Add customer profile
-    pub fn with_customer(mut self, name: Option<&str>, segment: Option<&str>, history: Option<&str>) -> Self {
+    pub fn with_customer(
+        mut self,
+        name: Option<&str>,
+        segment: Option<&str>,
+        history: Option<&str>,
+    ) -> Self {
         let mut profile_parts = Vec::new();
 
         if let Some(n) = name {
@@ -408,7 +454,10 @@ Respond naturally as if speaking on a phone call. Do not use bullet points, head
         };
 
         if !guidance.is_empty() {
-            self.messages.push(Message::system(format!("## Current Stage Guidance\n{}", guidance)));
+            self.messages.push(Message::system(format!(
+                "## Current Stage Guidance\n{}",
+                guidance
+            )));
         }
         self
     }
@@ -437,18 +486,20 @@ You have access to the following tools. When you need to use a tool to help the 
 After the tool runs, you will receive the result to incorporate into your response.
 
 Available tools:
-"#
+"#,
         );
 
         for tool in tools {
-            tool_prompt.push_str(&format!(
-                "\n### {}\n{}\n",
-                tool.name, tool.description
-            ));
+            tool_prompt.push_str(&format!("\n### {}\n{}\n", tool.name, tool.description));
 
             // Extract parameters from JSON schema
-            if let Some(props) = tool.parameters.get("properties").and_then(|p| p.as_object()) {
-                let required_params: Vec<&str> = tool.parameters
+            if let Some(props) = tool
+                .parameters
+                .get("properties")
+                .and_then(|p| p.as_object())
+            {
+                let required_params: Vec<&str> = tool
+                    .parameters
                     .get("required")
                     .and_then(|r| r.as_array())
                     .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
@@ -506,7 +557,8 @@ Available tools:
     /// Converts the prompt builder's messages to a GenerateRequest that
     /// can be used with the LanguageModel trait from voice_agent_core.
     pub fn build_request(self) -> voice_agent_core::GenerateRequest {
-        let core_messages: Vec<voice_agent_core::llm_types::Message> = self.messages
+        let core_messages: Vec<voice_agent_core::llm_types::Message> = self
+            .messages
             .into_iter()
             .map(Self::convert_message_to_core)
             .collect();
@@ -558,11 +610,13 @@ Available tools:
         }
 
         // Separate system messages (keep all) from conversation history
-        let (system_msgs, conv_msgs): (Vec<_>, Vec<_>) = self.messages
+        let (system_msgs, conv_msgs): (Vec<_>, Vec<_>) = self
+            .messages
             .into_iter()
             .partition(|m| matches!(m.role, Role::System));
 
-        let system_tokens: usize = system_msgs.iter()
+        let system_tokens: usize = system_msgs
+            .iter()
             .map(|m| Self::estimate_single_message_tokens(&m.content))
             .sum();
 
@@ -612,7 +666,8 @@ Available tools:
         use unicode_segmentation::UnicodeSegmentation;
 
         let grapheme_count = content.graphemes(true).count();
-        let devanagari_count = content.chars()
+        let devanagari_count = content
+            .chars()
             .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
             .count();
 
@@ -638,7 +693,9 @@ Available tools:
             .iter()
             .map(|m| {
                 let grapheme_count = m.content.graphemes(true).count();
-                let devanagari_count = m.content.chars()
+                let devanagari_count = m
+                    .content
+                    .chars()
                     .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
                     .count();
 
@@ -667,7 +724,10 @@ impl ResponseTemplates {
         if language == "hi" {
             format!("Namaste! Main {} hoon, Kotak Mahindra Bank se. Aapki madad karne ke liye yahan hoon.", name)
         } else {
-            format!("Hello! I'm {} from Kotak Mahindra Bank. I'm here to help you today.", name)
+            format!(
+                "Hello! I'm {} from Kotak Mahindra Bank. I'm here to help you today.",
+                name
+            )
         }
     }
 
@@ -701,9 +761,11 @@ impl ResponseTemplates {
     /// Closing
     pub fn closing(language: &str) -> String {
         if language == "hi" {
-            "Dhanyavaad aapka samay dene ke liye. Koi bhi sawal ho toh zaroor call karein.".to_string()
+            "Dhanyavaad aapka samay dene ke liye. Koi bhi sawal ho toh zaroor call karein."
+                .to_string()
         } else {
-            "Thank you for your time. Please feel free to call if you have any questions.".to_string()
+            "Thank you for your time. Please feel free to call if you have any questions."
+                .to_string()
         }
     }
 }
@@ -764,7 +826,12 @@ mod tests {
         assert_eq!(tool.description, "A test tool");
 
         // Verify JSON schema structure
-        let props = tool.parameters.get("properties").unwrap().as_object().unwrap();
+        let props = tool
+            .parameters
+            .get("properties")
+            .unwrap()
+            .as_object()
+            .unwrap();
         assert!(props.contains_key("param1"));
         assert!(props.contains_key("param2"));
 
@@ -780,7 +847,12 @@ mod tests {
             .string_enum("status", &["active", "inactive", "pending"])
             .build();
 
-        let props = tool.parameters.get("properties").unwrap().as_object().unwrap();
+        let props = tool
+            .parameters
+            .get("properties")
+            .unwrap()
+            .as_object()
+            .unwrap();
         let status_schema = props.get("status").unwrap();
         let enum_values = status_schema.get("enum").unwrap().as_array().unwrap();
 
@@ -795,11 +867,19 @@ mod tests {
             .number_range("amount", Some(0.0), Some(1000000.0))
             .build();
 
-        let props = tool.parameters.get("properties").unwrap().as_object().unwrap();
+        let props = tool
+            .parameters
+            .get("properties")
+            .unwrap()
+            .as_object()
+            .unwrap();
         let amount_schema = props.get("amount").unwrap();
 
         assert_eq!(amount_schema.get("minimum").unwrap().as_f64().unwrap(), 0.0);
-        assert_eq!(amount_schema.get("maximum").unwrap().as_f64().unwrap(), 1000000.0);
+        assert_eq!(
+            amount_schema.get("maximum").unwrap().as_f64().unwrap(),
+            1000000.0
+        );
     }
 
     #[test]
@@ -813,8 +893,16 @@ mod tests {
         assert!(tools.iter().any(|t| t.name == "schedule_callback"));
 
         // Verify check_eligibility has proper schema
-        let eligibility_tool = tools.iter().find(|t| t.name == "check_eligibility").unwrap();
-        let props = eligibility_tool.parameters.get("properties").unwrap().as_object().unwrap();
+        let eligibility_tool = tools
+            .iter()
+            .find(|t| t.name == "check_eligibility")
+            .unwrap();
+        let props = eligibility_tool
+            .parameters
+            .get("properties")
+            .unwrap()
+            .as_object()
+            .unwrap();
         assert!(props.contains_key("gold_weight"));
         assert!(props.contains_key("gold_purity"));
     }
@@ -859,7 +947,8 @@ mod tests {
         assert!(messages.len() >= 3);
 
         // Tool definitions should be in the prompt
-        let tool_msg = messages.iter()
+        let tool_msg = messages
+            .iter()
             .find(|m| m.content.contains("TOOL_CALL"))
             .expect("Should have tool definitions");
         assert!(tool_msg.content.contains("check_eligibility"));

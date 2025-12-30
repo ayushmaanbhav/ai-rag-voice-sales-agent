@@ -6,8 +6,8 @@
 //! - Named entity boosting
 //! - Stability-based partial emission
 
-use std::collections::{HashMap, VecDeque};
 use parking_lot::RwLock;
+use std::collections::{HashMap, VecDeque};
 
 use crate::PipelineError;
 
@@ -90,7 +90,8 @@ pub struct EnhancedDecoder {
 impl EnhancedDecoder {
     /// Create a new decoder with vocabulary
     pub fn new(vocab: Vec<String>, config: DecoderConfig) -> Self {
-        let vocab_map: HashMap<String, u32> = vocab.iter()
+        let vocab_map: HashMap<String, u32> = vocab
+            .iter()
             .enumerate()
             .map(|(i, s)| (s.clone(), i as u32))
             .collect();
@@ -204,7 +205,8 @@ impl EnhancedDecoder {
 
     /// Get top-k tokens from logits
     fn get_top_k(&self, logits: &[f32], k: usize) -> Vec<(u32, f32)> {
-        let mut indexed: Vec<(u32, f32)> = logits.iter()
+        let mut indexed: Vec<(u32, f32)> = logits
+            .iter()
             .enumerate()
             .map(|(i, &p)| (i as u32, p))
             .collect();
@@ -217,15 +219,15 @@ impl EnhancedDecoder {
         let sum: f32 = indexed.iter().map(|(_, p)| (p - max).exp()).sum();
         let log_sum = sum.ln() + max;
 
-        indexed.iter()
-            .map(|&(id, p)| (id, p - log_sum))
-            .collect()
+        indexed.iter().map(|&(id, p)| (id, p - log_sum)).collect()
     }
 
     /// Detect language of token
     fn detect_language(&self, token: &str) -> Language {
         // Simple heuristic based on script
-        let has_devanagari = token.chars().any(|c| ('\u{0900}'..='\u{097F}').contains(&c));
+        let has_devanagari = token
+            .chars()
+            .any(|c| ('\u{0900}'..='\u{097F}').contains(&c));
         let has_latin = token.chars().any(|c| c.is_ascii_alphabetic());
 
         match (has_devanagari, has_latin) {
@@ -282,7 +284,8 @@ impl EnhancedDecoder {
 
         // Check if last N frames agree
         let last = frame_history.back().copied(); // P2 FIX: VecDeque uses back() not last()
-        let stable = frame_history.iter()
+        let stable = frame_history
+            .iter()
             .rev()
             .take(self.config.stability_window)
             .all(|&t| Some(t) == last);
@@ -314,17 +317,13 @@ impl EnhancedDecoder {
     /// Finalize and get full text
     pub fn finalize(&self) -> String {
         let beam = self.beam.read();
-        beam.first()
-            .map(|h| h.text.clone())
-            .unwrap_or_default()
+        beam.first().map(|h| h.text.clone()).unwrap_or_default()
     }
 
     /// Get current best hypothesis
     pub fn current_best(&self) -> String {
         let beam = self.beam.read();
-        beam.first()
-            .map(|h| h.text.clone())
-            .unwrap_or_default()
+        beam.first().map(|h| h.text.clone()).unwrap_or_default()
     }
 
     /// Reset decoder state
@@ -351,7 +350,11 @@ mod tests {
 
     #[test]
     fn test_decoder_creation() {
-        let vocab = vec!["<blank>".to_string(), "hello".to_string(), "world".to_string()];
+        let vocab = vec![
+            "<blank>".to_string(),
+            "hello".to_string(),
+            "world".to_string(),
+        ];
         let decoder = EnhancedDecoder::new(vocab, DecoderConfig::default());
         assert!(decoder.current_best().is_empty());
     }

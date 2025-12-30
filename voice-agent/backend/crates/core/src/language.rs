@@ -97,8 +97,14 @@ impl Language {
     /// Get script used by this language
     pub fn script(&self) -> Script {
         match self {
-            Self::Hindi | Self::Marathi | Self::Sanskrit | Self::Konkani
-            | Self::Dogri | Self::Bodo | Self::Maithili | Self::Nepali => Script::Devanagari,
+            Self::Hindi
+            | Self::Marathi
+            | Self::Sanskrit
+            | Self::Konkani
+            | Self::Dogri
+            | Self::Bodo
+            | Self::Maithili
+            | Self::Nepali => Script::Devanagari,
             Self::Tamil => Script::Tamil,
             Self::Telugu => Script::Telugu,
             Self::Kannada => Script::Kannada,

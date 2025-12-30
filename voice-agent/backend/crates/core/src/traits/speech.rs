@@ -1,10 +1,10 @@
 //! Speech processing traits
 
-use async_trait::async_trait;
-use std::pin::Pin;
-use futures::Stream;
-use crate::{AudioFrame, Language, VoiceConfig, VoiceInfo, Result};
 use crate::transcript::TranscriptResult;
+use crate::{AudioFrame, Language, Result, VoiceConfig, VoiceInfo};
+use async_trait::async_trait;
+use futures::Stream;
+use std::pin::Pin;
 
 /// Alias for transcript frame (matches architecture doc naming)
 pub type TranscriptFrame = TranscriptResult;
@@ -110,9 +110,7 @@ pub trait TextToSpeech: Send + Sync + 'static {
 
     /// Get default voice for a language
     fn default_voice(&self, lang: Language) -> Option<&VoiceInfo> {
-        self.available_voices()
-            .iter()
-            .find(|v| v.language == lang)
+        self.available_voices().iter().find(|v| v.language == lang)
     }
 }
 

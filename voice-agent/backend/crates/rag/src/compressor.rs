@@ -63,7 +63,7 @@ impl Turn {
 
     /// Estimate token count (simple approximation: 1 token ≈ 4 chars)
     pub fn estimated_tokens(&self) -> usize {
-        (self.content.len() + 3) / 4 + 10 // +10 for role prefix
+        self.content.len().div_ceil(4) + 10 // +10 for role prefix
     }
 }
 
@@ -105,8 +105,8 @@ pub struct CompressorConfig {
 impl Default for CompressorConfig {
     fn default() -> Self {
         Self {
-            recency_window: 4,         // Keep last 4 turns intact
-            max_summary_tokens: 200,   // Summarize older turns into ~200 tokens
+            recency_window: 4,       // Keep last 4 turns intact
+            max_summary_tokens: 200, // Summarize older turns into ~200 tokens
             extract_entities: true,
             language: "en".to_string(),
         }
@@ -199,10 +199,7 @@ impl RuleBasedSummarizer {
                 let remaining = &text[start..];
 
                 // Extract next N words
-                let words: Vec<&str> = remaining
-                    .split_whitespace()
-                    .take(words_after)
-                    .collect();
+                let words: Vec<&str> = remaining.split_whitespace().take(words_after).collect();
 
                 if !words.is_empty() {
                     return Some(words.join(" "));
@@ -224,7 +221,7 @@ impl RuleBasedSummarizer {
         // Find sentence boundary near the limit
         let truncated = &text[..max_chars.min(text.len())];
 
-        if let Some(pos) = truncated.rfind(|c| c == '.' || c == '?' || c == '!') {
+        if let Some(pos) = truncated.rfind(['.', '?', '!']) {
             truncated[..=pos].to_string()
         } else if let Some(pos) = truncated.rfind(',') {
             format!("{}..", &truncated[..pos])
@@ -302,12 +299,16 @@ impl<S: Summarizer> ContextCompressor<S> {
 
         // Calculate token budget for summary
         let keep_tokens: usize = to_keep.iter().map(|t| t.estimated_tokens()).sum();
-        let summary_budget = max_tokens.saturating_sub(keep_tokens).min(self.config.max_summary_tokens);
+        let summary_budget = max_tokens
+            .saturating_sub(keep_tokens)
+            .min(self.config.max_summary_tokens);
 
         // Generate summary
         let summary = if summarize_count > 0 {
             let summary_text = self.format_turns(to_summarize);
-            self.summarizer.summarize(&summary_text, summary_budget).await?
+            self.summarizer
+                .summarize(&summary_text, summary_budget)
+                .await?
         } else {
             String::new()
         };
@@ -330,7 +331,7 @@ impl<S: Summarizer> ContextCompressor<S> {
 
         result.push_str(&self.format_turns(to_keep));
 
-        let estimated_tokens = (result.len() + 3) / 4;
+        let estimated_tokens = result.len().div_ceil(4);
 
         Ok(CompressedContext {
             text: result,
@@ -359,7 +360,7 @@ impl<S: Summarizer> ContextCompressor<S> {
         if text_lower.contains("customer:") {
             if let Some(pos) = text_lower.find("customer:") {
                 let remainder = &text[pos + 9..];
-                if let Some(end) = remainder.find(|c: char| c == ';' || c == '.' || c == '\n') {
+                if let Some(end) = remainder.find([';', '.', '\n']) {
                     let name = remainder[..end].trim();
                     if !name.is_empty() {
                         entities.push(("customer_name".to_string(), name.to_string()));
@@ -372,7 +373,7 @@ impl<S: Summarizer> ContextCompressor<S> {
         if text_lower.contains("amount") {
             if let Some(pos) = text_lower.find("amount") {
                 let remainder = &text[pos..];
-                if let Some(end) = remainder.find(|c: char| c == ';' || c == '\n') {
+                if let Some(end) = remainder.find([';', '\n']) {
                     let amount = remainder[..end].trim();
                     entities.push(("loan_amount".to_string(), amount.to_string()));
                 }
@@ -396,10 +397,7 @@ mod tests {
     #[tokio::test]
     async fn test_no_compression_needed() {
         let compressor = ContextCompressor::default();
-        let turns = vec![
-            Turn::user("Hello"),
-            Turn::assistant("Hi there!"),
-        ];
+        let turns = vec![Turn::user("Hello"), Turn::assistant("Hi there!")];
 
         let result = compressor.compress(&turns, 1000).await.unwrap();
 
@@ -430,7 +428,11 @@ mod tests {
         let result = compressor.compress(&turns, 150).await.unwrap();
 
         // Should summarize old turns, keep recent ones
-        assert!(result.summarized_turns > 0, "Expected some turns to be summarized, got {}", result.summarized_turns);
+        assert!(
+            result.summarized_turns > 0,
+            "Expected some turns to be summarized, got {}",
+            result.summarized_turns
+        );
         assert_eq!(result.intact_turns, 2);
         assert!(result.text.contains("[Summary") || result.text.contains("Previously"));
     }
@@ -452,7 +454,9 @@ mod tests {
         let result = compressor.compress(&turns, 100).await.unwrap();
 
         // Check if name was extracted
-        let has_name = result.extracted_entities.iter()
+        let has_name = result
+            .extracted_entities
+            .iter()
             .any(|(k, _)| k == "customer_name");
         assert!(has_name || result.text.contains("Rahul"));
     }
@@ -471,13 +475,16 @@ mod tests {
     fn test_rule_based_summarizer_patterns() {
         let text = "My name is Rahul. I want a 5 lakh loan. I have gold from Muthoot.";
 
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            RuleBasedSummarizer.summarize(text, 100).await
-        }).unwrap();
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async { RuleBasedSummarizer.summarize(text, 100).await })
+            .unwrap();
 
         // Should extract key info
-        assert!(result.to_lowercase().contains("rahul") ||
-                result.to_lowercase().contains("lakh") ||
-                result.to_lowercase().contains("muthoot"));
+        assert!(
+            result.to_lowercase().contains("rahul")
+                || result.to_lowercase().contains("lakh")
+                || result.to_lowercase().contains("muthoot")
+        );
     }
 }

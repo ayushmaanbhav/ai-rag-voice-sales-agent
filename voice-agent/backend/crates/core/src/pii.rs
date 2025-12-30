@@ -95,13 +95,15 @@ impl PIIType {
         match self {
             Self::Aadhaar | Self::PAN | Self::BankAccount | Self::CardNumber | Self::Passport => {
                 PIISeverity::Critical
-            }
-            Self::PhoneNumber | Self::Email | Self::Address | Self::DrivingLicense | Self::UpiId => {
-                PIISeverity::High
-            }
+            },
+            Self::PhoneNumber
+            | Self::Email
+            | Self::Address
+            | Self::DrivingLicense
+            | Self::UpiId => PIISeverity::High,
             Self::PersonName | Self::DateOfBirth | Self::VoterId | Self::IFSC | Self::GSTIN => {
                 PIISeverity::Medium
-            }
+            },
             Self::LoanAmount | Self::InterestRate | Self::CompetitorName => PIISeverity::Low,
         }
     }
@@ -228,13 +230,13 @@ impl RedactionStrategy {
                 let end: String = chars[len - visible_end..].iter().collect();
                 let middle = "*".repeat(len - visible_start - visible_end);
                 format!("{}{}{}", start, middle, end)
-            }
+            },
             Self::Remove => String::new(),
             Self::Synthesize => format!("[SYNTHETIC_{}]", pii_type.name().to_uppercase()),
             Self::Hash => {
                 // Simple hash for demo - use proper crypto in production
                 format!("[HASH:{}]", &text.len())
-            }
+            },
         }
     }
 }

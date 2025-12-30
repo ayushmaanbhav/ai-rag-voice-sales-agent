@@ -130,7 +130,7 @@ impl InterruptHandler {
                     audio_position_ms,
                     transcript: None,
                 }]
-            }
+            },
 
             InterruptMode::SentenceBoundary => {
                 *self.state.lock() = HandlerState::PendingInterrupt;
@@ -138,7 +138,7 @@ impl InterruptHandler {
                 *self.target_sentence.lock() = Some(current);
                 // Don't emit barge-in yet, wait for sentence end
                 vec![]
-            }
+            },
 
             InterruptMode::WordBoundary => {
                 // For word boundary, we set pending and let TTS finish current word
@@ -148,7 +148,7 @@ impl InterruptHandler {
                     audio_position_ms,
                     transcript: None,
                 }]
-            }
+            },
         }
     }
 
@@ -162,12 +162,12 @@ impl InterruptHandler {
             HandlerState::PendingInterrupt => {
                 // In pending, we block audio output but allow other frames
                 !matches!(frame, Frame::AudioOutput(_))
-            }
+            },
 
             HandlerState::Interrupted => {
                 // When interrupted, block TTS audio
                 !matches!(frame, Frame::AudioOutput(_) | Frame::Sentence { .. })
-            }
+            },
         }
     }
 
@@ -239,17 +239,15 @@ impl InterruptHandler {
 
 #[async_trait]
 impl FrameProcessor for InterruptHandler {
-    async fn process(
-        &self,
-        frame: Frame,
-        _context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, _context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         // Increment frame counter
         *self.frame_counter.lock() += 1;
 
         match &frame {
             // Handle barge-in event
-            Frame::BargeIn { audio_position_ms, .. } => {
+            Frame::BargeIn {
+                audio_position_ms, ..
+            } => {
                 let additional = self.handle_barge_in(*audio_position_ms);
                 if additional.is_empty() && self.config.mode == InterruptMode::Disabled {
                     // Pass through the original barge-in if disabled
@@ -260,7 +258,7 @@ impl FrameProcessor for InterruptHandler {
                     return Ok(vec![]);
                 }
                 return Ok(additional);
-            }
+            },
 
             // Track sentence progress
             Frame::Sentence { index, .. } => {
@@ -268,34 +266,34 @@ impl FrameProcessor for InterruptHandler {
                     // Block sentence after interrupt
                     return Ok(vec![]);
                 }
-            }
+            },
 
             // Start speaking when audio output begins
             Frame::AudioOutput(_) => {
                 if *self.state.lock() == HandlerState::Idle {
                     self.start_speaking();
                 }
-            }
+            },
 
             // Voice activity for interrupt detection
             Frame::VoiceStart => {
                 self.process_voice_activity(true, 0.0);
-            }
+            },
 
             Frame::VoiceEnd { .. } => {
                 self.process_voice_activity(false, -60.0);
-            }
+            },
 
             // Reset on end of stream or control
             Frame::EndOfStream => {
                 self.reset();
-            }
+            },
 
             Frame::Control(voice_agent_core::ControlFrame::Reset) => {
                 self.reset();
-            }
+            },
 
-            _ => {}
+            _ => {},
         }
 
         // Filter based on current state

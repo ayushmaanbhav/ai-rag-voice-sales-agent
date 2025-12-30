@@ -3,12 +3,12 @@
 //! Bridges Frame::Sentence to Frame::AudioOutput via StreamingTts.
 //! Wires the SentenceDetector output directly to TTS synthesis.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::Mutex;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use voice_agent_core::{Frame, FrameProcessor, ProcessorContext, Result, Language};
+use voice_agent_core::{Frame, FrameProcessor, Language, ProcessorContext, Result};
 
 use crate::tts::{StreamingTts, TtsConfig, TtsEvent};
 
@@ -112,7 +112,12 @@ impl TtsProcessor {
 
             // Process next chunk
             match self.tts.process_next() {
-                Ok(Some(TtsEvent::Audio { samples, text: chunk_text, is_final, word_indices })) => {
+                Ok(Some(TtsEvent::Audio {
+                    samples,
+                    text: chunk_text,
+                    is_final,
+                    word_indices,
+                })) => {
                     frames.push(Frame::AudioOutput(voice_agent_core::AudioFrame::new(
                         samples.to_vec(),
                         voice_agent_core::SampleRate::Hz16000, // Will be resampled if needed
@@ -131,42 +136,42 @@ impl TtsProcessor {
                     if is_final {
                         break;
                     }
-                }
+                },
                 Ok(Some(TtsEvent::Complete)) => {
                     tracing::debug!(sentence = sentence_index, "TTS synthesis complete");
                     break;
-                }
+                },
                 Ok(Some(TtsEvent::BargedIn { word_index })) => {
                     frames.push(Frame::BargeIn {
                         audio_position_ms: word_index as u64 * 100, // Approximate word to ms
                         transcript: None,
                     });
                     break;
-                }
+                },
                 Ok(Some(TtsEvent::Error(e))) => {
                     tracing::error!("TTS error: {}", e);
                     return Err(voice_agent_core::Error::Pipeline(
                         voice_agent_core::error::PipelineError::Tts(e),
                     ));
-                }
+                },
                 Ok(Some(TtsEvent::Started)) => {
                     tracing::trace!(sentence = sentence_index, "TTS started");
-                }
+                },
                 Ok(None) => {
                     // No more events
                     break;
-                }
+                },
                 Err(e) => {
                     return Err(voice_agent_core::Error::Pipeline(
                         voice_agent_core::error::PipelineError::Tts(e.to_string()),
                     ));
-                }
+                },
             }
 
             // Also check the async channel in case start() sent events there
             if let Ok(event) = rx.try_recv() {
                 match event {
-                    TtsEvent::Started => {}
+                    TtsEvent::Started => {},
                     TtsEvent::Complete => break,
                     TtsEvent::BargedIn { word_index } => {
                         frames.push(Frame::BargeIn {
@@ -174,13 +179,13 @@ impl TtsProcessor {
                             transcript: None,
                         });
                         break;
-                    }
+                    },
                     TtsEvent::Error(e) => {
                         return Err(voice_agent_core::Error::Pipeline(
                             voice_agent_core::error::PipelineError::Tts(e),
                         ));
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }
@@ -216,13 +221,13 @@ impl TtsProcessor {
 
 #[async_trait]
 impl FrameProcessor for TtsProcessor {
-    async fn process(
-        &self,
-        frame: Frame,
-        _context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, _context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         match frame {
-            Frame::Sentence { text, language, index } => {
+            Frame::Sentence {
+                text,
+                language,
+                index,
+            } => {
                 tracing::debug!(
                     sentence = index,
                     text = %text,
@@ -234,12 +239,12 @@ impl FrameProcessor for TtsProcessor {
                 let audio_frames = self.synthesize_sentence(&text, language, index).await?;
 
                 Ok(audio_frames)
-            }
+            },
 
             Frame::Control(voice_agent_core::ControlFrame::Reset) => {
                 self.reset();
                 Ok(vec![frame])
-            }
+            },
 
             Frame::Control(voice_agent_core::ControlFrame::Flush) => {
                 // On flush, finish any pending synthesis
@@ -247,13 +252,13 @@ impl FrameProcessor for TtsProcessor {
                     self.tts.finalize_text();
                 }
                 Ok(vec![frame])
-            }
+            },
 
             Frame::BargeIn { .. } => {
                 // Propagate barge-in and stop synthesis
                 self.barge_in();
                 Ok(vec![frame])
-            }
+            },
 
             Frame::EndOfStream => {
                 // Finish any pending synthesis
@@ -262,7 +267,7 @@ impl FrameProcessor for TtsProcessor {
                 }
                 self.reset();
                 Ok(vec![frame])
-            }
+            },
 
             // Pass through other frames
             _ => Ok(vec![frame]),
@@ -290,10 +295,7 @@ impl FrameProcessor for TtsProcessor {
     fn can_handle(&self, frame: &Frame) -> bool {
         matches!(
             frame,
-            Frame::Sentence { .. }
-                | Frame::Control(_)
-                | Frame::BargeIn { .. }
-                | Frame::EndOfStream
+            Frame::Sentence { .. } | Frame::Control(_) | Frame::BargeIn { .. } | Frame::EndOfStream
         )
     }
 }

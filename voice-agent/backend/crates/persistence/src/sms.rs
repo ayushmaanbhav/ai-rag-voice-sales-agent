@@ -3,11 +3,11 @@
 //! This module provides SMS simulation - messages are NOT actually sent,
 //! but are persisted to ScyllaDB for audit trail and testing.
 
+use crate::{PersistenceError, ScyllaClient};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{ScyllaClient, PersistenceError};
 
 /// SMS message types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,9 +89,17 @@ pub trait SmsService: Send + Sync {
         session_id: Option<&str>,
     ) -> Result<SmsResult, PersistenceError>;
 
-    async fn get_messages_for_phone(&self, phone: &str, limit: i32) -> Result<Vec<SmsMessage>, PersistenceError>;
+    async fn get_messages_for_phone(
+        &self,
+        phone: &str,
+        limit: i32,
+    ) -> Result<Vec<SmsMessage>, PersistenceError>;
 
-    async fn get_message(&self, phone: &str, message_id: Uuid) -> Result<Option<SmsMessage>, PersistenceError>;
+    async fn get_message(
+        &self,
+        phone: &str,
+        message_id: Uuid,
+    ) -> Result<Option<SmsMessage>, PersistenceError>;
 }
 
 /// Simulated SMS service that persists to ScyllaDB
@@ -153,19 +161,22 @@ impl SmsService for SimulatedSmsService {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                phone,
-                message_id,
-                session_id,
-                message,
-                msg_type.as_str(),
-                SmsStatus::SimulatedSent.as_str(),
-                now.timestamp_millis(),
-                now.timestamp_millis(),
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    phone,
+                    message_id,
+                    session_id,
+                    message,
+                    msg_type.as_str(),
+                    SmsStatus::SimulatedSent.as_str(),
+                    now.timestamp_millis(),
+                    now.timestamp_millis(),
+                ),
+            )
+            .await?;
 
         tracing::info!(
             phone = %phone,
@@ -189,7 +200,11 @@ impl SmsService for SimulatedSmsService {
         })
     }
 
-    async fn get_messages_for_phone(&self, phone: &str, limit: i32) -> Result<Vec<SmsMessage>, PersistenceError> {
+    async fn get_messages_for_phone(
+        &self,
+        phone: &str,
+        limit: i32,
+    ) -> Result<Vec<SmsMessage>, PersistenceError> {
         let query = format!(
             "SELECT phone_number, message_id, session_id, message_text,
                     message_type, status, created_at, sent_at, metadata_json
@@ -197,7 +212,9 @@ impl SmsService for SimulatedSmsService {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (phone, limit))
             .await?;
 
@@ -215,9 +232,18 @@ impl SmsService for SimulatedSmsService {
                     sent_at,
                     metadata_json,
                 ): (
-                    String, Uuid, Option<String>, String,
-                    String, String, i64, Option<i64>, Option<String>,
-                ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+                    String,
+                    Uuid,
+                    Option<String>,
+                    String,
+                    String,
+                    String,
+                    i64,
+                    Option<i64>,
+                    Option<String>,
+                ) = row
+                    .into_typed()
+                    .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 messages.push(SmsMessage {
                     message_id,
@@ -240,7 +266,8 @@ impl SmsService for SimulatedSmsService {
                         "failed" => SmsStatus::Failed,
                         _ => SmsStatus::SimulatedSent,
                     },
-                    created_at: DateTime::from_timestamp_millis(created_at).unwrap_or_else(Utc::now),
+                    created_at: DateTime::from_timestamp_millis(created_at)
+                        .unwrap_or_else(Utc::now),
                     sent_at: sent_at.and_then(DateTime::from_timestamp_millis),
                     metadata: metadata_json.and_then(|s| serde_json::from_str(&s).ok()),
                 });
@@ -250,7 +277,11 @@ impl SmsService for SimulatedSmsService {
         Ok(messages)
     }
 
-    async fn get_message(&self, phone: &str, message_id: Uuid) -> Result<Option<SmsMessage>, PersistenceError> {
+    async fn get_message(
+        &self,
+        phone: &str,
+        message_id: Uuid,
+    ) -> Result<Option<SmsMessage>, PersistenceError> {
         let messages = self.get_messages_for_phone(phone, 100).await?;
         Ok(messages.into_iter().find(|m| m.message_id == message_id))
     }
@@ -267,7 +298,7 @@ mod tests {
             "2024-01-15",
             "10:00 AM",
             "Kotak Bank Andheri",
-            "123 Link Road, Mumbai"
+            "123 Link Road, Mumbai",
         );
         assert!(msg.contains("Rahul"));
         assert!(msg.contains("2024-01-15"));
@@ -276,7 +307,10 @@ mod tests {
 
     #[test]
     fn test_sms_type_as_str() {
-        assert_eq!(SmsType::AppointmentConfirmation.as_str(), "appointment_confirmation");
+        assert_eq!(
+            SmsType::AppointmentConfirmation.as_str(),
+            "appointment_confirmation"
+        );
         assert_eq!(SmsType::FollowUp.as_str(), "follow_up");
     }
 }

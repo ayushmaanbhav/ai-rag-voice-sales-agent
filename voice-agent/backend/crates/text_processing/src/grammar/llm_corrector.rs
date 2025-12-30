@@ -5,8 +5,7 @@ use futures::Stream;
 use std::pin::Pin;
 use std::sync::Arc;
 use voice_agent_core::{
-    GrammarCorrector, DomainContext, LanguageModel,
-    GenerateRequest, Message, Role, Result,
+    DomainContext, GenerateRequest, GrammarCorrector, LanguageModel, Message, Result, Role,
 };
 
 /// Grammar corrector using LLM
@@ -89,7 +88,7 @@ impl GrammarCorrector for LLMGrammarCorrector {
 
         // Sanity check: if correction is wildly different in length, keep original
         let len_ratio = corrected.len() as f32 / text.len() as f32;
-        if len_ratio < 0.5 || len_ratio > 2.0 {
+        if !(0.5..=2.0).contains(&len_ratio) {
             tracing::warn!(
                 "Grammar correction changed length significantly ({} -> {}), keeping original",
                 text.len(),
@@ -109,13 +108,10 @@ impl GrammarCorrector for LLMGrammarCorrector {
         use futures::StreamExt;
 
         let ctx = context.clone();
-        Box::pin(
-            text_stream
-                .then(move |text| {
-                    let ctx = ctx.clone();
-                    async move { self.correct(&text, &ctx).await }
-                })
-        )
+        Box::pin(text_stream.then(move |text| {
+            let ctx = ctx.clone();
+            async move { self.correct(&text, &ctx).await }
+        }))
     }
 
     fn is_enabled(&self) -> bool {

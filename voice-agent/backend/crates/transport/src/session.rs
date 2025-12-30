@@ -2,16 +2,16 @@
 //!
 //! Manages transport sessions with automatic reconnection and failover.
 
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
-use parking_lot::RwLock;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
-use crate::{TransportError, AudioFormat};
 use crate::traits::{Transport, TransportEvent};
-use crate::webrtc::{WebRtcTransport, WebRtcConfig};
-use crate::websocket::{WebSocketTransport, WebSocketConfig};
+use crate::webrtc::{WebRtcConfig, WebRtcTransport};
+use crate::websocket::{WebSocketConfig, WebSocketTransport};
+use crate::{AudioFormat, TransportError};
 
 /// Session configuration
 #[derive(Debug, Clone)]
@@ -117,10 +117,10 @@ impl TransportSession {
                 Ok(answer) => {
                     *self.state.write() = SessionState::ConnectedWebRtc;
                     return Ok(answer);
-                }
+                },
                 Err(e) => {
                     tracing::warn!("WebRTC connection failed, falling back to WebSocket: {}", e);
-                }
+                },
             }
         }
 
@@ -129,11 +129,11 @@ impl TransportSession {
             Ok(answer) => {
                 *self.state.write() = SessionState::ConnectedWebSocket;
                 Ok(answer)
-            }
+            },
             Err(e) => {
                 *self.state.write() = SessionState::Disconnected;
                 Err(e)
-            }
+            },
         }
     }
 
@@ -145,17 +145,15 @@ impl TransportSession {
             transport.set_event_callback(tx.clone());
         }
 
-        let result = timeout(
-            self.config.connect_timeout,
-            transport.connect(offer),
-        ).await
-        .map_err(|_| TransportError::Timeout("WebRTC connection timeout".to_string()))?;
+        let result = timeout(self.config.connect_timeout, transport.connect(offer))
+            .await
+            .map_err(|_| TransportError::Timeout("WebRTC connection timeout".to_string()))?;
 
         match result {
             Ok(answer) => {
                 *self.transport.write() = Some(Box::new(transport));
                 Ok(answer)
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -168,17 +166,15 @@ impl TransportSession {
             transport.set_event_callback(tx.clone());
         }
 
-        let result = timeout(
-            self.config.connect_timeout,
-            transport.connect(offer),
-        ).await
-        .map_err(|_| TransportError::Timeout("WebSocket connection timeout".to_string()))?;
+        let result = timeout(self.config.connect_timeout, transport.connect(offer))
+            .await
+            .map_err(|_| TransportError::Timeout("WebSocket connection timeout".to_string()))?;
 
         match result {
             Ok(answer) => {
                 *self.transport.write() = Some(Box::new(transport));
                 Ok(answer)
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -205,7 +201,9 @@ impl TransportSession {
     pub fn transport(&self) -> Option<impl std::ops::Deref<Target = Box<dyn Transport>> + '_> {
         let guard = self.transport.read();
         if guard.is_some() {
-            Some(parking_lot::RwLockReadGuard::map(guard, |opt| opt.as_ref().unwrap()))
+            Some(parking_lot::RwLockReadGuard::map(guard, |opt| {
+                opt.as_ref().unwrap()
+            }))
         } else {
             None
         }
@@ -214,7 +212,11 @@ impl TransportSession {
     /// Send audio directly through the transport
     ///
     /// This is a convenience method that avoids guard lifetime issues in async contexts.
-    pub async fn send_audio(&self, samples: &[f32], timestamp_ms: u64) -> Result<(), TransportError> {
+    pub async fn send_audio(
+        &self,
+        samples: &[f32],
+        timestamp_ms: u64,
+    ) -> Result<(), TransportError> {
         let sink = {
             let guard = self.transport.read();
             if let Some(ref transport) = *guard {
@@ -248,14 +250,14 @@ impl TransportSession {
                 Ok(answer) => {
                     *self.reconnect_count.write() = 0;
                     return Ok(answer);
-                }
+                },
                 Err(e) => {
                     tracing::warn!("Reconnection attempt {} failed: {}", attempts, e);
 
                     if attempts < max_attempts {
                         tokio::time::sleep(self.config.reconnect_delay).await;
                     }
-                }
+                },
             }
         }
 

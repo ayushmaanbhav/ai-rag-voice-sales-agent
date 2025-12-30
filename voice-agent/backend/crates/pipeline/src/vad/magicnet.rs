@@ -131,11 +131,7 @@ impl VoiceActivityDetector {
 
         let gru_state = Array2::zeros((1, config.gru_hidden_size));
         let frame_samples = config.sample_rate as usize * config.frame_ms as usize / 1000;
-        let mel_filterbank = MelFilterbank::new(
-            config.sample_rate,
-            frame_samples,
-            config.n_mels,
-        )?;
+        let mel_filterbank = MelFilterbank::new(config.sample_rate, frame_samples, config.n_mels)?;
 
         Ok(Self {
             session,
@@ -159,7 +155,9 @@ impl VoiceActivityDetector {
     /// Create a simple energy-based VAD (no model required)
     #[cfg(feature = "onnx")]
     pub fn simple(_config: VadConfig) -> Result<Self, PipelineError> {
-        Err(PipelineError::Model("Simple VAD requires ONNX feature disabled".to_string()))
+        Err(PipelineError::Model(
+            "Simple VAD requires ONNX feature disabled".to_string(),
+        ))
     }
 
     /// Create a simple energy-based VAD (no model required)
@@ -183,7 +181,10 @@ impl VoiceActivityDetector {
     ///
     /// P0 FIX: Now uses single lock for all mutable state access.
     /// P1 FIX: Now returns VadResult for detailed transition info.
-    pub fn process_frame(&self, frame: &mut AudioFrame) -> Result<(VadState, f32, VadResult), PipelineError> {
+    pub fn process_frame(
+        &self,
+        frame: &mut AudioFrame,
+    ) -> Result<(VadState, f32, VadResult), PipelineError> {
         // Quick energy check for obvious silence (no lock needed)
         if frame.energy_db < self.config.energy_floor_db {
             frame.vad_probability = Some(0.0);
@@ -235,16 +236,19 @@ impl VoiceActivityDetector {
 
         let mut state = self.mutable.lock();
 
-        let input = Array3::from_shape_vec(
-            (1, 1, self.config.n_mels),
-            mel_features.to_vec(),
-        ).map_err(|e| PipelineError::Vad(e.to_string()))?;
+        let input = Array3::from_shape_vec((1, 1, self.config.n_mels), mel_features.to_vec())
+            .map_err(|e| PipelineError::Vad(e.to_string()))?;
 
-        let outputs = self.session.run(ort::inputs![
-            "mel_input" => input.view(),
-            "gru_state_in" => state.gru_state.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "mel_input" => input.view(),
+                    "gru_state_in" => state.gru_state.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         let speech_prob: f32 = outputs
             .get("speech_prob")
@@ -283,7 +287,7 @@ impl VoiceActivityDetector {
                 state.speech_frames = 1;
                 state.silence_frames = 0;
                 VadResult::PotentialSpeechStart
-            }
+            },
 
             (VadState::SpeechStart, true) => {
                 state.speech_frames += 1;
@@ -293,30 +297,30 @@ impl VoiceActivityDetector {
                 } else {
                     VadResult::PotentialSpeechStart
                 }
-            }
+            },
 
             (VadState::SpeechStart, false) => {
                 state.state = VadState::Silence;
                 state.speech_frames = 0;
                 VadResult::Silence
-            }
+            },
 
             (VadState::Speech, true) => {
                 state.silence_frames = 0;
                 VadResult::SpeechContinue
-            }
+            },
 
             (VadState::Speech, false) => {
                 state.state = VadState::SpeechEnd;
                 state.silence_frames = 1;
                 VadResult::PotentialSpeechEnd
-            }
+            },
 
             (VadState::SpeechEnd, true) => {
                 state.state = VadState::Speech;
                 state.silence_frames = 0;
                 VadResult::SpeechContinue
-            }
+            },
 
             (VadState::SpeechEnd, false) => {
                 state.silence_frames += 1;
@@ -328,11 +332,9 @@ impl VoiceActivityDetector {
                 } else {
                     VadResult::PotentialSpeechEnd
                 }
-            }
+            },
 
-            (VadState::Silence, false) => {
-                VadResult::Silence
-            }
+            (VadState::Silence, false) => VadResult::Silence,
         };
 
         Ok((state.state, probability, result))
@@ -385,7 +387,8 @@ impl MelFilterbank {
 
         let window: Vec<f32> = (0..frame_size)
             .map(|i| {
-                0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / (frame_size - 1) as f32).cos())
+                0.5 * (1.0
+                    - (2.0 * std::f32::consts::PI * i as f32 / (frame_size - 1) as f32).cos())
             })
             .collect();
 
@@ -408,11 +411,7 @@ impl MelFilterbank {
             )));
         }
 
-        let windowed: Vec<f32> = audio
-            .iter()
-            .zip(&self.window)
-            .map(|(a, w)| a * w)
-            .collect();
+        let windowed: Vec<f32> = audio.iter().zip(&self.window).map(|(a, w)| a * w).collect();
 
         let mut padded = vec![0.0f32; self.n_fft];
         padded[..windowed.len()].copy_from_slice(&windowed);
@@ -443,11 +442,7 @@ impl MelFilterbank {
         for (i, bin) in spectrum.iter_mut().enumerate() {
             let start = i * band_size;
             let end = ((i + 1) * band_size).min(signal.len());
-            *bin = signal[start..end]
-                .iter()
-                .map(|s| s * s)
-                .sum::<f32>()
-                .sqrt();
+            *bin = signal[start..end].iter().map(|s| s * s).sum::<f32>().sqrt();
         }
 
         spectrum

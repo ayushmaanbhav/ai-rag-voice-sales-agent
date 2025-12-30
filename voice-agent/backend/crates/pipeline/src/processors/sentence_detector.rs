@@ -6,9 +6,7 @@
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
-use voice_agent_core::{
-    Frame, FrameProcessor, ProcessorContext, Result, Language,
-};
+use voice_agent_core::{Frame, FrameProcessor, Language, ProcessorContext, Result};
 
 /// Sentence detector configuration
 #[derive(Debug, Clone)]
@@ -100,8 +98,13 @@ impl SentenceDetector {
                 while end < chars.len() {
                     let next = chars[end];
                     // Standard and curly quotes, brackets
-                    if next == '"' || next == '\'' || next == ')' || next == ']'
-                        || next == '"' || next == '\u{2019}' || next == '」'
+                    if next == '"'
+                        || next == '\''
+                        || next == ')'
+                        || next == ']'
+                        || next == '"'
+                        || next == '\u{2019}'
+                        || next == '」'
                     {
                         current.push(next);
                         end += 1;
@@ -196,11 +199,7 @@ impl SentenceDetector {
 
 #[async_trait]
 impl FrameProcessor for SentenceDetector {
-    async fn process(
-        &self,
-        frame: Frame,
-        context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         // Update language from context if configured
         if self.config.use_context_language {
             if let Some(lang) = context.language {
@@ -247,7 +246,7 @@ impl FrameProcessor for SentenceDetector {
 
                 // Create sentence frames
                 Ok(self.create_sentence_frames(sentences))
-            }
+            },
 
             Frame::Control(voice_agent_core::ControlFrame::Flush) => {
                 // Flush on control frame
@@ -259,12 +258,12 @@ impl FrameProcessor for SentenceDetector {
                 }
                 frames.push(frame);
                 Ok(frames)
-            }
+            },
 
             Frame::Control(voice_agent_core::ControlFrame::Reset) => {
                 self.reset();
                 Ok(vec![frame])
-            }
+            },
 
             Frame::EndOfStream => {
                 // Emit any remaining buffer
@@ -274,7 +273,7 @@ impl FrameProcessor for SentenceDetector {
                 }
                 frames.push(frame);
                 Ok(frames)
-            }
+            },
 
             // Pass through other frames
             _ => Ok(vec![frame]),
@@ -305,9 +304,7 @@ impl FrameProcessor for SentenceDetector {
     fn can_handle(&self, frame: &Frame) -> bool {
         matches!(
             frame,
-            Frame::LLMChunk { .. }
-                | Frame::Control(_)
-                | Frame::EndOfStream
+            Frame::LLMChunk { .. } | Frame::Control(_) | Frame::EndOfStream
         )
     }
 }
@@ -430,10 +427,7 @@ mod tests {
         let mut ctx = ProcessorContext::default();
 
         // Non-LLM frames should pass through
-        let frames = detector
-            .process(Frame::VoiceStart, &mut ctx)
-            .await
-            .unwrap();
+        let frames = detector.process(Frame::VoiceStart, &mut ctx).await.unwrap();
 
         assert_eq!(frames.len(), 1);
         assert!(matches!(frames[0], Frame::VoiceStart));

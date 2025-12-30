@@ -6,12 +6,12 @@
 //! - InterruptHandler: Handles barge-in with configurable modes
 //! - ProcessorChain: Channel-based chain connecting processors
 
+mod chain;
+mod interrupt_handler;
 mod sentence_detector;
 mod tts_processor;
-mod interrupt_handler;
-mod chain;
 
+pub use chain::{ProcessorChain, ProcessorChainBuilder};
+pub use interrupt_handler::{InterruptHandler, InterruptHandlerConfig, InterruptMode};
 pub use sentence_detector::{SentenceDetector, SentenceDetectorConfig};
 pub use tts_processor::{TtsProcessor, TtsProcessorConfig};
-pub use interrupt_handler::{InterruptHandler, InterruptMode, InterruptHandlerConfig};
-pub use chain::{ProcessorChain, ProcessorChainBuilder};

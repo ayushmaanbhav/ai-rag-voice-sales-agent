@@ -239,7 +239,13 @@ impl CausalConv1d {
             padding: 0, // We'll do manual padding
             ..Default::default()
         };
-        let conv = conv1d(in_channels, out_channels, kernel_size, config, vb.pp("conv"))?;
+        let conv = conv1d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            config,
+            vb.pp("conv"),
+        )?;
 
         Ok(Self { conv, kernel_size })
     }

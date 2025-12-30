@@ -8,9 +8,9 @@ mod noop;
 pub use llm_corrector::LLMGrammarCorrector;
 pub use noop::NoopCorrector;
 
-use voice_agent_core::{GrammarCorrector, LanguageModel};
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use voice_agent_core::{GrammarCorrector, LanguageModel};
 
 /// Grammar correction configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,12 +66,16 @@ pub fn create_corrector(
     match config.provider {
         GrammarProvider::Llm => {
             if let Some(llm) = llm {
-                Arc::new(LLMGrammarCorrector::new(llm, &config.domain, config.temperature))
+                Arc::new(LLMGrammarCorrector::new(
+                    llm,
+                    &config.domain,
+                    config.temperature,
+                ))
             } else {
                 tracing::warn!("LLM not available, using noop corrector");
                 Arc::new(NoopCorrector)
             }
-        }
+        },
         GrammarProvider::Disabled => Arc::new(NoopCorrector),
     }
 }

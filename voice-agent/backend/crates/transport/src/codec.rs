@@ -3,9 +3,9 @@
 //! Opus encoding/decoding for WebRTC audio transport.
 
 use audiopus::{
-    coder::{Encoder, Decoder},
+    coder::{Decoder, Encoder},
     packet::Packet,
-    Application, Channels, SampleRate as OpusSampleRate, MutSignals,
+    Application, Channels, MutSignals, SampleRate as OpusSampleRate,
 };
 use parking_lot::Mutex;
 
@@ -32,23 +32,29 @@ impl OpusEncoder {
             16000 => OpusSampleRate::Hz16000,
             24000 => OpusSampleRate::Hz24000,
             48000 => OpusSampleRate::Hz48000,
-            _ => return Err(TransportError::Internal(format!(
-                "Unsupported sample rate: {}. Use 8000, 12000, 16000, 24000, or 48000",
-                sample_rate
-            ))),
+            _ => {
+                return Err(TransportError::Internal(format!(
+                    "Unsupported sample rate: {}. Use 8000, 12000, 16000, 24000, or 48000",
+                    sample_rate
+                )))
+            },
         };
 
         let opus_channels = match channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            _ => return Err(TransportError::Internal(format!(
-                "Unsupported channel count: {}. Use 1 or 2",
-                channels
-            ))),
+            _ => {
+                return Err(TransportError::Internal(format!(
+                    "Unsupported channel count: {}. Use 1 or 2",
+                    channels
+                )))
+            },
         };
 
-        let encoder = Encoder::new(opus_sample_rate, opus_channels, Application::Voip)
-            .map_err(|e| TransportError::Internal(format!("Failed to create Opus encoder: {}", e)))?;
+        let encoder =
+            Encoder::new(opus_sample_rate, opus_channels, Application::Voip).map_err(|e| {
+                TransportError::Internal(format!("Failed to create Opus encoder: {}", e))
+            })?;
 
         // Frame size: 20ms of audio
         let frame_size = (sample_rate as usize * 20) / 1000;
@@ -70,14 +76,16 @@ impl OpusEncoder {
     /// Encoded Opus data
     pub fn encode(&self, pcm: &[f32]) -> Result<Vec<u8>, TransportError> {
         // Convert f32 to i16
-        let pcm_i16: Vec<i16> = pcm.iter()
+        let pcm_i16: Vec<i16> = pcm
+            .iter()
             .map(|&s| (s * 32767.0).clamp(-32768.0, 32767.0) as i16)
             .collect();
 
         let mut output = vec![0u8; 4000]; // Max Opus frame size
 
         let encoder = self.encoder.lock();
-        let encoded_len = encoder.encode(&pcm_i16, &mut output)
+        let encoded_len = encoder
+            .encode(&pcm_i16, &mut output)
             .map_err(|e| TransportError::Internal(format!("Opus encode error: {}", e)))?;
 
         output.truncate(encoded_len);
@@ -133,23 +141,28 @@ impl OpusDecoder {
             16000 => OpusSampleRate::Hz16000,
             24000 => OpusSampleRate::Hz24000,
             48000 => OpusSampleRate::Hz48000,
-            _ => return Err(TransportError::Internal(format!(
-                "Unsupported sample rate: {}",
-                sample_rate
-            ))),
+            _ => {
+                return Err(TransportError::Internal(format!(
+                    "Unsupported sample rate: {}",
+                    sample_rate
+                )))
+            },
         };
 
         let opus_channels = match channels {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            _ => return Err(TransportError::Internal(format!(
-                "Unsupported channel count: {}",
-                channels
-            ))),
+            _ => {
+                return Err(TransportError::Internal(format!(
+                    "Unsupported channel count: {}",
+                    channels
+                )))
+            },
         };
 
-        let decoder = Decoder::new(opus_sample_rate, opus_channels)
-            .map_err(|e| TransportError::Internal(format!("Failed to create Opus decoder: {}", e)))?;
+        let decoder = Decoder::new(opus_sample_rate, opus_channels).map_err(|e| {
+            TransportError::Internal(format!("Failed to create Opus decoder: {}", e))
+        })?;
 
         // Frame size: 20ms of audio
         let frame_size = (sample_rate as usize * 20) / 1000;
@@ -180,7 +193,8 @@ impl OpusDecoder {
         let mut_signals = MutSignals::try_from(&mut output[..])
             .map_err(|e| TransportError::Internal(format!("Signal buffer error: {}", e)))?;
 
-        let decoded_len = decoder.decode(Some(packet), mut_signals, false)
+        let decoded_len = decoder
+            .decode(Some(packet), mut_signals, false)
             .map_err(|e| TransportError::Internal(format!("Opus decode error: {}", e)))?;
 
         // Convert i16 to f32
@@ -203,7 +217,8 @@ impl OpusDecoder {
         let mut_signals = MutSignals::try_from(&mut output[..])
             .map_err(|e| TransportError::Internal(format!("Signal buffer error: {}", e)))?;
 
-        let decoded_len = decoder.decode(None::<Packet>, mut_signals, false)
+        let decoded_len = decoder
+            .decode(None::<Packet>, mut_signals, false)
             .map_err(|e| TransportError::Internal(format!("Opus PLC error: {}", e)))?;
 
         let pcm_f32: Vec<f32> = output[..decoded_len]
@@ -266,25 +281,23 @@ impl Resampler {
             self.from_rate as usize,
             self.to_rate as usize,
             chunk_size,
-            2,  // sub_chunks
-            1,  // channels
+            2, // sub_chunks
+            1, // channels
         ) {
             Ok(mut resampler) => {
                 let input_frames = vec![samples_f64];
                 match resampler.process(&input_frames, None) {
-                    Ok(output_frames) => {
-                        output_frames[0].iter().map(|&s| s as f32).collect()
-                    }
+                    Ok(output_frames) => output_frames[0].iter().map(|&s| s as f32).collect(),
                     Err(e) => {
                         tracing::warn!("Rubato processing failed: {}", e);
                         self.resample_linear(input)
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!("Rubato init failed: {}", e);
                 self.resample_linear(input)
-            }
+            },
         }
     }
 
@@ -352,12 +365,18 @@ mod tests {
         // Verify the decode produced output
         // Note: Opus is optimized for voice and may not preserve simple synthetic signals well
         // We just check that the output has similar properties (non-zero, bounded)
-        let output_rms: f32 = (decoded.iter().map(|s| s.powi(2)).sum::<f32>() / decoded.len() as f32).sqrt();
+        let output_rms: f32 =
+            (decoded.iter().map(|s| s.powi(2)).sum::<f32>() / decoded.len() as f32).sqrt();
         let input_rms: f32 = (pcm.iter().map(|s| s.powi(2)).sum::<f32>() / pcm.len() as f32).sqrt();
 
         // Output should have similar energy (within an order of magnitude)
         assert!(output_rms > 0.01, "Output too quiet: {}", output_rms);
-        assert!(output_rms < input_rms * 5.0, "Output energy ratio too high: {} vs {}", output_rms, input_rms);
+        assert!(
+            output_rms < input_rms * 5.0,
+            "Output energy ratio too high: {} vs {}",
+            output_rms,
+            input_rms
+        );
     }
 
     #[test]

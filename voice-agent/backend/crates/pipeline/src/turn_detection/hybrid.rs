@@ -3,16 +3,15 @@
 //! Combines VAD silence detection with semantic completeness analysis.
 //! Dynamically adjusts silence threshold based on utterance type.
 
-use std::time::{Duration, Instant};
 use parking_lot::Mutex;
+use std::time::{Duration, Instant};
 
-use super::semantic::{SemanticTurnDetector, SemanticConfig, CompletenessClass};
+use super::semantic::{CompletenessClass, SemanticConfig, SemanticTurnDetector};
 use crate::vad::VadState;
 use crate::PipelineError;
 
 /// Turn detection state
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TurnState {
     /// Waiting for user to speak
     #[default]
@@ -26,7 +25,6 @@ pub enum TurnState {
     /// Agent is responding
     AgentSpeaking,
 }
-
 
 /// Turn detection result
 #[derive(Debug, Clone)]
@@ -121,10 +119,7 @@ impl HybridTurnDetector {
     }
 
     /// Create with custom semantic detector
-    pub fn with_semantic(
-        config: TurnDetectionConfig,
-        semantic: SemanticTurnDetector,
-    ) -> Self {
+    pub fn with_semantic(config: TurnDetectionConfig, semantic: SemanticTurnDetector) -> Self {
         Self {
             internal: Mutex::new(InternalState {
                 state: TurnState::Idle,
@@ -164,10 +159,8 @@ impl HybridTurnDetector {
                         // Update dynamic threshold based on semantic class
                         let suggested = class.suggested_silence_ms();
                         internal.dynamic_threshold = Duration::from_millis(
-                            suggested.clamp(
-                                self.config.min_silence_ms,
-                                self.config.max_silence_ms,
-                            ) as u64
+                            suggested.clamp(self.config.min_silence_ms, self.config.max_silence_ms)
+                                as u64,
                         );
                     }
                 }
@@ -177,34 +170,35 @@ impl HybridTurnDetector {
         // State machine transitions
         let (new_state, is_turn_complete) = match (internal.state, vad_state) {
             // Idle -> UserSpeaking when speech starts
-            (TurnState::Idle, VadState::Speech) |
-            (TurnState::Idle, VadState::SpeechStart) => {
+            (TurnState::Idle, VadState::Speech) | (TurnState::Idle, VadState::SpeechStart) => {
                 internal.speech_start = Some(now);
                 internal.silence_start = None;
                 (TurnState::UserSpeaking, false)
-            }
+            },
 
             // UserSpeaking continues
             (TurnState::UserSpeaking, VadState::Speech) => {
                 internal.silence_start = None;
                 (TurnState::UserSpeaking, false)
-            }
+            },
 
             // UserSpeaking -> Evaluating when speech ends
-            (TurnState::UserSpeaking, VadState::SpeechEnd) |
-            (TurnState::UserSpeaking, VadState::Silence) => {
+            (TurnState::UserSpeaking, VadState::SpeechEnd)
+            | (TurnState::UserSpeaking, VadState::Silence) => {
                 internal.silence_start = Some(now);
                 (TurnState::Evaluating, false)
-            }
+            },
 
             // Evaluating -> check silence duration
             (TurnState::Evaluating, VadState::Silence) => {
-                let silence_duration = internal.silence_start
+                let silence_duration = internal
+                    .silence_start
                     .map(|s| now.duration_since(s))
                     .unwrap_or_default();
 
                 // Check if we've had enough speech
-                let speech_duration = internal.speech_start
+                let speech_duration = internal
+                    .speech_start
                     .map(|s| {
                         let end = internal.silence_start.unwrap_or(now);
                         end.duration_since(s)
@@ -223,39 +217,36 @@ impl HybridTurnDetector {
                     // Keep evaluating
                     (TurnState::Evaluating, false)
                 }
-            }
+            },
 
             // Evaluating -> UserSpeaking if speech resumes
-            (TurnState::Evaluating, VadState::Speech) |
-            (TurnState::Evaluating, VadState::SpeechStart) => {
+            (TurnState::Evaluating, VadState::Speech)
+            | (TurnState::Evaluating, VadState::SpeechStart) => {
                 internal.silence_start = None;
                 (TurnState::UserSpeaking, false)
-            }
+            },
 
             // TurnComplete -> stays complete until reset
-            (TurnState::TurnComplete, _) => {
-                (TurnState::TurnComplete, true)
-            }
+            (TurnState::TurnComplete, _) => (TurnState::TurnComplete, true),
 
             // AgentSpeaking -> can transition based on barge-in
-            (TurnState::AgentSpeaking, VadState::Speech) |
-            (TurnState::AgentSpeaking, VadState::SpeechStart) => {
+            (TurnState::AgentSpeaking, VadState::Speech)
+            | (TurnState::AgentSpeaking, VadState::SpeechStart) => {
                 // Potential barge-in - handled by orchestrator
                 internal.speech_start = Some(now);
                 (TurnState::UserSpeaking, false)
-            }
+            },
 
-            (TurnState::AgentSpeaking, _) => {
-                (TurnState::AgentSpeaking, false)
-            }
+            (TurnState::AgentSpeaking, _) => (TurnState::AgentSpeaking, false),
 
             // Default: stay in current state
-            (state, _) => (state, false)
+            (state, _) => (state, false),
         };
 
         internal.state = new_state;
 
-        let silence_duration = internal.silence_start
+        let silence_duration = internal
+            .silence_start
             .map(|s| now.duration_since(s))
             .unwrap_or_default();
 
@@ -281,8 +272,8 @@ impl HybridTurnDetector {
         let mut confidence = 0.0;
 
         // Silence-based confidence (0.4 weight)
-        let silence_ratio = silence.as_millis() as f32 /
-            internal.dynamic_threshold.as_millis() as f32;
+        let silence_ratio =
+            silence.as_millis() as f32 / internal.dynamic_threshold.as_millis() as f32;
         confidence += 0.4 * silence_ratio.min(1.5);
 
         // Semantic-based confidence (0.6 weight if available)
@@ -365,7 +356,9 @@ mod tests {
 
         // Simulate speech with question
         let _ = detector.process(VadState::Speech, None);
-        let result = detector.process(VadState::Speech, Some("What is the rate?")).unwrap();
+        let result = detector
+            .process(VadState::Speech, Some("What is the rate?"))
+            .unwrap();
 
         // Should detect question and lower threshold
         assert_eq!(result.semantic_class, Some(CompletenessClass::Question));

@@ -121,7 +121,11 @@ impl Competitor {
             ],
             market_share: Some(25.0),
             branch_count: Some(5500),
-            key_regions: vec!["Kerala".to_string(), "Tamil Nadu".to_string(), "Karnataka".to_string()],
+            key_regions: vec![
+                "Kerala".to_string(),
+                "Tamil Nadu".to_string(),
+                "Karnataka".to_string(),
+            ],
         }
     }
 
@@ -435,14 +439,19 @@ impl CompetitorConfig {
     pub fn get_competitor(&self, id_or_name: &str) -> Option<&Competitor> {
         let lower = id_or_name.to_lowercase();
         self.competitors.get(&lower).or_else(|| {
-            self.competitors
-                .values()
-                .find(|c| c.name.to_lowercase() == lower || c.full_name.to_lowercase().contains(&lower))
+            self.competitors.values().find(|c| {
+                c.name.to_lowercase() == lower || c.full_name.to_lowercase().contains(&lower)
+            })
         })
     }
 
     /// Calculate potential savings when switching from competitor
-    pub fn calculate_savings(&self, competitor_id: &str, loan_amount: f64, kotak_rate: f64) -> Option<MonthlySavings> {
+    pub fn calculate_savings(
+        &self,
+        competitor_id: &str,
+        loan_amount: f64,
+        kotak_rate: f64,
+    ) -> Option<MonthlySavings> {
         let competitor = self.get_competitor(competitor_id)?;
 
         // Use average of competitor's rate range
@@ -530,7 +539,9 @@ mod tests {
     fn test_calculate_savings() {
         let config = CompetitorConfig::default();
 
-        let savings = config.calculate_savings("muthoot", 100_000.0, 10.0).unwrap();
+        let savings = config
+            .calculate_savings("muthoot", 100_000.0, 10.0)
+            .unwrap();
 
         // Muthoot avg rate ~18%, Kotak 10%
         // Monthly: 100000 * (18/100/12) - 100000 * (10/100/12) = 1500 - 833 = ~667

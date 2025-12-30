@@ -1,16 +1,22 @@
 //! ScyllaDB schema creation
 
-use scylla::Session;
 use crate::error::PersistenceError;
+use scylla::Session;
 
 /// Create the keyspace if it doesn't exist
-pub async fn create_keyspace(session: &Session, keyspace: &str, replication_factor: u8) -> Result<(), PersistenceError> {
+pub async fn create_keyspace(
+    session: &Session,
+    keyspace: &str,
+    replication_factor: u8,
+) -> Result<(), PersistenceError> {
     let query = format!(
         "CREATE KEYSPACE IF NOT EXISTS {} WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': {}}}",
         keyspace, replication_factor
     );
 
-    session.query_unpaged(query, &[]).await
+    session
+        .query_unpaged(query, &[])
+        .await
         .map_err(|e| PersistenceError::SchemaError(format!("Failed to create keyspace: {}", e)))?;
 
     Ok(())
@@ -19,7 +25,8 @@ pub async fn create_keyspace(session: &Session, keyspace: &str, replication_fact
 /// Create all required tables
 pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), PersistenceError> {
     // Sessions table
-    let sessions_table = format!(r#"
+    let sessions_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.sessions (
             session_id TEXT,
             created_at TIMESTAMP,
@@ -35,13 +42,20 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             metadata_json TEXT,
             PRIMARY KEY (session_id)
         ) WITH default_time_to_live = 86400
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(sessions_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create sessions table: {}", e)))?;
+    session
+        .query_unpaged(sessions_table, &[])
+        .await
+        .map_err(|e| {
+            PersistenceError::SchemaError(format!("Failed to create sessions table: {}", e))
+        })?;
 
     // SMS messages table (for simulation audit trail)
-    let sms_table = format!(r#"
+    let sms_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.sms_messages (
             phone_number TEXT,
             message_id TIMEUUID,
@@ -54,13 +68,17 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             metadata_json TEXT,
             PRIMARY KEY ((phone_number), message_id)
         ) WITH CLUSTERING ORDER BY (message_id DESC)
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(sms_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create sms_messages table: {}", e)))?;
+    session.query_unpaged(sms_table, &[]).await.map_err(|e| {
+        PersistenceError::SchemaError(format!("Failed to create sms_messages table: {}", e))
+    })?;
 
     // Gold prices history table
-    let gold_prices_table = format!(r#"
+    let gold_prices_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.gold_prices (
             date DATE,
             hour INT,
@@ -72,13 +90,20 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             created_at TIMESTAMP,
             PRIMARY KEY ((date), hour)
         ) WITH CLUSTERING ORDER BY (hour DESC)
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(gold_prices_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create gold_prices table: {}", e)))?;
+    session
+        .query_unpaged(gold_prices_table, &[])
+        .await
+        .map_err(|e| {
+            PersistenceError::SchemaError(format!("Failed to create gold_prices table: {}", e))
+        })?;
 
     // Latest gold price (single row)
-    let gold_latest_table = format!(r#"
+    let gold_latest_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.gold_price_latest (
             singleton INT,
             price_per_gram DOUBLE,
@@ -89,13 +114,23 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             source TEXT,
             PRIMARY KEY (singleton)
         )
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(gold_latest_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create gold_price_latest table: {}", e)))?;
+    session
+        .query_unpaged(gold_latest_table, &[])
+        .await
+        .map_err(|e| {
+            PersistenceError::SchemaError(format!(
+                "Failed to create gold_price_latest table: {}",
+                e
+            ))
+        })?;
 
     // Appointments table
-    let appointments_table = format!(r#"
+    let appointments_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.appointments (
             customer_phone TEXT,
             appointment_id TIMEUUID,
@@ -113,15 +148,22 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             notes TEXT,
             PRIMARY KEY ((customer_phone), appointment_id)
         ) WITH CLUSTERING ORDER BY (appointment_id DESC)
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(appointments_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create appointments table: {}", e)))?;
+    session
+        .query_unpaged(appointments_table, &[])
+        .await
+        .map_err(|e| {
+            PersistenceError::SchemaError(format!("Failed to create appointments table: {}", e))
+        })?;
 
     // P0 FIX: Audit log table for RBI compliance
     // Required for regulatory auditing of all financial conversations
     // 7 year retention as per RBI guidelines (220752000 seconds)
-    let audit_log_table = format!(r#"
+    let audit_log_table = format!(
+        r#"
         CREATE TABLE IF NOT EXISTS {}.audit_log (
             partition_date TEXT,
             session_id TEXT,
@@ -140,10 +182,16 @@ pub async fn create_tables(session: &Session, keyspace: &str) -> Result<(), Pers
             PRIMARY KEY ((partition_date, session_id), timestamp, id)
         ) WITH CLUSTERING ORDER BY (timestamp DESC, id DESC)
         AND default_time_to_live = 220752000
-    "#, keyspace);
+    "#,
+        keyspace
+    );
 
-    session.query_unpaged(audit_log_table, &[]).await
-        .map_err(|e| PersistenceError::SchemaError(format!("Failed to create audit_log table: {}", e)))?;
+    session
+        .query_unpaged(audit_log_table, &[])
+        .await
+        .map_err(|e| {
+            PersistenceError::SchemaError(format!("Failed to create audit_log table: {}", e))
+        })?;
 
     tracing::info!("All tables created successfully");
     Ok(())

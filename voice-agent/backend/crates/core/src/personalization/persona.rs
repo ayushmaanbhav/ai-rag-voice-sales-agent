@@ -6,16 +6,18 @@
 //! - Language style (simple/sophisticated)
 //! - Response patterns
 
-use serde::{Deserialize, Serialize};
 use crate::CustomerSegment;
+use serde::{Deserialize, Serialize};
 
 /// Communication tone
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Tone {
     /// Highly formal, respectful (e.g., "Respected Sir/Madam")
     Formal,
     /// Professional but warm
+    #[default]
     Professional,
     /// Friendly and approachable
     Friendly,
@@ -45,48 +47,34 @@ impl Tone {
     }
 }
 
-impl Default for Tone {
-    fn default() -> Self {
-        Tone::Professional
-    }
-}
-
 /// Language complexity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum LanguageComplexity {
     /// Simple words, short sentences
     Simple,
     /// Moderate vocabulary, clear explanations
+    #[default]
     Moderate,
     /// Technical terms acceptable, detailed explanations
     Sophisticated,
 }
 
-impl Default for LanguageComplexity {
-    fn default() -> Self {
-        LanguageComplexity::Moderate
-    }
-}
-
 /// Response urgency level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ResponseUrgency {
     /// Relaxed pace, no pressure
     Relaxed,
     /// Normal conversational pace
+    #[default]
     Normal,
     /// Slightly faster, showing efficiency
     Efficient,
     /// Quick responses, highlighting urgency
     Urgent,
-}
-
-impl Default for ResponseUrgency {
-    fn default() -> Self {
-        ResponseUrgency::Normal
-    }
 }
 
 /// Agent persona configuration
@@ -260,9 +248,15 @@ impl Persona {
 
         // Tone instructions
         instructions.push(match self.tone {
-            Tone::Formal => "Use formal, respectful language. Address the customer with honorifics.".to_string(),
-            Tone::Professional => "Use professional but warm language. Be clear and helpful.".to_string(),
-            Tone::Friendly => "Use friendly, approachable language. Feel free to be conversational.".to_string(),
+            Tone::Formal => {
+                "Use formal, respectful language. Address the customer with honorifics.".to_string()
+            },
+            Tone::Professional => {
+                "Use professional but warm language. Be clear and helpful.".to_string()
+            },
+            Tone::Friendly => {
+                "Use friendly, approachable language. Feel free to be conversational.".to_string()
+            },
             Tone::Casual => "Use casual, relaxed language. Be natural and easy-going.".to_string(),
         });
 
@@ -277,16 +271,24 @@ impl Persona {
 
         // Empathy instructions
         if self.empathy > 0.8 {
-            instructions.push("Show strong empathy. Acknowledge concerns and feelings explicitly.".to_string());
+            instructions.push(
+                "Show strong empathy. Acknowledge concerns and feelings explicitly.".to_string(),
+            );
         } else if self.empathy > 0.5 {
             instructions.push("Show understanding when customer expresses concerns.".to_string());
         }
 
         // Complexity instructions
         instructions.push(match self.language_complexity {
-            LanguageComplexity::Simple => "Use simple words and short sentences. Avoid jargon.".to_string(),
-            LanguageComplexity::Moderate => "Use clear language. Explain any technical terms.".to_string(),
-            LanguageComplexity::Sophisticated => "You can use industry terms. Assume customer understands finance.".to_string(),
+            LanguageComplexity::Simple => {
+                "Use simple words and short sentences. Avoid jargon.".to_string()
+            },
+            LanguageComplexity::Moderate => {
+                "Use clear language. Explain any technical terms.".to_string()
+            },
+            LanguageComplexity::Sophisticated => {
+                "You can use industry terms. Assume customer understands finance.".to_string()
+            },
         });
 
         // Urgency instructions
@@ -294,17 +296,24 @@ impl Persona {
             ResponseUrgency::Relaxed => "Take your time. Don't rush the customer.".to_string(),
             ResponseUrgency::Normal => "Maintain a natural pace.".to_string(),
             ResponseUrgency::Efficient => "Be efficient and value the customer's time.".to_string(),
-            ResponseUrgency::Urgent => "Be quick and highlight time-sensitive benefits.".to_string(),
+            ResponseUrgency::Urgent => {
+                "Be quick and highlight time-sensitive benefits.".to_string()
+            },
         });
 
         // Customer name usage
         if self.use_customer_name {
-            instructions.push("Use the customer's name when appropriate to personalize the conversation.".to_string());
+            instructions.push(
+                "Use the customer's name when appropriate to personalize the conversation."
+                    .to_string(),
+            );
         }
 
         // Emotion acknowledgment
         if self.acknowledge_emotions {
-            instructions.push("Acknowledge customer emotions before addressing their question.".to_string());
+            instructions.push(
+                "Acknowledge customer emotions before addressing their question.".to_string(),
+            );
         }
 
         // Hinglish
@@ -357,7 +366,8 @@ impl Persona {
             },
             use_hinglish: self.use_hinglish || other.use_hinglish,
             max_response_words: ((self.max_response_words as f32) * inv
-                + (other.max_response_words as f32) * factor) as usize,
+                + (other.max_response_words as f32) * factor)
+                as usize,
         }
     }
 }

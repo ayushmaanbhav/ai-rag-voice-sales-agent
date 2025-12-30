@@ -186,8 +186,19 @@ impl SemanticTurnDetector {
 
         // Backchannel patterns
         let backchannels = [
-            "hmm", "haan", "achha", "theek hai", "ok", "okay", "yes", "no",
-            "ji", "sahi", "bilkul", "samajh gaya", "samajh gayi",
+            "hmm",
+            "haan",
+            "achha",
+            "theek hai",
+            "ok",
+            "okay",
+            "yes",
+            "no",
+            "ji",
+            "sahi",
+            "bilkul",
+            "samajh gaya",
+            "samajh gayi",
         ];
         for bc in &backchannels {
             if lower == *bc || lower.starts_with(&format!("{} ", bc)) {
@@ -197,8 +208,8 @@ impl SemanticTurnDetector {
 
         // Incomplete sentence markers (conjunctions, etc.)
         let incomplete_markers = [
-            "aur", "lekin", "par", "toh", "ki", "jo", "jab", "agar",
-            "and", "but", "so", "that", "which", "when", "if",
+            "aur", "lekin", "par", "toh", "ki", "jo", "jab", "agar", "and", "but", "so", "that",
+            "which", "when", "if",
         ];
         for marker in &incomplete_markers {
             if lower.ends_with(&format!(" {}", marker)) {
@@ -218,11 +229,13 @@ impl SemanticTurnDetector {
     #[cfg(feature = "onnx")]
     fn model_classify(&self, text: &str) -> Result<(CompletenessClass, f32), PipelineError> {
         // Tokenize
-        let encoding = self.tokenizer
+        let encoding = self
+            .tokenizer
             .encode(text, true)
             .map_err(|e| PipelineError::TurnDetection(e.to_string()))?;
 
-        let ids: Vec<i64> = encoding.get_ids()
+        let ids: Vec<i64> = encoding
+            .get_ids()
             .iter()
             .take(self.config.max_seq_len)
             .map(|&id| id as i64)
@@ -244,11 +257,16 @@ impl SemanticTurnDetector {
             .map_err(|e| PipelineError::TurnDetection(e.to_string()))?;
 
         // Run inference
-        let outputs = self.session.run(ort::inputs![
-            "input_ids" => input_ids.view(),
-            "attention_mask" => attention.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "input_ids" => input_ids.view(),
+                    "attention_mask" => attention.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         // Extract logits [batch, num_classes]
         let logits = outputs
@@ -263,7 +281,8 @@ impl SemanticTurnDetector {
         let sum: f32 = probs.iter().sum();
         let probs: Vec<f32> = probs.iter().map(|&x| x / sum).collect();
 
-        let (max_idx, &max_prob) = probs.iter()
+        let (max_idx, &max_prob) = probs
+            .iter()
             .enumerate()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .unwrap_or((0, &0.0));
@@ -310,10 +329,7 @@ impl SemanticTurnDetector {
             total_conf[idx] += conf;
         }
 
-        let (max_idx, &max_votes) = votes.iter()
-            .enumerate()
-            .max_by_key(|(_, &v)| v)
-            .unwrap();
+        let (max_idx, &max_votes) = votes.iter().enumerate().max_by_key(|(_, &v)| v).unwrap();
 
         let avg_conf = if max_votes > 0 {
             total_conf[max_idx] / max_votes as f32
@@ -356,7 +372,9 @@ mod tests {
     fn test_quick_classify_hindi_question() {
         let detector = SemanticTurnDetector::simple(SemanticConfig::default()).unwrap();
 
-        let (class, _) = detector.classify("kya interest rate kam ho sakta hai").unwrap();
+        let (class, _) = detector
+            .classify("kya interest rate kam ho sakta hai")
+            .unwrap();
         assert_eq!(class, CompletenessClass::Question);
     }
 

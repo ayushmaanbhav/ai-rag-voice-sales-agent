@@ -2,7 +2,6 @@
 //!
 //! Splits text into speakable chunks for early emission.
 
-
 /// Chunk output from the chunker
 #[derive(Debug, Clone)]
 pub struct TextChunk {
@@ -299,21 +298,19 @@ impl WordChunker {
 
     /// Check if word is a pause point
     fn is_pause_point(&self, word: &str) -> bool {
-        word.ends_with(',') ||
-        word.ends_with('.') ||
-        word.ends_with('!') ||
-        word.ends_with('?') ||
-        word.ends_with(':') ||
-        word.ends_with(';') ||
-        word.ends_with('—') ||
-        word.ends_with('-')
+        word.ends_with(',')
+            || word.ends_with('.')
+            || word.ends_with('!')
+            || word.ends_with('?')
+            || word.ends_with(':')
+            || word.ends_with(';')
+            || word.ends_with('—')
+            || word.ends_with('-')
     }
 
     /// Check if word ends a sentence
     fn is_sentence_end(&self, word: &str) -> bool {
-        word.ends_with('.') ||
-        word.ends_with('!') ||
-        word.ends_with('?')
+        word.ends_with('.') || word.ends_with('!') || word.ends_with('?')
     }
 
     /// Mark input as finalized

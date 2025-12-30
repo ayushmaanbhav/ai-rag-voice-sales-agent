@@ -6,8 +6,8 @@ use std::time::Duration;
 use tokio::time::timeout;
 
 use voice_agent_agent::{
-    VoiceSession, VoiceSessionConfig, VoiceSessionState, VoiceSessionEvent,
-    TransportSession, SessionConfig,
+    SessionConfig, TransportSession, VoiceSession, VoiceSessionConfig, VoiceSessionEvent,
+    VoiceSessionState,
 };
 
 /// Test that a voice session can be created and started
@@ -180,10 +180,14 @@ async fn test_e2e_mock_conversation() {
     }
 
     // Should have Started and StateChanged events
-    assert!(events.iter().any(|e| matches!(e, VoiceSessionEvent::Started { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, VoiceSessionEvent::Started { .. })));
 
     // Agent should have responded to empty input with greeting
-    assert!(events.iter().any(|e| matches!(e, VoiceSessionEvent::Speaking { .. })));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, VoiceSessionEvent::Speaking { .. })));
 
     session.end("test complete").await;
 }
@@ -200,7 +204,11 @@ async fn test_audio_chunk_events() {
     // Collect events with timeout
     let mut audio_chunks = Vec::new();
     while let Ok(Ok(event)) = timeout(Duration::from_millis(100), event_rx.recv()).await {
-        if let VoiceSessionEvent::AudioChunk { samples, sample_rate } = event {
+        if let VoiceSessionEvent::AudioChunk {
+            samples,
+            sample_rate,
+        } = event
+        {
             audio_chunks.push((samples.len(), sample_rate));
         }
     }
@@ -233,7 +241,7 @@ async fn test_state_machine() {
 /// Test VAD voice activity detection
 #[tokio::test]
 async fn test_vad_voice_detection() {
-    use voice_agent_agent::vad::{VadResult};
+    use voice_agent_agent::vad::VadResult;
 
     let config = VoiceSessionConfig::default();
     let session = VoiceSession::new("test-vad", config).unwrap();
@@ -248,7 +256,10 @@ async fn test_vad_voice_detection() {
     let loud: Vec<f32> = (0..512).map(|i| (i as f32 * 0.1).sin() * 0.5).collect();
     let (is_speech, result) = session.detect_voice_activity(&loud);
     assert!(is_speech);
-    assert!(matches!(result, VadResult::SpeechContinue | VadResult::PotentialSpeechStart | VadResult::SpeechConfirmed));
+    assert!(matches!(
+        result,
+        VadResult::SpeechContinue | VadResult::PotentialSpeechStart | VadResult::SpeechConfirmed
+    ));
 }
 
 /// Test VAD with energy-based fallback
@@ -384,8 +395,8 @@ async fn test_telugu_intent_detection() {
 /// Test tool integration - eligibility check
 #[tokio::test]
 async fn test_tool_eligibility_check() {
-    use voice_agent_tools::{Tool, EligibilityCheckTool};
     use serde_json::json;
+    use voice_agent_tools::{EligibilityCheckTool, Tool};
 
     let tool = EligibilityCheckTool::new();
 
@@ -402,7 +413,9 @@ async fn test_tool_eligibility_check() {
     assert!(!output.is_error);
 
     // Parse the JSON output
-    let text = output.content.iter()
+    let text = output
+        .content
+        .iter()
         .filter_map(|c| match c {
             voice_agent_tools::mcp::ContentBlock::Text { text } => Some(text.clone()),
             _ => None,
@@ -419,8 +432,8 @@ async fn test_tool_eligibility_check() {
 /// Test tool integration - savings calculator
 #[tokio::test]
 async fn test_tool_savings_calculator() {
-    use voice_agent_tools::{Tool, SavingsCalculatorTool};
     use serde_json::json;
+    use voice_agent_tools::{SavingsCalculatorTool, Tool};
 
     let tool = SavingsCalculatorTool::new();
 
@@ -435,7 +448,9 @@ async fn test_tool_savings_calculator() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    let text = output.content.iter()
+    let text = output
+        .content
+        .iter()
         .filter_map(|c| match c {
             voice_agent_tools::mcp::ContentBlock::Text { text } => Some(text.clone()),
             _ => None,
@@ -450,16 +465,18 @@ async fn test_tool_savings_calculator() {
     assert!(json["monthly_emi_savings_inr"].as_f64().is_some());
     assert!(json["total_emi_savings_inr"].as_f64().is_some());
     // Kotak should have lower rate than 18%
-    let kotak_rate = json["kotak_interest_rate_percent"].as_f64().unwrap_or(100.0);
+    let kotak_rate = json["kotak_interest_rate_percent"]
+        .as_f64()
+        .unwrap_or(100.0);
     assert!(kotak_rate < 18.0);
 }
 
 /// Test tool integration with CRM
 #[tokio::test]
 async fn test_tool_lead_capture_with_crm() {
-    use voice_agent_tools::{Tool, LeadCaptureTool, StubCrmIntegration};
     use serde_json::json;
     use std::sync::Arc;
+    use voice_agent_tools::{LeadCaptureTool, StubCrmIntegration, Tool};
 
     let crm = Arc::new(StubCrmIntegration::new());
     let tool = LeadCaptureTool::with_crm(crm);
@@ -475,7 +492,9 @@ async fn test_tool_lead_capture_with_crm() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    let text = output.content.iter()
+    let text = output
+        .content
+        .iter()
         .filter_map(|c| match c {
             voice_agent_tools::mcp::ContentBlock::Text { text } => Some(text.clone()),
             _ => None,
@@ -493,9 +512,9 @@ async fn test_tool_lead_capture_with_crm() {
 /// Test tool integration with Calendar
 #[tokio::test]
 async fn test_tool_appointment_with_calendar() {
-    use voice_agent_tools::{Tool, AppointmentSchedulerTool, StubCalendarIntegration};
     use serde_json::json;
     use std::sync::Arc;
+    use voice_agent_tools::{AppointmentSchedulerTool, StubCalendarIntegration, Tool};
 
     let calendar = Arc::new(StubCalendarIntegration::new());
     let tool = AppointmentSchedulerTool::with_calendar(calendar);
@@ -518,7 +537,9 @@ async fn test_tool_appointment_with_calendar() {
     assert!(result.is_ok());
 
     let output = result.unwrap();
-    let text = output.content.iter()
+    let text = output
+        .content
+        .iter()
         .filter_map(|c| match c {
             voice_agent_tools::mcp::ContentBlock::Text { text } => Some(text.clone()),
             _ => None,
@@ -538,8 +559,8 @@ async fn test_tool_appointment_with_calendar() {
 /// Test session persistence (simulated)
 #[tokio::test]
 async fn test_session_state_persistence() {
-    use voice_agent_agent::{ConversationMemory, MemoryConfig, MemoryEntry};
     use std::collections::HashMap;
+    use voice_agent_agent::{ConversationMemory, MemoryConfig, MemoryEntry};
 
     // Create memory with some conversation history
     let memory = ConversationMemory::new(MemoryConfig::default());
@@ -599,7 +620,7 @@ async fn test_session_state_persistence() {
 /// Test stage transitions and RAG timing strategy
 #[tokio::test]
 async fn test_stage_rag_timing() {
-    use voice_agent_agent::{ConversationStage, StageManager, RagTimingStrategy, TransitionReason};
+    use voice_agent_agent::{ConversationStage, RagTimingStrategy, StageManager, TransitionReason};
 
     let manager = StageManager::new();
 
@@ -621,7 +642,10 @@ async fn test_stage_rag_timing() {
     assert!(discovery_rag_fraction > 0.0);
 
     // Transition to Qualification
-    let result = manager.transition(ConversationStage::Qualification, TransitionReason::NaturalFlow);
+    let result = manager.transition(
+        ConversationStage::Qualification,
+        TransitionReason::NaturalFlow,
+    );
     assert!(result.is_ok());
 
     // RAG timing for qualification (should also have RAG fraction)
@@ -629,7 +653,10 @@ async fn test_stage_rag_timing() {
     assert!(qual_rag_fraction > 0.0);
 
     // Transition to Presentation
-    let result = manager.transition(ConversationStage::Presentation, TransitionReason::NaturalFlow);
+    let result = manager.transition(
+        ConversationStage::Presentation,
+        TransitionReason::NaturalFlow,
+    );
     assert!(result.is_ok());
 
     // Presentation should have highest RAG fraction
@@ -656,7 +683,10 @@ async fn test_concurrent_sessions_stress() {
             // Start and verify state
             let _ = session.start().await;
             let state = session.state().await;
-            assert!(matches!(state, VoiceSessionState::Listening | VoiceSessionState::Idle));
+            assert!(matches!(
+                state,
+                VoiceSessionState::Listening | VoiceSessionState::Idle
+            ));
 
             // End session
             session.end("stress test complete").await;
@@ -672,7 +702,7 @@ async fn test_concurrent_sessions_stress() {
 #[tokio::test]
 async fn test_rag_config_integration() {
     use voice_agent_config::RagConfig;
-    use voice_agent_rag::{RetrieverConfig, RerankerConfig};
+    use voice_agent_rag::{RerankerConfig, RetrieverConfig};
 
     // Create RAG config with custom values
     let rag_config = RagConfig {
@@ -704,8 +734,8 @@ async fn test_rag_config_integration() {
 /// Test registry with integrations
 #[tokio::test]
 async fn test_tool_registry_integration() {
-    use voice_agent_tools::{IntegrationConfig, create_registry_with_integrations, ToolExecutor};
     use serde_json::json;
+    use voice_agent_tools::{create_registry_with_integrations, IntegrationConfig, ToolExecutor};
 
     // Create registry with stub integrations
     let config = IntegrationConfig::with_stubs();
@@ -717,21 +747,36 @@ async fn test_tool_registry_integration() {
     assert_eq!(registry.len(), 8);
 
     // Test executing each tool type
-    let eligibility_result = registry.execute("check_eligibility", json!({
-        "gold_weight_grams": 25.0,
-        "gold_purity": "22K"
-    })).await;
+    let eligibility_result = registry
+        .execute(
+            "check_eligibility",
+            json!({
+                "gold_weight_grams": 25.0,
+                "gold_purity": "22K"
+            }),
+        )
+        .await;
     assert!(eligibility_result.is_ok());
 
-    let lead_result = registry.execute("capture_lead", json!({
-        "customer_name": "Test User",
-        "phone_number": "9876543210"
-    })).await;
+    let lead_result = registry
+        .execute(
+            "capture_lead",
+            json!({
+                "customer_name": "Test User",
+                "phone_number": "9876543210"
+            }),
+        )
+        .await;
     assert!(lead_result.is_ok());
 
-    let branch_result = registry.execute("find_branches", json!({
-        "city": "Mumbai"
-    })).await;
+    let branch_result = registry
+        .execute(
+            "find_branches",
+            json!({
+                "city": "Mumbai"
+            }),
+        )
+        .await;
     assert!(branch_result.is_ok());
 }
 
@@ -861,14 +906,24 @@ async fn test_pipeline_event_flow() {
     }
 
     // Verify event sequence
-    assert!(events.iter().any(|e| matches!(e, VoiceSessionEvent::Started { .. })),
-        "Should have Started event");
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, VoiceSessionEvent::Started { .. })),
+        "Should have Started event"
+    );
 
     // Should have StateChanged from Idle to Listening
-    assert!(events.iter().any(|e| matches!(
-        e,
-        VoiceSessionEvent::StateChanged { old: VoiceSessionState::Idle, new: VoiceSessionState::Listening }
-    )), "Should have StateChanged event");
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            VoiceSessionEvent::StateChanged {
+                old: VoiceSessionState::Idle,
+                new: VoiceSessionState::Listening
+            }
+        )),
+        "Should have StateChanged event"
+    );
 
     session.end("pipeline flow test complete").await;
 }
@@ -890,15 +945,18 @@ async fn test_tts_audio_chunk_emission() {
         match event {
             VoiceSessionEvent::Speaking { text: _ } => {
                 speaking_started = true;
-            }
-            VoiceSessionEvent::AudioChunk { samples, sample_rate } => {
+            },
+            VoiceSessionEvent::AudioChunk {
+                samples,
+                sample_rate,
+            } => {
                 _audio_chunk_count += 1;
                 // Verify sample rate is valid (16kHz or 24kHz typically)
                 assert!(sample_rate == 16000 || sample_rate == 24000 || sample_rate == 22050);
                 // Verify samples are in valid range
                 assert!(samples.iter().all(|&s| s >= -1.0 && s <= 1.0));
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 
@@ -943,12 +1001,15 @@ async fn test_barge_in_during_tts() {
                 VoiceSessionEvent::BargedIn => {
                     // Barge-in detected successfully
                     break;
-                }
-                VoiceSessionEvent::StateChanged { new: VoiceSessionState::Listening, .. } => {
+                },
+                VoiceSessionEvent::StateChanged {
+                    new: VoiceSessionState::Listening,
+                    ..
+                } => {
                     // Also acceptable - transitioned back to listening
                     break;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
     }

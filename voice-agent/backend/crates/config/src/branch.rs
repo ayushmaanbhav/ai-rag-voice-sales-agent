@@ -285,7 +285,8 @@ impl BranchConfig {
     pub fn doorstep_available(&self, city: &str) -> bool {
         let city_lower = city.to_lowercase();
         self.doorstep_service.enabled
-            && self.doorstep_service
+            && self
+                .doorstep_service
                 .available_cities
                 .iter()
                 .any(|c| c.to_lowercase() == city_lower)

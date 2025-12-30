@@ -2,6 +2,10 @@
 //!
 //! Specific tools for the gold loan voice agent.
 
+use crate::integrations::{
+    Appointment, AppointmentPurpose, AppointmentStatus, CalendarIntegration, CrmIntegration,
+    CrmLead, InterestLevel, LeadSource, LeadStatus,
+};
 use async_trait::async_trait;
 use chrono::{NaiveDate, Utc};
 use once_cell::sync::Lazy;
@@ -10,9 +14,8 @@ use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use voice_agent_config::GoldLoanConfig;
-use crate::integrations::{CrmIntegration, CalendarIntegration, CrmLead, LeadSource, InterestLevel, LeadStatus, Appointment, AppointmentPurpose, AppointmentStatus};
 
-use crate::mcp::{Tool, ToolSchema, ToolOutput, ToolError, InputSchema, PropertySchema};
+use crate::mcp::{InputSchema, PropertySchema, Tool, ToolError, ToolOutput, ToolSchema};
 
 /// P0 FIX: Calculate EMI using the standard amortization formula
 ///
@@ -45,7 +48,11 @@ pub fn calculate_emi(principal: f64, annual_rate_percent: f64, tenure_months: i6
 }
 
 /// Calculate total interest paid over the loan tenure
-pub fn calculate_total_interest(principal: f64, annual_rate_percent: f64, tenure_months: i64) -> f64 {
+pub fn calculate_total_interest(
+    principal: f64,
+    annual_rate_percent: f64,
+    tenure_months: i64,
+) -> f64 {
     let emi = calculate_emi(principal, annual_rate_percent, tenure_months);
     let total_paid = emi * tenure_months as f64;
     total_paid - principal
@@ -125,12 +132,16 @@ fn get_default_branches() -> Vec<BranchData> {
             name: "Kotak Mahindra Bank - Andheri West".to_string(),
             city: "Mumbai".to_string(),
             area: "Andheri West".to_string(),
-            address: "Ground Floor, Kora Kendra, S.V. Road, Andheri West, Mumbai - 400058".to_string(),
+            address: "Ground Floor, Kora Kendra, S.V. Road, Andheri West, Mumbai - 400058"
+                .to_string(),
             pincode: "400058".to_string(),
             phone: "022-66006060".to_string(),
             gold_loan_available: true,
             timing: "10:00 AM - 5:00 PM (Mon-Sat)".to_string(),
-            facilities: vec!["Gold Valuation".to_string(), "Same Day Disbursement".to_string()],
+            facilities: vec![
+                "Gold Valuation".to_string(),
+                "Same Day Disbursement".to_string(),
+            ],
         },
         BranchData {
             branch_id: "KMBL101".to_string(),
@@ -142,7 +153,10 @@ fn get_default_branches() -> Vec<BranchData> {
             phone: "011-66006060".to_string(),
             gold_loan_available: true,
             timing: "10:00 AM - 5:00 PM (Mon-Sat)".to_string(),
-            facilities: vec!["Gold Valuation".to_string(), "Same Day Disbursement".to_string()],
+            facilities: vec![
+                "Gold Valuation".to_string(),
+                "Same Day Disbursement".to_string(),
+            ],
         },
         BranchData {
             branch_id: "KMBL201".to_string(),
@@ -154,7 +168,10 @@ fn get_default_branches() -> Vec<BranchData> {
             phone: "080-66006060".to_string(),
             gold_loan_available: true,
             timing: "10:00 AM - 5:00 PM (Mon-Sat)".to_string(),
-            facilities: vec!["Gold Valuation".to_string(), "Same Day Disbursement".to_string()],
+            facilities: vec![
+                "Gold Valuation".to_string(),
+                "Same Day Disbursement".to_string(),
+            ],
         },
         BranchData {
             branch_id: "KMBL301".to_string(),
@@ -166,7 +183,10 @@ fn get_default_branches() -> Vec<BranchData> {
             phone: "044-66006060".to_string(),
             gold_loan_available: true,
             timing: "10:00 AM - 5:00 PM (Mon-Sat)".to_string(),
-            facilities: vec!["Gold Valuation".to_string(), "Same Day Disbursement".to_string()],
+            facilities: vec![
+                "Gold Valuation".to_string(),
+                "Same Day Disbursement".to_string(),
+            ],
         },
     ]
 }
@@ -203,25 +223,41 @@ impl Tool for EligibilityCheckTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("gold_weight_grams", PropertySchema::number("Gold weight in grams"), true)
-                .property("gold_purity", PropertySchema::enum_type(
-                    "Gold purity (22K, 18K, etc.)",
-                    vec!["24K".into(), "22K".into(), "18K".into(), "14K".into()]
-                ).with_default(json!("22K")), false)
-                .property("existing_loan_amount", PropertySchema::number("Existing loan amount if any"), false),
+                .property(
+                    "gold_weight_grams",
+                    PropertySchema::number("Gold weight in grams"),
+                    true,
+                )
+                .property(
+                    "gold_purity",
+                    PropertySchema::enum_type(
+                        "Gold purity (22K, 18K, etc.)",
+                        vec!["24K".into(), "22K".into(), "18K".into(), "14K".into()],
+                    )
+                    .with_default(json!("22K")),
+                    false,
+                )
+                .property(
+                    "existing_loan_amount",
+                    PropertySchema::number("Existing loan amount if any"),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let weight: f64 = input.get("gold_weight_grams")
+        let weight: f64 = input
+            .get("gold_weight_grams")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| ToolError::invalid_params("gold_weight_grams is required"))?;
 
-        let purity = input.get("gold_purity")
+        let purity = input
+            .get("gold_purity")
             .and_then(|v| v.as_str())
             .unwrap_or("22K");
 
-        let existing_loan = input.get("existing_loan_amount")
+        let existing_loan = input
+            .get("existing_loan_amount")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0);
 
@@ -305,31 +341,56 @@ impl Tool for SavingsCalculatorTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("current_loan_amount", PropertySchema::number("Current loan amount in INR"), true)
-                .property("current_interest_rate", PropertySchema::number("Current interest rate (%)").with_range(10.0, 30.0), true)
-                .property("remaining_tenure_months", PropertySchema::integer("Remaining tenure in months"), true)
-                .property("current_lender", PropertySchema::enum_type(
-                    "Current lender",
-                    vec!["Muthoot".into(), "Manappuram".into(), "IIFL".into(), "Other NBFC".into()]
-                ), false),
+                .property(
+                    "current_loan_amount",
+                    PropertySchema::number("Current loan amount in INR"),
+                    true,
+                )
+                .property(
+                    "current_interest_rate",
+                    PropertySchema::number("Current interest rate (%)").with_range(10.0, 30.0),
+                    true,
+                )
+                .property(
+                    "remaining_tenure_months",
+                    PropertySchema::integer("Remaining tenure in months"),
+                    true,
+                )
+                .property(
+                    "current_lender",
+                    PropertySchema::enum_type(
+                        "Current lender",
+                        vec![
+                            "Muthoot".into(),
+                            "Manappuram".into(),
+                            "IIFL".into(),
+                            "Other NBFC".into(),
+                        ],
+                    ),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let loan_amount: f64 = input.get("current_loan_amount")
+        let loan_amount: f64 = input
+            .get("current_loan_amount")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| ToolError::invalid_params("current_loan_amount is required"))?;
 
         // Get current rate - either from input or infer from lender
-        let current_lender = input.get("current_lender")
+        let current_lender = input
+            .get("current_lender")
             .and_then(|v| v.as_str())
             .unwrap_or("Other NBFC");
 
-        let current_rate: f64 = input.get("current_interest_rate")
+        let current_rate: f64 = input
+            .get("current_interest_rate")
             .and_then(|v| v.as_f64())
             .unwrap_or_else(|| self.config.get_competitor_rate(current_lender));
 
-        let tenure_months: i64 = input.get("remaining_tenure_months")
+        let tenure_months: i64 = input
+            .get("remaining_tenure_months")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| ToolError::invalid_params("remaining_tenure_months is required"))?;
 
@@ -351,8 +412,9 @@ impl Tool for SavingsCalculatorTool {
 
         // Total savings over tenure
         let total_emi_savings = emi_savings * tenure_months as f64;
-        let total_interest_savings = calculate_total_interest(loan_amount, current_rate, tenure_months)
-            - calculate_total_interest(loan_amount, kotak_rate, tenure_months);
+        let total_interest_savings =
+            calculate_total_interest(loan_amount, current_rate, tenure_months)
+                - calculate_total_interest(loan_amount, kotak_rate, tenure_months);
 
         // P2 FIX: Determine rate tier for customer communication
         let rate_tier = if loan_amount <= 100000.0 {
@@ -430,25 +492,51 @@ impl Tool for LeadCaptureTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("customer_name", PropertySchema::string("Customer's full name"), true)
-                .property("phone_number", PropertySchema::string("10-digit mobile number"), true)
+                .property(
+                    "customer_name",
+                    PropertySchema::string("Customer's full name"),
+                    true,
+                )
+                .property(
+                    "phone_number",
+                    PropertySchema::string("10-digit mobile number"),
+                    true,
+                )
                 .property("city", PropertySchema::string("Customer's city"), false)
-                .property("preferred_branch", PropertySchema::string("Preferred branch location"), false)
-                .property("estimated_gold_weight", PropertySchema::number("Estimated gold weight in grams"), false)
-                .property("interest_level", PropertySchema::enum_type(
-                    "Customer's interest level",
-                    vec!["High".into(), "Medium".into(), "Low".into()]
-                ), false)
-                .property("notes", PropertySchema::string("Additional notes from conversation"), false),
+                .property(
+                    "preferred_branch",
+                    PropertySchema::string("Preferred branch location"),
+                    false,
+                )
+                .property(
+                    "estimated_gold_weight",
+                    PropertySchema::number("Estimated gold weight in grams"),
+                    false,
+                )
+                .property(
+                    "interest_level",
+                    PropertySchema::enum_type(
+                        "Customer's interest level",
+                        vec!["High".into(), "Medium".into(), "Low".into()],
+                    ),
+                    false,
+                )
+                .property(
+                    "notes",
+                    PropertySchema::string("Additional notes from conversation"),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let name = input.get("customer_name")
+        let name = input
+            .get("customer_name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("customer_name is required"))?;
 
-        let phone = input.get("phone_number")
+        let phone = input
+            .get("phone_number")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("phone_number is required"))?;
 
@@ -460,8 +548,14 @@ impl Tool for LeadCaptureTool {
         // Extract optional fields
         let city = input.get("city").and_then(|v| v.as_str()).map(String::from);
         let estimated_gold = input.get("estimated_gold_weight").and_then(|v| v.as_f64());
-        let notes = input.get("notes").and_then(|v| v.as_str()).map(String::from);
-        let interest_str = input.get("interest_level").and_then(|v| v.as_str()).unwrap_or("Medium");
+        let notes = input
+            .get("notes")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let interest_str = input
+            .get("interest_level")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Medium");
 
         // Parse interest level
         let interest_level = match interest_str.to_lowercase().as_str() {
@@ -502,11 +596,11 @@ impl Tool for LeadCaptureTool {
                         "message": format!("Lead captured successfully! A representative will contact {} shortly.", name)
                     });
                     return Ok(ToolOutput::json(result));
-                }
+                },
                 Err(e) => {
                     tracing::warn!("CRM integration failed, falling back to local: {}", e);
                     // Fall through to local generation
-                }
+                },
             }
         }
 
@@ -557,7 +651,9 @@ impl AppointmentSchedulerTool {
 
     /// Create with calendar integration
     pub fn with_calendar(calendar: Arc<dyn CalendarIntegration>) -> Self {
-        Self { calendar: Some(calendar) }
+        Self {
+            calendar: Some(calendar),
+        }
     }
 }
 
@@ -576,36 +672,76 @@ impl Tool for AppointmentSchedulerTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("customer_name", PropertySchema::string("Customer's name"), true)
-                .property("phone_number", PropertySchema::string("Contact number"), true)
-                .property("branch_id", PropertySchema::string("Branch ID or location"), true)
-                .property("preferred_date", PropertySchema::string("Preferred date (YYYY-MM-DD)"), true)
-                .property("preferred_time", PropertySchema::enum_type(
-                    "Preferred time slot",
-                    vec!["10:00 AM".into(), "11:00 AM".into(), "12:00 PM".into(),
-                         "2:00 PM".into(), "3:00 PM".into(), "4:00 PM".into(), "5:00 PM".into()]
-                ), true)
-                .property("purpose", PropertySchema::enum_type(
-                    "Purpose of visit",
-                    vec!["New Gold Loan".into(), "Gold Loan Transfer".into(), "Top-up".into(), "Closure".into()]
-                ), false),
+                .property(
+                    "customer_name",
+                    PropertySchema::string("Customer's name"),
+                    true,
+                )
+                .property(
+                    "phone_number",
+                    PropertySchema::string("Contact number"),
+                    true,
+                )
+                .property(
+                    "branch_id",
+                    PropertySchema::string("Branch ID or location"),
+                    true,
+                )
+                .property(
+                    "preferred_date",
+                    PropertySchema::string("Preferred date (YYYY-MM-DD)"),
+                    true,
+                )
+                .property(
+                    "preferred_time",
+                    PropertySchema::enum_type(
+                        "Preferred time slot",
+                        vec![
+                            "10:00 AM".into(),
+                            "11:00 AM".into(),
+                            "12:00 PM".into(),
+                            "2:00 PM".into(),
+                            "3:00 PM".into(),
+                            "4:00 PM".into(),
+                            "5:00 PM".into(),
+                        ],
+                    ),
+                    true,
+                )
+                .property(
+                    "purpose",
+                    PropertySchema::enum_type(
+                        "Purpose of visit",
+                        vec![
+                            "New Gold Loan".into(),
+                            "Gold Loan Transfer".into(),
+                            "Top-up".into(),
+                            "Closure".into(),
+                        ],
+                    ),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let name = input.get("customer_name")
+        let name = input
+            .get("customer_name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("customer_name is required"))?;
 
-        let phone = input.get("phone_number")
+        let phone = input
+            .get("phone_number")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("phone_number is required"))?;
 
-        let branch = input.get("branch_id")
+        let branch = input
+            .get("branch_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("branch_id is required"))?;
 
-        let date_str = input.get("preferred_date")
+        let date_str = input
+            .get("preferred_date")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("preferred_date is required"))?;
 
@@ -613,23 +749,29 @@ impl Tool for AppointmentSchedulerTool {
         let parsed_date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
             .or_else(|_| NaiveDate::parse_from_str(date_str, "%d-%m-%Y"))
             .or_else(|_| NaiveDate::parse_from_str(date_str, "%d/%m/%Y"))
-            .map_err(|_| ToolError::invalid_params(
-                "preferred_date must be in format YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY"
-            ))?;
+            .map_err(|_| {
+                ToolError::invalid_params(
+                    "preferred_date must be in format YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY",
+                )
+            })?;
 
         let today = Utc::now().date_naive();
         if parsed_date < today {
-            return Err(ToolError::invalid_params("preferred_date cannot be in the past"));
+            return Err(ToolError::invalid_params(
+                "preferred_date cannot be in the past",
+            ));
         }
 
         // Use standardized format
         let date = parsed_date.format("%Y-%m-%d").to_string();
 
-        let time = input.get("preferred_time")
+        let time = input
+            .get("preferred_time")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("preferred_time is required"))?;
 
-        let purpose_str = input.get("purpose")
+        let purpose_str = input
+            .get("purpose")
             .and_then(|v| v.as_str())
             .unwrap_or("New Gold Loan");
 
@@ -661,7 +803,8 @@ impl Tool for AppointmentSchedulerTool {
                 Ok(appointment_id) => {
                     // P0 FIX: Don't claim confirmation sent until actually sent
                     // Try to send confirmation, but don't fail if it doesn't work
-                    let confirmation_sent = calendar.send_confirmation(&appointment_id).await.is_ok();
+                    let confirmation_sent =
+                        calendar.send_confirmation(&appointment_id).await.is_ok();
 
                     let result = json!({
                         "success": true,
@@ -690,17 +833,20 @@ impl Tool for AppointmentSchedulerTool {
                         }
                     });
                     return Ok(ToolOutput::json(result));
-                }
+                },
                 Err(e) => {
                     tracing::warn!("Calendar integration failed, falling back to local: {}", e);
                     // Fall through to local generation
-                }
+                },
             }
         }
 
         // Fallback: Generate appointment ID locally (no calendar integration)
         // P0 FIX: Don't claim SMS confirmation sent when we have no integration
-        let appointment_id = format!("APT{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+        let appointment_id = format!(
+            "APT{}",
+            uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+        );
 
         let result = json!({
             "success": true,
@@ -764,18 +910,24 @@ impl Tool for BranchLocatorTool {
                 .property("city", PropertySchema::string("City name"), true)
                 .property("area", PropertySchema::string("Area or locality"), false)
                 .property("pincode", PropertySchema::string("6-digit PIN code"), false)
-                .property("max_results", PropertySchema::integer("Maximum results to return").with_default(json!(5)), false),
+                .property(
+                    "max_results",
+                    PropertySchema::integer("Maximum results to return").with_default(json!(5)),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let city = input.get("city")
+        let city = input
+            .get("city")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("city is required"))?;
 
         let area = input.get("area").and_then(|v| v.as_str());
         let pincode = input.get("pincode").and_then(|v| v.as_str());
-        let max_results = input.get("max_results")
+        let max_results = input
+            .get("max_results")
             .and_then(|v| v.as_i64())
             .unwrap_or(5) as usize;
 
@@ -849,13 +1001,19 @@ impl Tool for GetGoldPriceTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("purity", PropertySchema::enum_type(
-                    "Gold purity to get price for (optional, returns all if not specified)",
-                    vec!["24K".into(), "22K".into(), "18K".into()]
-                ), false)
-                .property("weight_grams", PropertySchema::number(
-                    "Optional weight to calculate total value"
-                ), false),
+                .property(
+                    "purity",
+                    PropertySchema::enum_type(
+                        "Gold purity to get price for (optional, returns all if not specified)",
+                        vec!["24K".into(), "22K".into(), "18K".into()],
+                    ),
+                    false,
+                )
+                .property(
+                    "weight_grams",
+                    PropertySchema::number("Optional weight to calculate total value"),
+                    false,
+                ),
         }
     }
 
@@ -864,21 +1022,27 @@ impl Tool for GetGoldPriceTool {
         let weight = input.get("weight_grams").and_then(|v| v.as_f64());
 
         // Try to get price from service
-        let (price_24k, price_22k, price_18k, source) = if let Some(ref service) = self.price_service {
-            match service.get_current_price().await {
-                Ok(price) => (price.price_24k, price.price_22k, price.price_18k, price.source),
-                Err(e) => {
-                    tracing::warn!("Failed to get gold price from service: {}", e);
-                    // Fallback to calculated prices
-                    let base = self.fallback_base_price;
-                    (base, base * 0.916, base * 0.75, "fallback".to_string())
+        let (price_24k, price_22k, price_18k, source) =
+            if let Some(ref service) = self.price_service {
+                match service.get_current_price().await {
+                    Ok(price) => (
+                        price.price_24k,
+                        price.price_22k,
+                        price.price_18k,
+                        price.source,
+                    ),
+                    Err(e) => {
+                        tracing::warn!("Failed to get gold price from service: {}", e);
+                        // Fallback to calculated prices
+                        let base = self.fallback_base_price;
+                        (base, base * 0.916, base * 0.75, "fallback".to_string())
+                    },
                 }
-            }
-        } else {
-            // No service, use fallback
-            let base = self.fallback_base_price;
-            (base, base * 0.916, base * 0.75, "fallback".to_string())
-        };
+            } else {
+                // No service, use fallback
+                let base = self.fallback_base_price;
+                (base, base * 0.916, base * 0.75, "fallback".to_string())
+            };
 
         // Build response
         let mut result = json!({
@@ -981,49 +1145,78 @@ impl Tool for EscalateToHumanTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("reason", PropertySchema::enum_type(
-                    "Reason for escalation",
-                    vec![
-                        "customer_request".into(),
-                        "complex_query".into(),
-                        "complaint".into(),
-                        "technical_issue".into(),
-                        "sensitive_matter".into()
-                    ]
-                ), true)
-                .property("session_id", PropertySchema::string("Current session ID"), true)
-                .property("customer_phone", PropertySchema::string("Customer phone number"), false)
-                .property("summary", PropertySchema::string("Brief summary of conversation so far"), false)
-                .property("priority", PropertySchema::enum_type(
-                    "Escalation priority",
-                    vec!["normal".into(), "high".into(), "urgent".into()]
-                ).with_default(json!("normal")), false),
+                .property(
+                    "reason",
+                    PropertySchema::enum_type(
+                        "Reason for escalation",
+                        vec![
+                            "customer_request".into(),
+                            "complex_query".into(),
+                            "complaint".into(),
+                            "technical_issue".into(),
+                            "sensitive_matter".into(),
+                        ],
+                    ),
+                    true,
+                )
+                .property(
+                    "session_id",
+                    PropertySchema::string("Current session ID"),
+                    true,
+                )
+                .property(
+                    "customer_phone",
+                    PropertySchema::string("Customer phone number"),
+                    false,
+                )
+                .property(
+                    "summary",
+                    PropertySchema::string("Brief summary of conversation so far"),
+                    false,
+                )
+                .property(
+                    "priority",
+                    PropertySchema::enum_type(
+                        "Escalation priority",
+                        vec!["normal".into(), "high".into(), "urgent".into()],
+                    )
+                    .with_default(json!("normal")),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let reason = input.get("reason")
+        let reason = input
+            .get("reason")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("reason is required"))?;
 
-        let session_id = input.get("session_id")
+        let session_id = input
+            .get("session_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("session_id is required"))?;
 
-        let customer_phone = input.get("customer_phone")
+        let customer_phone = input
+            .get("customer_phone")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
 
-        let summary = input.get("summary")
+        let summary = input
+            .get("summary")
             .and_then(|v| v.as_str())
             .unwrap_or("No summary provided");
 
-        let priority = input.get("priority")
+        let priority = input
+            .get("priority")
             .and_then(|v| v.as_str())
             .unwrap_or("normal");
 
         // Generate escalation ID
-        let escalation_id = format!("ESC{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+        let escalation_id = format!(
+            "ESC{}",
+            uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+        );
 
         // Determine estimated wait time based on priority
         let estimated_wait = match priority {
@@ -1118,26 +1311,51 @@ impl Tool for SendSmsTool {
             name: self.name().to_string(),
             description: self.description().to_string(),
             input_schema: InputSchema::object()
-                .property("phone_number", PropertySchema::string("10-digit mobile number"), true)
-                .property("message_type", PropertySchema::enum_type(
-                    "Type of SMS message",
-                    vec![
-                        "appointment_confirmation".into(),
-                        "appointment_reminder".into(),
-                        "follow_up".into(),
-                        "welcome".into(),
-                        "promotional".into()
-                    ]
-                ), true)
-                .property("customer_name", PropertySchema::string("Customer name for personalization"), false)
-                .property("custom_message", PropertySchema::string("Custom message text (for follow_up type)"), false)
-                .property("appointment_details", PropertySchema::string("Appointment details (date, time, branch)"), false)
-                .property("session_id", PropertySchema::string("Session ID for tracking"), false),
+                .property(
+                    "phone_number",
+                    PropertySchema::string("10-digit mobile number"),
+                    true,
+                )
+                .property(
+                    "message_type",
+                    PropertySchema::enum_type(
+                        "Type of SMS message",
+                        vec![
+                            "appointment_confirmation".into(),
+                            "appointment_reminder".into(),
+                            "follow_up".into(),
+                            "welcome".into(),
+                            "promotional".into(),
+                        ],
+                    ),
+                    true,
+                )
+                .property(
+                    "customer_name",
+                    PropertySchema::string("Customer name for personalization"),
+                    false,
+                )
+                .property(
+                    "custom_message",
+                    PropertySchema::string("Custom message text (for follow_up type)"),
+                    false,
+                )
+                .property(
+                    "appointment_details",
+                    PropertySchema::string("Appointment details (date, time, branch)"),
+                    false,
+                )
+                .property(
+                    "session_id",
+                    PropertySchema::string("Session ID for tracking"),
+                    false,
+                ),
         }
     }
 
     async fn execute(&self, input: Value) -> Result<ToolOutput, ToolError> {
-        let phone = input.get("phone_number")
+        let phone = input
+            .get("phone_number")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("phone_number is required"))?;
 
@@ -1146,16 +1364,17 @@ impl Tool for SendSmsTool {
             return Err(ToolError::invalid_params("phone_number must be 10 digits"));
         }
 
-        let msg_type_str = input.get("message_type")
+        let msg_type_str = input
+            .get("message_type")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::invalid_params("message_type is required"))?;
 
-        let customer_name = input.get("customer_name")
+        let customer_name = input
+            .get("customer_name")
             .and_then(|v| v.as_str())
             .unwrap_or("Customer");
 
-        let session_id = input.get("session_id")
-            .and_then(|v| v.as_str());
+        let session_id = input.get("session_id").and_then(|v| v.as_str());
 
         // Parse message type
         let msg_type = match msg_type_str {
@@ -1213,7 +1432,10 @@ impl Tool for SendSmsTool {
 
         // Send via SMS service if available
         let (message_id, status, simulated) = if let Some(ref service) = self.sms_service {
-            match service.send_sms(phone, &message_text, msg_type, session_id).await {
+            match service
+                .send_sms(phone, &message_text, msg_type, session_id)
+                .await
+            {
                 Ok(result) => (
                     result.message_id.to_string(),
                     result.status.as_str().to_string(),
@@ -1222,13 +1444,19 @@ impl Tool for SendSmsTool {
                 Err(e) => {
                     tracing::warn!("SMS service failed: {}", e);
                     // Generate local ID on failure
-                    let id = format!("SMS{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+                    let id = format!(
+                        "SMS{}",
+                        uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+                    );
                     (id, "failed".to_string(), false)
-                }
+                },
             }
         } else {
             // No service, generate local ID (not actually sent)
-            let id = format!("SMS{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+            let id = format!(
+                "SMS{}",
+                uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+            );
             (id, "simulated_not_sent".to_string(), true)
         };
 
@@ -1265,7 +1493,12 @@ impl Default for SendSmsTool {
 }
 
 /// P0 FIX: Get branches from JSON data instead of hardcoded mock
-fn get_mock_branches(city: &str, area: Option<&str>, pincode: Option<&str>, max: usize) -> Vec<Value> {
+fn get_mock_branches(
+    city: &str,
+    area: Option<&str>,
+    pincode: Option<&str>,
+    max: usize,
+) -> Vec<Value> {
     let city_lower = city.to_lowercase();
     let branches = get_branches();
 
@@ -1273,14 +1506,15 @@ fn get_mock_branches(city: &str, area: Option<&str>, pincode: Option<&str>, max:
     let mut filtered: Vec<BranchData> = branches
         .into_iter()
         .filter(|b| {
-            b.city.to_lowercase().contains(&city_lower) ||
-            city_lower.contains(&b.city.to_lowercase())
+            b.city.to_lowercase().contains(&city_lower)
+                || city_lower.contains(&b.city.to_lowercase())
         })
         .collect();
 
     // Filter by pincode if provided (exact match)
     if let Some(pin) = pincode {
-        let pin_matches: Vec<BranchData> = filtered.iter()
+        let pin_matches: Vec<BranchData> = filtered
+            .iter()
             .filter(|b| b.pincode == pin)
             .cloned()
             .collect();
@@ -1292,7 +1526,8 @@ fn get_mock_branches(city: &str, area: Option<&str>, pincode: Option<&str>, max:
     // Filter by area if provided
     if let Some(area_str) = area {
         let area_lower = area_str.to_lowercase();
-        let area_matches: Vec<BranchData> = filtered.iter()
+        let area_matches: Vec<BranchData> = filtered
+            .iter()
             .filter(|b| b.area.to_lowercase().contains(&area_lower))
             .cloned()
             .collect();
@@ -1303,22 +1538,24 @@ fn get_mock_branches(city: &str, area: Option<&str>, pincode: Option<&str>, max:
 
     // Convert to JSON Value and truncate
     filtered.truncate(max);
-    filtered.into_iter()
-        .map(|b| json!({
-            "branch_id": b.branch_id,
-            "name": b.name,
-            "city": b.city,
-            "area": b.area,
-            "address": b.address,
-            "pincode": b.pincode,
-            "phone": b.phone,
-            "gold_loan_available": b.gold_loan_available,
-            "timing": b.timing,
-            "facilities": b.facilities
-        }))
+    filtered
+        .into_iter()
+        .map(|b| {
+            json!({
+                "branch_id": b.branch_id,
+                "name": b.name,
+                "city": b.city,
+                "area": b.area,
+                "address": b.address,
+                "pincode": b.pincode,
+                "phone": b.phone,
+                "gold_loan_available": b.gold_loan_available,
+                "timing": b.timing,
+                "facilities": b.facilities
+            })
+        })
         .collect()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1354,7 +1591,11 @@ mod tests {
         let total_interest = calculate_total_interest(100000.0, 12.0, 12);
         // Total paid = EMI * 12 = 8884.88 * 12 = 106618.61
         // Total interest = 106618.61 - 100000 = 6618.61
-        assert!((total_interest - 6618.61).abs() < 1.0, "Interest was {}", total_interest);
+        assert!(
+            (total_interest - 6618.61).abs() < 1.0,
+            "Interest was {}",
+            total_interest
+        );
     }
 
     #[test]
@@ -1369,7 +1610,12 @@ mod tests {
         let simple_monthly = loan * (rate / 100.0 / 12.0); // Just interest
 
         // EMI should be higher (includes principal repayment)
-        assert!(emi > simple_monthly, "EMI {} should be > simple interest {}", emi, simple_monthly);
+        assert!(
+            emi > simple_monthly,
+            "EMI {} should be > simple interest {}",
+            emi,
+            simple_monthly
+        );
     }
 
     #[tokio::test]
@@ -1441,7 +1687,9 @@ mod tests {
         assert!(!output.is_error);
 
         // Parse output to verify CRM integration flag
-        let text = output.content.iter()
+        let text = output
+            .content
+            .iter()
             .filter_map(|c| match c {
                 crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
                 _ => None,
@@ -1464,7 +1712,9 @@ mod tests {
 
         let output = tool.execute(input).await.unwrap();
 
-        let text = output.content.iter()
+        let text = output
+            .content
+            .iter()
             .filter_map(|c| match c {
                 crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
                 _ => None,
@@ -1501,7 +1751,9 @@ mod tests {
         let output = tool.execute(input).await.unwrap();
         assert!(!output.is_error);
 
-        let text = output.content.iter()
+        let text = output
+            .content
+            .iter()
             .filter_map(|c| match c {
                 crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
                 _ => None,
@@ -1534,7 +1786,9 @@ mod tests {
 
         let output = tool.execute(input).await.unwrap();
 
-        let text = output.content.iter()
+        let text = output
+            .content
+            .iter()
             .filter_map(|c| match c {
                 crate::mcp::ContentBlock::Text { text } => Some(text.clone()),
                 _ => None,

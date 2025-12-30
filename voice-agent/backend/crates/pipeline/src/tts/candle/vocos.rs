@@ -164,7 +164,12 @@ impl ISTFTHead {
         })
     }
 
-    pub fn load(hidden_dim: usize, n_fft: usize, hop_length: usize, vb: VarBuilder) -> Result<Self> {
+    pub fn load(
+        hidden_dim: usize,
+        n_fft: usize,
+        hop_length: usize,
+        vb: VarBuilder,
+    ) -> Result<Self> {
         Self::new(hidden_dim, n_fft, hop_length, vb)
     }
 

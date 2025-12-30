@@ -5,13 +5,13 @@
 
 use axum::{
     extract::Request,
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use voice_agent_config::Settings;
 
 /// P1 FIX: Track if we've warned about auth being disabled (warn once only)
@@ -33,10 +33,7 @@ enum AuthCheck {
 ///
 /// This function extracts all needed config values synchronously
 /// to avoid holding the RwLock guard across await points.
-fn check_auth_config(
-    config: &Arc<RwLock<Settings>>,
-    path: &str,
-) -> AuthCheck {
+fn check_auth_config(config: &Arc<RwLock<Settings>>, path: &str) -> AuthCheck {
     let config_guard = config.read();
     let auth_config = &config_guard.server.auth;
 
@@ -74,17 +71,18 @@ fn check_auth_config(
 /// # Configuration
 /// Set via environment: `VOICE_AGENT__SERVER__AUTH__API_KEY=your-secret-key`
 /// Enable via: `VOICE_AGENT__SERVER__AUTH__ENABLED=true`
-pub async fn auth_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn auth_middleware(request: Request, next: Next) -> Response {
     // Get config from request extensions
     let config = match request.extensions().get::<Arc<RwLock<Settings>>>() {
         Some(cfg) => cfg.clone(),
         None => {
             tracing::error!("Config extension not found in request");
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Server configuration error").into_response();
-        }
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Server configuration error",
+            )
+                .into_response();
+        },
     };
 
     // Check auth config synchronously (no await, so guard is dropped)
@@ -93,16 +91,19 @@ pub async fn auth_middleware(
 
     // Now handle the result without holding the lock
     match auth_check {
-        AuthCheck::Disabled | AuthCheck::PublicPath => {
-            next.run(request).await
-        }
+        AuthCheck::Disabled | AuthCheck::PublicPath => next.run(request).await,
         AuthCheck::ConfigError(msg) => {
             tracing::error!("{}", msg);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Server authentication not configured").into_response()
-        }
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Server authentication not configured",
+            )
+                .into_response()
+        },
         AuthCheck::CheckKey(expected_key) => {
             // Extract Authorization header
-            let auth_header = request.headers()
+            let auth_header = request
+                .headers()
                 .get(header::AUTHORIZATION)
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
@@ -116,18 +117,21 @@ pub async fn auth_middleware(
                         // Auth successful
                         next.run(request).await
                     } else {
-                        tracing::warn!("Invalid API key provided from {:?}", request.headers().get("X-Forwarded-For"));
+                        tracing::warn!(
+                            "Invalid API key provided from {:?}",
+                            request.headers().get("X-Forwarded-For")
+                        );
                         (StatusCode::UNAUTHORIZED, "Invalid API key").into_response()
                     }
-                }
-                Some(_) => {
-                    (StatusCode::BAD_REQUEST, "Invalid Authorization header format. Expected: Bearer <token>").into_response()
-                }
-                None => {
-                    (StatusCode::UNAUTHORIZED, "Missing Authorization header").into_response()
-                }
+                },
+                Some(_) => (
+                    StatusCode::BAD_REQUEST,
+                    "Invalid Authorization header format. Expected: Bearer <token>",
+                )
+                    .into_response(),
+                None => (StatusCode::UNAUTHORIZED, "Missing Authorization header").into_response(),
             }
-        }
+        },
     }
 }
 

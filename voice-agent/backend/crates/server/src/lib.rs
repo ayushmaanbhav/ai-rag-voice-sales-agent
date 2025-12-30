@@ -2,23 +2,29 @@
 //!
 //! Provides WebSocket, WebRTC, and HTTP endpoints for the voice agent.
 
-pub mod websocket;
-pub mod webrtc;  // P2 FIX: WebRTC signaling endpoints
+pub mod auth;
 pub mod http;
+pub mod metrics;
+pub mod rate_limit;
 pub mod session;
 pub mod state;
-pub mod rate_limit;
-pub mod metrics;
-pub mod auth;  // P1 FIX: Auth middleware
+pub mod webrtc; // P2 FIX: WebRTC signaling endpoints
+pub mod websocket; // P1 FIX: Auth middleware
 
-pub use websocket::WebSocketHandler;
-pub use webrtc::WebRtcSession;
-pub use http::create_router;
 pub use auth::auth_middleware;
-pub use session::{Session, SessionManager, SessionStore, SessionMetadata, InMemorySessionStore, ScyllaSessionStore, RecoverableSession};
+pub use http::create_router;
+pub use metrics::{
+    init_metrics, record_error, record_llm_latency, record_request, record_stt_latency,
+    record_total_latency, record_tts_latency,
+};
+pub use rate_limit::{RateLimitError, RateLimiter};
+pub use session::{
+    InMemorySessionStore, RecoverableSession, ScyllaSessionStore, Session, SessionManager,
+    SessionMetadata, SessionStore,
+};
 pub use state::AppState;
-pub use rate_limit::{RateLimiter, RateLimitError};
-pub use metrics::{init_metrics, record_request, record_stt_latency, record_llm_latency, record_tts_latency, record_total_latency, record_error};
+pub use webrtc::WebRtcSession;
+pub use websocket::WebSocketHandler;
 
 use thiserror::Error;
 

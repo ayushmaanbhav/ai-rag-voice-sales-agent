@@ -14,18 +14,18 @@
 //! - Cross-lingual query normalization (Hindi/Hinglish/English)
 //! - Core Retriever trait implementation
 
+pub mod adapter;
+pub mod agentic;
+pub mod cache;
+pub mod candle_embeddings;
+pub mod cross_lingual;
+pub mod domain_boost;
 pub mod embeddings;
-pub mod vector_store;
-pub mod sparse_search;
+pub mod query_expansion;
 pub mod reranker;
 pub mod retriever;
-pub mod candle_embeddings;
-pub mod cache;
-pub mod agentic;
-pub mod query_expansion;
-pub mod domain_boost;
-pub mod cross_lingual;
-pub mod adapter;
+pub mod sparse_search;
+pub mod vector_store;
 // P1 FIX: Context sizing by conversation stage
 pub mod context;
 // P2 FIX: Knowledge base loading
@@ -33,43 +33,43 @@ pub mod knowledge_loader;
 // P2-2 FIX: Context compression for long conversations
 pub mod compressor;
 
-pub use embeddings::{Embedder, EmbeddingConfig, SimpleEmbedder};
-pub use candle_embeddings::{
-    CandleBertEmbedder, CandleEmbeddingConfig, PoolingStrategy,
-    UnifiedEmbedder, QuantizationMode,
-};
-pub use cache::{EmbeddingCache, CachedEmbedder, CacheStats};
-pub use vector_store::{VectorStore, VectorStoreConfig, VectorDistance};
-pub use sparse_search::{SparseIndex, SparseConfig};
-pub use reranker::{EarlyExitReranker, RerankerConfig, ExitStrategy};
-pub use retriever::{HybridRetriever, RetrieverConfig, SearchResult};
+pub use adapter::{EnhancedRetriever, EnhancedRetrieverConfig};
 pub use agentic::{
-    AgenticRetriever, AgenticRagConfig, AgenticSearchResult,
-    ConversationContext, SufficiencyChecker, QueryRewriter,
+    AgenticRagConfig,
+    AgenticRetriever,
+    AgenticSearchResult,
+    ConversationContext,
     // P1 FIX: LLM-based sufficiency checking
-    LlmSufficiencyChecker, LlmSufficiencyConfig, SufficiencyEvaluation,
+    LlmSufficiencyChecker,
+    LlmSufficiencyConfig,
+    QueryRewriter,
+    SufficiencyChecker,
+    SufficiencyEvaluation,
 };
-pub use query_expansion::{
-    QueryExpander, QueryExpansionConfig, ExpandedQuery,
-    WeightedTerm, TermSource, ExpansionStats,
+pub use cache::{CacheStats, CachedEmbedder, EmbeddingCache};
+pub use candle_embeddings::{
+    CandleBertEmbedder, CandleEmbeddingConfig, PoolingStrategy, QuantizationMode, UnifiedEmbedder,
 };
-pub use domain_boost::{
-    DomainBooster, DomainBoostConfig, DomainTerm, TermCategory,
-    BoostResult, MatchedTerm, QueryIntent,
-};
+pub use context::{context_budget_for_stage, ContextBudget, ContextConfig, ContextManager, Stage};
 pub use cross_lingual::{
     CrossLingualNormalizer, DetectedScript, LanguageDetection, NormalizedQuery,
 };
-pub use adapter::{EnhancedRetriever, EnhancedRetrieverConfig};
-pub use context::{
-    Stage, ContextBudget, ContextConfig, ContextManager,
-    context_budget_for_stage,
+pub use domain_boost::{
+    BoostResult, DomainBoostConfig, DomainBooster, DomainTerm, MatchedTerm, QueryIntent,
+    TermCategory,
 };
-pub use knowledge_loader::{KnowledgeLoader, KnowledgeDocument, KnowledgeFile};
+pub use embeddings::{Embedder, EmbeddingConfig, SimpleEmbedder};
+pub use knowledge_loader::{KnowledgeDocument, KnowledgeFile, KnowledgeLoader};
+pub use query_expansion::{
+    ExpandedQuery, ExpansionStats, QueryExpander, QueryExpansionConfig, TermSource, WeightedTerm,
+};
+pub use reranker::{EarlyExitReranker, ExitStrategy, RerankerConfig};
+pub use retriever::{HybridRetriever, RetrieverConfig, SearchResult};
+pub use sparse_search::{SparseConfig, SparseIndex};
+pub use vector_store::{VectorDistance, VectorStore, VectorStoreConfig};
 // P2-2 FIX: Context compression exports
 pub use compressor::{
-    ContextCompressor, CompressorConfig, CompressedContext,
-    Turn, Summarizer, RuleBasedSummarizer,
+    CompressedContext, CompressorConfig, ContextCompressor, RuleBasedSummarizer, Summarizer, Turn,
 };
 
 use thiserror::Error;

@@ -175,17 +175,15 @@ static WEIGHT_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*(gram|grams?|gm|g|tola|tolas?|kg|kilogram)s?").unwrap()
 });
 
-static RATE_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*(?:%|percent|प्रतिशत|prतिshat)").unwrap()
-});
+static RATE_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*(?:%|percent|प्रतिशत|prतिshat)").unwrap());
 
 static TENURE_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)(\d+)\s*(month|months?|year|years?|yr|yrs?|day|days?|mahine?|saal)s?").unwrap()
 });
 
-static PURITY_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)(\d{1,2})\s*(?:k|karat|carat|kt)").unwrap()
-});
+static PURITY_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)(\d{1,2})\s*(?:k|karat|carat|kt)").unwrap());
 
 static NAME_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)(?:my\s+name\s+is|i\s+am|mera\s+naam|मेरा\s+नाम)\s+([A-Za-z\u0900-\u097F]+(?:\s+[A-Za-z\u0900-\u097F]+)?)").unwrap()
@@ -218,7 +216,9 @@ impl Default for LoanEntityExtractor {
 impl LoanEntityExtractor {
     /// Create a new extractor with default settings
     pub fn new() -> Self {
-        Self { support_hindi: true }
+        Self {
+            support_hindi: true,
+        }
     }
 
     /// Extract all loan entities from text
@@ -349,7 +349,7 @@ impl LoanEntityExtractor {
         let karat: u8 = caps.get(1)?.as_str().parse().ok()?;
 
         // Validate karat value (typically 18, 20, 22, 24)
-        if karat >= 10 && karat <= 24 {
+        if (10..=24).contains(&karat) {
             Some(karat)
         } else {
             None

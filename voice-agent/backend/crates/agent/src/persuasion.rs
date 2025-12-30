@@ -8,8 +8,8 @@
 //!
 //! Supports both English and Hindi responses.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use voice_agent_core::Language;
 
 /// Types of objections commonly encountered in gold loan sales
@@ -44,15 +44,22 @@ impl ObjectionType {
         let lower = text.to_lowercase();
 
         // Safety/trust concerns
-        if lower.contains("safe") || lower.contains("trust") || lower.contains("bharosa")
-            || lower.contains("डर") || lower.contains("सुरक्षित")
+        if lower.contains("safe")
+            || lower.contains("trust")
+            || lower.contains("bharosa")
+            || lower.contains("डर")
+            || lower.contains("सुरक्षित")
         {
             return Self::Safety;
         }
 
         // Interest rate objection
-        if lower.contains("interest") || lower.contains("rate") || lower.contains("byaj")
-            || lower.contains("ब्याज") || lower.contains("महंगा") || lower.contains("high")
+        if lower.contains("interest")
+            || lower.contains("rate")
+            || lower.contains("byaj")
+            || lower.contains("ब्याज")
+            || lower.contains("महंगा")
+            || lower.contains("high")
         {
             return Self::InterestRate;
         }
@@ -60,43 +67,62 @@ impl ObjectionType {
         // Gold security concerns
         if lower.contains("gold") && (lower.contains("leave") || lower.contains("give"))
             || lower.contains("सोना") && (lower.contains("देना") || lower.contains("छोड़"))
-            || lower.contains("my gold") || lower.contains("मेरा सोना")
+            || lower.contains("my gold")
+            || lower.contains("मेरा सोना")
         {
             return Self::GoldSecurity;
         }
 
         // Process complexity
-        if lower.contains("complicated") || lower.contains("difficult") || lower.contains("मुश्किल")
-            || lower.contains("complex") || lower.contains("time consuming")
+        if lower.contains("complicated")
+            || lower.contains("difficult")
+            || lower.contains("मुश्किल")
+            || lower.contains("complex")
+            || lower.contains("time consuming")
         {
             return Self::ProcessComplexity;
         }
 
         // Need time to decide
-        if lower.contains("think") || lower.contains("later") || lower.contains("sochna")
-            || lower.contains("सोचना") || lower.contains("बाद में") || lower.contains("not now")
+        if lower.contains("think")
+            || lower.contains("later")
+            || lower.contains("sochna")
+            || lower.contains("सोचना")
+            || lower.contains("बाद में")
+            || lower.contains("not now")
         {
             return Self::NeedTime;
         }
 
         // Happy with current lender
-        if lower.contains("happy") || lower.contains("satisfied") || lower.contains("khush")
-            || lower.contains("current") || lower.contains("already have")
-            || lower.contains("muthoot") || lower.contains("manappuram") || lower.contains("iifl")
+        if lower.contains("happy")
+            || lower.contains("satisfied")
+            || lower.contains("khush")
+            || lower.contains("current")
+            || lower.contains("already have")
+            || lower.contains("muthoot")
+            || lower.contains("manappuram")
+            || lower.contains("iifl")
         {
             return Self::CurrentLenderSatisfaction;
         }
 
         // Hidden charges concern
-        if lower.contains("hidden") || lower.contains("extra") || lower.contains("charges")
-            || lower.contains("छुपे") || lower.contains("अतिरिक्त")
+        if lower.contains("hidden")
+            || lower.contains("extra")
+            || lower.contains("charges")
+            || lower.contains("छुपे")
+            || lower.contains("अतिरिक्त")
         {
             return Self::HiddenCharges;
         }
 
         // Documentation concern
-        if lower.contains("document") || lower.contains("paper") || lower.contains("kagaz")
-            || lower.contains("कागज") || lower.contains("दस्तावेज")
+        if lower.contains("document")
+            || lower.contains("paper")
+            || lower.contains("kagaz")
+            || lower.contains("कागज")
+            || lower.contains("दस्तावेज")
         {
             return Self::Documentation;
         }
@@ -418,7 +444,7 @@ impl PersuasionEngine {
                 ],
                 differentiator: "Save ₹40,000+ annually compared to NBFCs".to_string(),
                 social_proof: "Trusted by 50 lakh+ customers across India".to_string(),
-            }
+            },
         );
 
         // First-time borrower value proposition
@@ -435,7 +461,7 @@ impl PersuasionEngine {
                 ],
                 differentiator: "No income proof or bank statements needed".to_string(),
                 social_proof: "10 lakh+ first-time borrowers served last year".to_string(),
-            }
+            },
         );
 
         // Switcher value proposition
@@ -451,8 +477,9 @@ impl PersuasionEngine {
                     "Top-up available instantly".to_string(),
                 ],
                 differentiator: "₹3,500 monthly savings on ₹5 lakh loan".to_string(),
-                social_proof: "50,000+ customers switched from Muthoot/Manappuram this year".to_string(),
-            }
+                social_proof: "50,000+ customers switched from Muthoot/Manappuram this year"
+                    .to_string(),
+            },
         );
     }
 
@@ -471,7 +498,7 @@ impl PersuasionEngine {
                     "Doorstep service".to_string(),
                     "Digital account access".to_string(),
                 ],
-            }
+            },
         );
 
         self.competition_data.insert(
@@ -487,7 +514,7 @@ impl PersuasionEngine {
                     "Better customer service rating".to_string(),
                     "No hidden charges guarantee".to_string(),
                 ],
-            }
+            },
         );
 
         self.competition_data.insert(
@@ -503,16 +530,12 @@ impl PersuasionEngine {
                     "Doorstep gold pickup".to_string(),
                     "Flexible tenure options".to_string(),
                 ],
-            }
+            },
         );
     }
 
     /// Handle an objection and return appropriate response
-    pub fn handle_objection(
-        &self,
-        text: &str,
-        language: Language,
-    ) -> Option<ObjectionResponse> {
+    pub fn handle_objection(&self, text: &str, language: Language) -> Option<ObjectionResponse> {
         let objection_type = ObjectionType::detect(text);
         self.get_response(objection_type, language)
     }
@@ -529,7 +552,9 @@ impl PersuasionEngine {
         }
 
         // Fall back to English
-        self.handlers.get(&(objection_type, Language::English)).cloned()
+        self.handlers
+            .get(&(objection_type, Language::English))
+            .cloned()
     }
 
     /// Get value proposition for customer segment
@@ -573,7 +598,8 @@ impl PersuasionEngine {
         language: Language,
         customer_segment: Option<&str>,
     ) -> PersuasionScript {
-        let response = self.get_response(objection_type, language)
+        let response = self
+            .get_response(objection_type, language)
             .unwrap_or_else(|| self.get_response(ObjectionType::Other, language).unwrap());
 
         let value_prop = customer_segment
@@ -620,16 +646,31 @@ mod tests {
     #[test]
     fn test_objection_detection() {
         assert_eq!(ObjectionType::detect("Is it safe?"), ObjectionType::Safety);
-        assert_eq!(ObjectionType::detect("Interest rate is too high"), ObjectionType::InterestRate);
-        assert_eq!(ObjectionType::detect("I don't want to leave my gold"), ObjectionType::GoldSecurity);
-        assert_eq!(ObjectionType::detect("I need to think about it"), ObjectionType::NeedTime);
-        assert_eq!(ObjectionType::detect("I'm happy with Muthoot"), ObjectionType::CurrentLenderSatisfaction);
+        assert_eq!(
+            ObjectionType::detect("Interest rate is too high"),
+            ObjectionType::InterestRate
+        );
+        assert_eq!(
+            ObjectionType::detect("I don't want to leave my gold"),
+            ObjectionType::GoldSecurity
+        );
+        assert_eq!(
+            ObjectionType::detect("I need to think about it"),
+            ObjectionType::NeedTime
+        );
+        assert_eq!(
+            ObjectionType::detect("I'm happy with Muthoot"),
+            ObjectionType::CurrentLenderSatisfaction
+        );
     }
 
     #[test]
     fn test_hindi_objection_detection() {
         assert_eq!(ObjectionType::detect("मुझे डर लगता है"), ObjectionType::Safety);
-        assert_eq!(ObjectionType::detect("ब्याज दर बहुत ज्यादा है"), ObjectionType::InterestRate);
+        assert_eq!(
+            ObjectionType::detect("ब्याज दर बहुत ज्यादा है"),
+            ObjectionType::InterestRate
+        );
         assert_eq!(ObjectionType::detect("मुझे सोचना है"), ObjectionType::NeedTime);
     }
 

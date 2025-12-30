@@ -3,8 +3,8 @@
 //! Provides boosting for domain-specific terms to improve retrieval relevance.
 //! Optimized for the gold loan domain with Kotak-specific terminology.
 
-use std::collections::HashMap;
 use parking_lot::RwLock;
+use std::collections::HashMap;
 
 /// Domain booster configuration
 #[derive(Debug, Clone)]
@@ -227,7 +227,11 @@ impl DomainBooster {
                 term: "purity".to_string(),
                 category: TermCategory::Gold,
                 boost: 1.6,
-                related: vec!["karat".to_string(), "carat".to_string(), "hallmark".to_string()],
+                related: vec![
+                    "karat".to_string(),
+                    "carat".to_string(),
+                    "hallmark".to_string(),
+                ],
             },
             DomainTerm {
                 term: "weight".to_string(),
@@ -287,16 +291,15 @@ impl DomainBooster {
             term_map.insert(term.term.to_lowercase(), term.clone());
             // Add related terms with lower boost
             for related in &term.related {
-                if !term_map.contains_key(&related.to_lowercase()) {
-                    term_map.insert(
-                        related.to_lowercase(),
-                        DomainTerm {
-                            term: related.clone(),
-                            category: term.category,
-                            boost: term.boost * 0.8,
-                            related: vec![term.term.clone()],
-                        },
-                    );
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    term_map.entry(related.to_lowercase())
+                {
+                    e.insert(DomainTerm {
+                        term: related.clone(),
+                        category: term.category,
+                        boost: term.boost * 0.8,
+                        related: vec![term.term.clone()],
+                    });
                 }
             }
         }
@@ -312,14 +315,20 @@ impl DomainBooster {
             (vec!["kitna", "interest"], QueryIntent::RateInquiry),
             // Eligibility
             (vec!["eligible", "loan"], QueryIntent::EligibilityCheck),
-            (vec!["eligibility", "criteria"], QueryIntent::EligibilityCheck),
+            (
+                vec!["eligibility", "criteria"],
+                QueryIntent::EligibilityCheck,
+            ),
             (vec!["patr", "loan"], QueryIntent::EligibilityCheck),
             (vec!["can", "get", "loan"], QueryIntent::EligibilityCheck),
             // Application
             (vec!["apply", "loan"], QueryIntent::ApplicationProcess),
             (vec!["how", "apply"], QueryIntent::ApplicationProcess),
             (vec!["kaise", "apply"], QueryIntent::ApplicationProcess),
-            (vec!["application", "process"], QueryIntent::ApplicationProcess),
+            (
+                vec!["application", "process"],
+                QueryIntent::ApplicationProcess,
+            ),
             // Amount
             (vec!["loan", "amount"], QueryIntent::AmountCalculation),
             (vec!["kitna", "milega"], QueryIntent::AmountCalculation),
@@ -395,9 +404,11 @@ impl DomainBooster {
         let total_boost = if matched_terms.is_empty() {
             1.0
         } else {
-            let base: f32 = matched_terms.iter().map(|m| m.boost).sum::<f32>() / matched_terms.len() as f32;
+            let base: f32 =
+                matched_terms.iter().map(|m| m.boost).sum::<f32>() / matched_terms.len() as f32;
             let category_bonus: f32 = if self.config.category_boost_enabled {
-                categories.iter().map(|c| c.boost_multiplier()).sum::<f32>() / categories.len().max(1) as f32
+                categories.iter().map(|c| c.boost_multiplier()).sum::<f32>()
+                    / categories.len().max(1) as f32
             } else {
                 1.0
             };
@@ -493,7 +504,9 @@ mod tests {
         assert!(rate_result.categories.contains(&TermCategory::Rate));
 
         let eligibility_result = booster.boost("eligibility criteria");
-        assert!(eligibility_result.categories.contains(&TermCategory::Eligibility));
+        assert!(eligibility_result
+            .categories
+            .contains(&TermCategory::Eligibility));
     }
 
     #[test]
@@ -532,7 +545,10 @@ mod tests {
         let booster = DomainBooster::gold_loan();
 
         let mut results = vec![
-            ("Kotak gold loan offers competitive rates".to_string(), 0.8f32),
+            (
+                "Kotak gold loan offers competitive rates".to_string(),
+                0.8f32,
+            ),
             ("Weather forecast for today".to_string(), 0.9f32),
         ];
 
@@ -548,6 +564,9 @@ mod tests {
         let result = booster.boost("gold loan eligibility");
 
         // Should match "gold loan" as a phrase
-        assert!(result.matched_terms.iter().any(|m| m.term.contains("gold loan") || m.term == "gold"));
+        assert!(result
+            .matched_terms
+            .iter()
+            .any(|m| m.term.contains("gold loan") || m.term == "gold"));
     }
 }

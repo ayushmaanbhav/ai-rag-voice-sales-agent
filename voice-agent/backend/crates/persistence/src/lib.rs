@@ -7,24 +7,25 @@
 //! - Appointments
 //! - Audit logging (P0 FIX: RBI compliance)
 
+pub mod appointments;
+pub mod audit;
 pub mod client;
 pub mod error;
+pub mod gold_price;
 pub mod schema;
 pub mod sessions;
 pub mod sms;
-pub mod gold_price;
-pub mod appointments;
-pub mod audit;
 
+pub use appointments::{Appointment, AppointmentStatus, AppointmentStore, ScyllaAppointmentStore};
+pub use audit::{
+    Actor, AuditEntry, AuditEventType, AuditLog, AuditLogger, AuditOutcome, AuditQuery,
+    ScyllaAuditLog,
+};
 pub use client::{ScyllaClient, ScyllaConfig};
 pub use error::PersistenceError;
-pub use sessions::{SessionStore, ScyllaSessionStore, SessionData};
-pub use sms::{SmsService, SimulatedSmsService, SmsMessage, SmsStatus, SmsType};
-pub use gold_price::{GoldPriceService, SimulatedGoldPriceService, GoldPrice, GoldPurity};
-pub use appointments::{AppointmentStore, ScyllaAppointmentStore, Appointment, AppointmentStatus};
-pub use audit::{
-    AuditLog, ScyllaAuditLog, AuditEntry, AuditEventType, AuditOutcome, Actor, AuditQuery, AuditLogger
-};
+pub use gold_price::{GoldPrice, GoldPriceService, GoldPurity, SimulatedGoldPriceService};
+pub use sessions::{ScyllaSessionStore, SessionData, SessionStore};
+pub use sms::{SimulatedSmsService, SmsMessage, SmsService, SmsStatus, SmsType};
 
 /// Initialize the persistence layer with ScyllaDB
 pub async fn init(config: ScyllaConfig) -> Result<PersistenceLayer, PersistenceError> {

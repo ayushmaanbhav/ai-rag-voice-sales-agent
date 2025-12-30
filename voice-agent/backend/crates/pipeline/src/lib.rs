@@ -9,42 +9,55 @@
 //! - Frame processors (SentenceDetector, InterruptHandler)
 //! - Channel-based processor chains
 
-pub mod vad;
-pub mod turn_detection;
-pub mod stt;
-pub mod tts;
+pub mod adapters;
 pub mod orchestrator;
 pub mod processors;
+pub mod stt;
+pub mod tts;
+pub mod turn_detection;
+pub mod vad;
 
 // VAD exports
-pub use vad::{VoiceActivityDetector, VadConfig, VadState, VadResult};
+pub use vad::{VadConfig, VadResult, VadState, VoiceActivityDetector};
 
 // Turn detection exports
 pub use turn_detection::{
-    HybridTurnDetector, TurnDetectionConfig, TurnState, TurnDetectionResult,
-    SemanticTurnDetector,
+    HybridTurnDetector, SemanticTurnDetector, TurnDetectionConfig, TurnDetectionResult, TurnState,
 };
 
 // STT exports
-pub use stt::{StreamingStt, SttConfig, SttEngine, EnhancedDecoder, DecoderConfig};
+pub use stt::{DecoderConfig, EnhancedDecoder, StreamingStt, SttConfig, SttEngine};
 
 // TTS exports
-pub use tts::{StreamingTts, TtsConfig, TtsEngine, TtsEvent, WordChunker, ChunkStrategy};
+pub use tts::{ChunkStrategy, StreamingTts, TtsConfig, TtsEngine, TtsEvent, WordChunker};
 
 // Orchestrator exports
 pub use orchestrator::{
-    VoicePipeline, PipelineConfig, PipelineEvent, PipelineState,
-    BargeInConfig, BargeInAction,
+    BargeInAction,
+    BargeInConfig,
+    PipelineConfig,
+    PipelineEvent,
+    PipelineState,
     // P1 FIX: Export processor chain config for external configuration
     ProcessorChainConfig,
+    VoicePipeline,
 };
 
 // Processor exports
 pub use processors::{
-    SentenceDetector, SentenceDetectorConfig,
-    TtsProcessor, TtsProcessorConfig,
-    InterruptHandler, InterruptMode, InterruptHandlerConfig,
-    ProcessorChain, ProcessorChainBuilder,
+    InterruptHandler, InterruptHandlerConfig, InterruptMode, ProcessorChain, ProcessorChainBuilder,
+    SentenceDetector, SentenceDetectorConfig, TtsProcessor, TtsProcessorConfig,
+};
+
+// P3 FIX: Trait adapter exports - bridge internal STT/TTS with core traits
+pub use adapters::{
+    create_passthrough_processor,
+    create_stt_adapter,
+    create_tts_adapter,
+    // P2-2: Passthrough audio processor (placeholder for future AEC/NS/AGC)
+    PassthroughAudioProcessor,
+    SttAdapter,
+    TtsAdapter,
 };
 
 use thiserror::Error;

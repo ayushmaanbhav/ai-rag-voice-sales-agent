@@ -1,7 +1,7 @@
 //! Script and language detection
 
-use voice_agent_core::{Language, Script};
 use std::collections::HashMap;
+use voice_agent_core::{Language, Script};
 
 /// Script-based language detector
 #[derive(Debug, Clone)]
@@ -27,7 +27,9 @@ impl ScriptDetector {
         map.insert(Script::OlChiki, Language::Santali);
         map.insert(Script::MeeteiMayek, Language::Manipuri);
 
-        Self { script_to_language: map }
+        Self {
+            script_to_language: map,
+        }
     }
 
     /// Detect language from text based on script
@@ -141,7 +143,8 @@ impl ScriptDetector {
             .unwrap_or((Script::Latin, 0));
 
         let confidence = count as f32 / total as f32;
-        let language = self.script_to_language
+        let language = self
+            .script_to_language
             .get(&dominant_script)
             .copied()
             .unwrap_or(Language::English);

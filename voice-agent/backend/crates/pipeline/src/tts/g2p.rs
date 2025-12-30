@@ -143,13 +143,13 @@ impl HindiG2p {
         // Nukta variants - these are single Unicode codepoints
         // क़ = \u{0958}, ख़ = \u{0959}, ग़ = \u{095A}, ज़ = \u{095B},
         // ड़ = \u{095C}, ढ़ = \u{095D}, फ़ = \u{095E}
-        self.consonants.insert('\u{0958}', "q");   // क़
-        self.consonants.insert('\u{0959}', "x");   // ख़
-        self.consonants.insert('\u{095A}', "ɣ");   // ग़
-        self.consonants.insert('\u{095B}', "z");   // ज़
-        self.consonants.insert('\u{095C}', "ɽ");   // ड़
-        self.consonants.insert('\u{095D}', "ɽʱ");  // ढ़
-        self.consonants.insert('\u{095E}', "f");   // फ़
+        self.consonants.insert('\u{0958}', "q"); // क़
+        self.consonants.insert('\u{0959}', "x"); // ख़
+        self.consonants.insert('\u{095A}', "ɣ"); // ग़
+        self.consonants.insert('\u{095B}', "z"); // ज़
+        self.consonants.insert('\u{095C}', "ɽ"); // ड़
+        self.consonants.insert('\u{095D}', "ɽʱ"); // ढ़
+        self.consonants.insert('\u{095E}', "f"); // फ़
 
         // Devanagari vowels (स्वर)
         self.vowels.insert('अ', "ə");
@@ -165,16 +165,16 @@ impl HindiG2p {
         self.vowels.insert('औ', "ɔː");
 
         // Vowel signs (matras)
-        self.matras.insert('\u{093E}', "aː");  // ा
-        self.matras.insert('\u{093F}', "ɪ");   // ि
-        self.matras.insert('\u{0940}', "iː");  // ी
-        self.matras.insert('\u{0941}', "ʊ");   // ु
-        self.matras.insert('\u{0942}', "uː");  // ू
-        self.matras.insert('\u{0943}', "rɪ");  // ृ
-        self.matras.insert('\u{0947}', "eː");  // े
-        self.matras.insert('\u{0948}', "æː");  // ै
-        self.matras.insert('\u{094B}', "oː");  // ो
-        self.matras.insert('\u{094C}', "ɔː");  // ौ
+        self.matras.insert('\u{093E}', "aː"); // ा
+        self.matras.insert('\u{093F}', "ɪ"); // ि
+        self.matras.insert('\u{0940}', "iː"); // ी
+        self.matras.insert('\u{0941}', "ʊ"); // ु
+        self.matras.insert('\u{0942}', "uː"); // ू
+        self.matras.insert('\u{0943}', "rɪ"); // ृ
+        self.matras.insert('\u{0947}', "eː"); // े
+        self.matras.insert('\u{0948}', "æː"); // ै
+        self.matras.insert('\u{094B}', "oː"); // ो
+        self.matras.insert('\u{094C}', "ɔː"); // ौ
 
         // Common Roman to Hindi mappings
         self.roman_to_devanagari.insert("ka", "क");
@@ -488,7 +488,8 @@ impl HindiG2p {
 
     /// Get phoneme sequence as string (for TTS input)
     pub fn phonemes_to_string(&self, phonemes: &[Phoneme]) -> String {
-        phonemes.iter()
+        phonemes
+            .iter()
             .map(|p| p.symbol.as_str())
             .collect::<Vec<_>>()
             .join("")
@@ -534,7 +535,9 @@ mod tests {
     fn test_roman_hindi() {
         let g2p = create_hindi_g2p();
 
-        let phonemes = g2p.convert("kya aap mujhe gold loan de sakte hain").unwrap();
+        let phonemes = g2p
+            .convert("kya aap mujhe gold loan de sakte hain")
+            .unwrap();
         assert!(!phonemes.is_empty());
     }
 

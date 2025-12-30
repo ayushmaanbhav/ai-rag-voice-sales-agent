@@ -30,17 +30,20 @@
 //! For browsers or clients that don't support WebRTC, the server also provides
 //! WebSocket audio transport via `/ws/:session_id` (higher latency ~100ms)
 
+pub mod codec;
+pub mod session;
+pub mod traits;
 pub mod webrtc;
 pub mod websocket;
-pub mod traits;
-pub mod session;
-pub mod codec;
 
-pub use traits::{Transport, TransportEvent, AudioSink, AudioSource, ConnectionStats};
-pub use session::{TransportSession, SessionConfig};
-pub use webrtc::{WebRtcTransport, WebRtcConfig, IceServer, WebRtcAudioSink, WebRtcAudioSource, WebRtcState, IceCandidate};
-pub use websocket::{WebSocketTransport, WebSocketConfig, WebSocketState};
-pub use codec::{OpusEncoder, OpusDecoder, Resampler};
+pub use codec::{OpusDecoder, OpusEncoder, Resampler};
+pub use session::{SessionConfig, TransportSession};
+pub use traits::{AudioSink, AudioSource, ConnectionStats, Transport, TransportEvent};
+pub use webrtc::{
+    IceCandidate, IceServer, WebRtcAudioSink, WebRtcAudioSource, WebRtcConfig, WebRtcState,
+    WebRtcTransport,
+};
+pub use websocket::{WebSocketConfig, WebSocketState, WebSocketTransport};
 
 use thiserror::Error;
 

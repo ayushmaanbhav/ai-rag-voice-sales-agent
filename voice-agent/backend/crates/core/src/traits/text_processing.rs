@@ -1,13 +1,11 @@
 //! Text processing traits
 
-use async_trait::async_trait;
-use std::pin::Pin;
-use futures::Stream;
 use crate::{
-    Result, Language, DomainContext,
-    PIIEntity, PIIType, RedactionStrategy,
-    ComplianceResult,
+    ComplianceResult, DomainContext, Language, PIIEntity, PIIType, RedactionStrategy, Result,
 };
+use async_trait::async_trait;
+use futures::Stream;
+use std::pin::Pin;
 
 /// Grammar correction interface
 ///
@@ -84,12 +82,7 @@ pub trait Translator: Send + Sync + 'static {
     ///
     /// # Returns
     /// Translated text
-    async fn translate(
-        &self,
-        text: &str,
-        from: Language,
-        to: Language,
-    ) -> Result<String>;
+    async fn translate(&self, text: &str, from: Language, to: Language) -> Result<String>;
 
     /// Detect language of text
     ///
@@ -165,11 +158,7 @@ pub trait PIIRedactor: Send + Sync + 'static {
     ///
     /// # Returns
     /// Text with PII redacted
-    async fn redact(
-        &self,
-        text: &str,
-        strategy: &RedactionStrategy,
-    ) -> Result<String>;
+    async fn redact(&self, text: &str, strategy: &RedactionStrategy) -> Result<String>;
 
     /// Get supported PII types
     fn supported_types(&self) -> &[PIIType];
@@ -265,7 +254,10 @@ mod tests {
         let translator = MockTranslator;
         assert!(translator.supports_pair(Language::Hindi, Language::English));
 
-        let result = translator.translate("नमस्ते", Language::Hindi, Language::English).await.unwrap();
+        let result = translator
+            .translate("नमस्ते", Language::Hindi, Language::English)
+            .await
+            .unwrap();
         assert!(result.contains("Translated"));
     }
 }

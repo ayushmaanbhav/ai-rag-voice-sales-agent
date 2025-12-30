@@ -6,11 +6,11 @@ mod checker;
 mod rules;
 
 pub use checker::RuleBasedComplianceChecker;
-pub use rules::{ComplianceRules, load_rules, default_rules};
+pub use rules::{default_rules, load_rules, ComplianceRules};
 
-use voice_agent_core::ComplianceChecker;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use voice_agent_core::ComplianceChecker;
 
 /// Compliance checking configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,13 +56,13 @@ pub fn create_checker(config: &ComplianceConfig) -> Arc<dyn ComplianceChecker> {
                     Err(e) => {
                         tracing::warn!("Failed to load rules from {}: {}, using defaults", path, e);
                         default_rules()
-                    }
+                    },
                 }
             } else {
                 default_rules()
             };
             Arc::new(RuleBasedComplianceChecker::new(rules, config.strict_mode))
-        }
+        },
         ComplianceProvider::Disabled => Arc::new(NoopChecker),
     }
 }
@@ -72,7 +72,10 @@ struct NoopChecker;
 
 #[async_trait::async_trait]
 impl ComplianceChecker for NoopChecker {
-    async fn check(&self, _text: &str) -> voice_agent_core::Result<voice_agent_core::ComplianceResult> {
+    async fn check(
+        &self,
+        _text: &str,
+    ) -> voice_agent_core::Result<voice_agent_core::ComplianceResult> {
         Ok(voice_agent_core::ComplianceResult::compliant())
     }
 

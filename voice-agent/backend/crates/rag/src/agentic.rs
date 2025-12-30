@@ -14,8 +14,7 @@
 use std::sync::Arc;
 
 use crate::{
-    HybridRetriever, RetrieverConfig, RerankerConfig,
-    SearchResult, RagError, VectorStore,
+    HybridRetriever, RagError, RerankerConfig, RetrieverConfig, SearchResult, VectorStore,
 };
 
 use voice_agent_llm::{LlmBackend, Message, Role};
@@ -193,7 +192,10 @@ impl AgenticRetriever {
                             query_rewritten = true;
 
                             // Re-retrieve with new query
-                            results = self.retriever.search(&current_query, vector_store, None).await?;
+                            results = self
+                                .retriever
+                                .search(&current_query, vector_store, None)
+                                .await?;
                             iterations += 1;
                         } else {
                             tracing::debug!(
@@ -202,7 +204,7 @@ impl AgenticRetriever {
                             );
                             break;
                         }
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!(
                             iteration = iteration + 1,
@@ -210,7 +212,7 @@ impl AgenticRetriever {
                             "Query rewriting failed, using current results"
                         );
                         break;
-                    }
+                    },
                 }
             } else {
                 tracing::debug!("No query rewriter available, using single-shot results");
@@ -293,7 +295,8 @@ impl SufficiencyChecker {
         }
 
         // Calculate average score
-        let avg_score: f32 = top_results.iter().map(|r| r.score).sum::<f32>() / top_results.len() as f32;
+        let avg_score: f32 =
+            top_results.iter().map(|r| r.score).sum::<f32>() / top_results.len() as f32;
 
         if avg_score < self.min_avg_score {
             return avg_score / self.min_avg_score * 0.5; // Scale up to 0.5
@@ -306,9 +309,8 @@ impl SufficiencyChecker {
         let consistency_bonus = if spread < 0.2 { 0.1 } else { 0.0 };
 
         // Normalize to 0.0-1.0 range
-        let normalized = (avg_score.min(1.0) + consistency_bonus).min(1.0);
 
-        normalized
+        (avg_score.min(1.0) + consistency_bonus).min(1.0)
     }
 }
 
@@ -452,7 +454,7 @@ impl LlmSufficiencyChecker {
                     confidence: 0.6, // Lower confidence for heuristic
                     method: "heuristic".to_string(),
                 });
-            }
+            },
         };
 
         // Build document context for LLM
@@ -514,7 +516,7 @@ JSON response:"#,
                         }
 
                         Ok(eval)
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!(error = %e, "Failed to parse LLM evaluation, using heuristic");
                         Ok(SufficiencyEvaluation {
@@ -525,9 +527,9 @@ JSON response:"#,
                             confidence: 0.6,
                             method: "heuristic_fallback".to_string(),
                         })
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "LLM evaluation failed, using heuristic");
                 Ok(SufficiencyEvaluation {
@@ -538,7 +540,7 @@ JSON response:"#,
                     confidence: 0.6,
                     method: "heuristic_fallback".to_string(),
                 })
-            }
+            },
         }
     }
 
@@ -674,7 +676,10 @@ If the query is already good, output it unchanged."#,
         }];
 
         // Call LLM for rewriting
-        let response = self.llm.generate(&messages).await
+        let response = self
+            .llm
+            .generate(&messages)
+            .await
             .map_err(|e| RagError::Search(format!("LLM query rewrite failed: {}", e)))?;
 
         let rewritten = response.text.trim().to_string();

@@ -3,19 +3,17 @@
 //! Bridges the RAG crate's HybridRetriever/AgenticRetriever with
 //! the core Retriever trait interface.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use voice_agent_core::{
-    Retriever, RetrieveOptions, Document, ConversationContext as CoreContext,
-    Result,
+    ConversationContext as CoreContext, Document, Result, RetrieveOptions, Retriever,
 };
 
 use crate::{
-    HybridRetriever, AgenticRetriever, VectorStore, SearchResult,
-    QueryExpander, DomainBooster,
-    agentic::ConversationContext as RagContext,
+    agentic::ConversationContext as RagContext, AgenticRetriever, DomainBooster, HybridRetriever,
+    QueryExpander, SearchResult, VectorStore,
 };
 
 /// Enhanced retriever implementing the core Retriever trait
@@ -190,8 +188,12 @@ impl EnhancedRetriever {
         let cache = self.prefetch_cache.lock();
         if let Some(ref prefetch) = *cache {
             // Check if the query starts with or contains the prefetch partial
-            if query.to_lowercase().starts_with(&prefetch.partial.to_lowercase())
-                || query.to_lowercase().contains(&prefetch.partial.to_lowercase())
+            if query
+                .to_lowercase()
+                .starts_with(&prefetch.partial.to_lowercase())
+                || query
+                    .to_lowercase()
+                    .contains(&prefetch.partial.to_lowercase())
             {
                 return Some(prefetch.results.clone());
             }
@@ -202,11 +204,7 @@ impl EnhancedRetriever {
 
 #[async_trait]
 impl Retriever for EnhancedRetriever {
-    async fn retrieve(
-        &self,
-        query: &str,
-        options: &RetrieveOptions,
-    ) -> Result<Vec<Document>> {
+    async fn retrieve(&self, query: &str, options: &RetrieveOptions) -> Result<Vec<Document>> {
         // Check prefetch cache first
         if self.config.prefetch_enabled {
             if let Some(cached) = self.check_prefetch_cache(query) {
@@ -227,11 +225,13 @@ impl Retriever for EnhancedRetriever {
             .hybrid
             .search(&processed_query, &self.vector_store, None)
             .await
-            .map_err(|e| voice_agent_core::Error::Rag(format!(
-                "hybrid search failed (query='{}'): {}",
-                query.chars().take(50).collect::<String>(),
-                e
-            )))?;
+            .map_err(|e| {
+                voice_agent_core::Error::Rag(format!(
+                    "hybrid search failed (query='{}'): {}",
+                    query.chars().take(50).collect::<String>(),
+                    e
+                ))
+            })?;
 
         // Apply domain boosting
         self.apply_boosting(&mut results, query);
@@ -261,11 +261,13 @@ impl Retriever for EnhancedRetriever {
                 let result = agentic
                     .search(query, &self.vector_store, Some(&rag_context))
                     .await
-                    .map_err(|e| voice_agent_core::Error::Rag(format!(
-                        "agentic retrieval failed (query='{}'): {}",
-                        query.chars().take(50).collect::<String>(),
-                        e
-                    )))?;
+                    .map_err(|e| {
+                        voice_agent_core::Error::Rag(format!(
+                            "agentic retrieval failed (query='{}'): {}",
+                            query.chars().take(50).collect::<String>(),
+                            e
+                        ))
+                    })?;
 
                 tracing::debug!(
                     "Agentic retrieval: {} iterations, rewritten={}",
@@ -318,8 +320,7 @@ impl Retriever for EnhancedRetriever {
                     let documents: Vec<Document> = results
                         .into_iter()
                         .map(|r| {
-                            Document::new(r.id, r.text, r.score)
-                                .with_metadata("prefetch", true)
+                            Document::new(r.id, r.text, r.score).with_metadata("prefetch", true)
                         })
                         .collect();
 
@@ -328,11 +329,18 @@ impl Retriever for EnhancedRetriever {
                         results: documents,
                     });
 
-                    tracing::debug!("Prefetch completed with {} results", cache_clone.lock().as_ref().map(|p| p.results.len()).unwrap_or(0));
-                }
+                    tracing::debug!(
+                        "Prefetch completed with {} results",
+                        cache_clone
+                            .lock()
+                            .as_ref()
+                            .map(|p| p.results.len())
+                            .unwrap_or(0)
+                    );
+                },
                 Err(e) => {
                     tracing::warn!("Prefetch failed: {}", e);
-                }
+                },
             }
         });
     }

@@ -13,14 +13,14 @@
 //! P3-1 FIX: Removed deprecated RedisSessionStore stub.
 //! Use ScyllaSessionStore for distributed session persistence.
 
+use async_trait::async_trait;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use parking_lot::RwLock;
 use tokio::sync::watch;
-use async_trait::async_trait;
 
-use voice_agent_agent::{GoldLoanAgent, AgentConfig};
+use voice_agent_agent::{AgentConfig, GoldLoanAgent};
 
 use crate::ServerError;
 
@@ -79,7 +79,10 @@ pub trait SessionStore: Send + Sync {
     fn is_distributed(&self) -> bool;
 
     /// P2 FIX: List active sessions for recovery on restart
-    async fn list_active_sessions(&self, limit: i32) -> Result<Vec<RecoverableSession>, ServerError>;
+    async fn list_active_sessions(
+        &self,
+        limit: i32,
+    ) -> Result<Vec<RecoverableSession>, ServerError>;
 }
 
 /// P1 FIX: In-memory session store (default)
@@ -137,7 +140,10 @@ impl SessionStore for InMemorySessionStore {
         false
     }
 
-    async fn list_active_sessions(&self, _limit: i32) -> Result<Vec<RecoverableSession>, ServerError> {
+    async fn list_active_sessions(
+        &self,
+        _limit: i32,
+    ) -> Result<Vec<RecoverableSession>, ServerError> {
         // In-memory sessions don't survive restarts, so nothing to recover
         Ok(Vec::new())
     }
@@ -165,7 +171,10 @@ impl ScyllaSessionStore {
     }
 
     /// Create with a specific instance ID (for session affinity)
-    pub fn with_instance_id(store: voice_agent_persistence::ScyllaSessionStore, instance_id: String) -> Self {
+    pub fn with_instance_id(
+        store: voice_agent_persistence::ScyllaSessionStore,
+        instance_id: String,
+    ) -> Self {
         Self { store, instance_id }
     }
 
@@ -178,16 +187,16 @@ impl ScyllaSessionStore {
 #[async_trait]
 impl SessionStore for ScyllaSessionStore {
     async fn store_metadata(&self, session: &Session) -> Result<(), ServerError> {
-        use voice_agent_persistence::sessions::{SessionData, SessionStore as PersistenceSessionStore};
         use chrono::Utc;
+        use voice_agent_persistence::sessions::{
+            SessionData, SessionStore as PersistenceSessionStore,
+        };
 
         let now = Utc::now();
         let expires_at = now + chrono::Duration::hours(1);
 
         // Get memory context from agent if available
-        let memory_json = serde_json::to_string(
-            &session.agent.conversation().get_context()
-        ).ok();
+        let memory_json = serde_json::to_string(&session.agent.conversation().get_context()).ok();
 
         let data = SessionData {
             session_id: session.id.clone(),
@@ -201,12 +210,17 @@ impl SessionStore for ScyllaSessionStore {
             conversation_stage: session.agent.stage().display_name().to_string(),
             turn_count: session.agent.conversation().turn_count() as i32,
             memory_json,
-            metadata_json: Some(serde_json::json!({
-                "instance_id": self.instance_id
-            }).to_string()),
+            metadata_json: Some(
+                serde_json::json!({
+                    "instance_id": self.instance_id
+                })
+                .to_string(),
+            ),
         };
 
-        self.store.create(&data).await
+        self.store
+            .create(&data)
+            .await
             .map_err(|e| ServerError::Session(format!("ScyllaDB error: {}", e)))?;
 
         tracing::debug!(
@@ -224,9 +238,15 @@ impl SessionStore for ScyllaSessionStore {
         match self.store.get(id).await {
             Ok(Some(data)) => {
                 // Extract instance_id from metadata_json if present
-                let instance_id = data.metadata_json.as_ref()
+                let instance_id = data
+                    .metadata_json
+                    .as_ref()
                     .and_then(|json| serde_json::from_str::<serde_json::Value>(json).ok())
-                    .and_then(|v| v.get("instance_id").and_then(|i| i.as_str()).map(String::from));
+                    .and_then(|v| {
+                        v.get("instance_id")
+                            .and_then(|i| i.as_str())
+                            .map(String::from)
+                    });
 
                 Ok(Some(SessionMetadata {
                     id: data.session_id,
@@ -237,7 +257,7 @@ impl SessionStore for ScyllaSessionStore {
                     turn_count: data.turn_count as usize,
                     instance_id,
                 }))
-            }
+            },
             Ok(None) => Ok(None),
             Err(e) => Err(ServerError::Session(format!("ScyllaDB error: {}", e))),
         }
@@ -246,7 +266,9 @@ impl SessionStore for ScyllaSessionStore {
     async fn delete_metadata(&self, id: &str) -> Result<(), ServerError> {
         use voice_agent_persistence::sessions::SessionStore as PersistenceSessionStore;
 
-        self.store.delete(id).await
+        self.store
+            .delete(id)
+            .await
             .map_err(|e| ServerError::Session(format!("ScyllaDB error: {}", e)))?;
         tracing::debug!(session_id = %id, "Session deleted from ScyllaDB");
         Ok(())
@@ -256,7 +278,10 @@ impl SessionStore for ScyllaSessionStore {
         use voice_agent_persistence::sessions::SessionStore as PersistenceSessionStore;
 
         // P2-3 FIX: Actually list sessions from ScyllaDB
-        let sessions = self.store.list_active(100).await
+        let sessions = self
+            .store
+            .list_active(100)
+            .await
             .map_err(|e| ServerError::Session(format!("ScyllaDB list error: {}", e)))?;
 
         Ok(sessions.into_iter().map(|s| s.session_id).collect())
@@ -265,7 +290,9 @@ impl SessionStore for ScyllaSessionStore {
     async fn touch(&self, id: &str) -> Result<(), ServerError> {
         use voice_agent_persistence::sessions::SessionStore as PersistenceSessionStore;
 
-        self.store.touch(id).await
+        self.store
+            .touch(id)
+            .await
             .map_err(|e| ServerError::Session(format!("ScyllaDB error: {}", e)))?;
         Ok(())
     }
@@ -274,20 +301,29 @@ impl SessionStore for ScyllaSessionStore {
         true
     }
 
-    async fn list_active_sessions(&self, limit: i32) -> Result<Vec<RecoverableSession>, ServerError> {
+    async fn list_active_sessions(
+        &self,
+        limit: i32,
+    ) -> Result<Vec<RecoverableSession>, ServerError> {
         use voice_agent_persistence::sessions::SessionStore as PersistenceSessionStore;
 
-        let sessions = self.store.list_active(limit).await
+        let sessions = self
+            .store
+            .list_active(limit)
+            .await
             .map_err(|e| ServerError::Session(format!("ScyllaDB list error: {}", e)))?;
 
-        Ok(sessions.into_iter().map(|s| RecoverableSession {
-            session_id: s.session_id,
-            created_at: s.created_at,
-            expires_at: s.expires_at,
-            conversation_stage: s.conversation_stage,
-            turn_count: s.turn_count,
-            language: s.language,
-        }).collect())
+        Ok(sessions
+            .into_iter()
+            .map(|s| RecoverableSession {
+                session_id: s.session_id,
+                created_at: s.created_at,
+                expires_at: s.expires_at,
+                conversation_stage: s.conversation_stage,
+                turn_count: s.turn_count,
+                language: s.language,
+            })
+            .collect())
     }
 }
 
@@ -339,13 +375,43 @@ impl Session {
         }
     }
 
+    /// P0 FIX: Create a new session with full integration (RAG + persistence-wired tools)
+    ///
+    /// This method creates a session with:
+    /// - Vector store for RAG retrieval (optional)
+    /// - Tool registry with persistence services wired (SMS, GoldPrice, Appointments)
+    ///
+    /// Use this for production deployments where tool calls should persist to ScyllaDB.
+    pub fn with_full_integration(
+        id: impl Into<String>,
+        config: AgentConfig,
+        vector_store: Option<Arc<voice_agent_rag::VectorStore>>,
+        tools: Arc<voice_agent_tools::ToolRegistry>,
+    ) -> Self {
+        let id = id.into();
+        let mut agent = GoldLoanAgent::new(&id, config).with_tools(tools);
+        if let Some(vs) = vector_store {
+            agent = agent.with_vector_store(vs);
+        }
+        Self {
+            agent: Arc::new(agent),
+            id,
+            created_at: Instant::now(),
+            last_activity: RwLock::new(Instant::now()),
+            active: RwLock::new(true),
+            webrtc: RwLock::new(None),
+        }
+    }
+
     /// P2 FIX: Set the WebRTC transport for this session
     pub fn set_webrtc_transport(&self, session: crate::webrtc::WebRtcSession) {
         *self.webrtc.write() = Some(session);
     }
 
     /// P2 FIX: Get the WebRTC transport Arc if connected
-    pub fn get_webrtc_transport(&self) -> Option<std::sync::Arc<tokio::sync::RwLock<voice_agent_transport::WebRtcTransport>>> {
+    pub fn get_webrtc_transport(
+        &self,
+    ) -> Option<std::sync::Arc<tokio::sync::RwLock<voice_agent_transport::WebRtcTransport>>> {
         self.webrtc.read().as_ref().map(|s| s.transport.clone())
     }
 
@@ -396,7 +462,11 @@ impl SessionManager {
     }
 
     /// Create a new session manager with custom timeout and cleanup interval
-    pub fn with_config(max_sessions: usize, session_timeout: Duration, cleanup_interval: Duration) -> Self {
+    pub fn with_config(
+        max_sessions: usize,
+        session_timeout: Duration,
+        cleanup_interval: Duration,
+    ) -> Self {
         Self {
             sessions: RwLock::new(HashMap::new()),
             max_sessions,
@@ -457,6 +527,22 @@ impl SessionManager {
         config: AgentConfig,
         vector_store: Option<Arc<voice_agent_rag::VectorStore>>,
     ) -> Result<Arc<Session>, ServerError> {
+        self.create_with_full_integration(config, vector_store, None)
+    }
+
+    /// P0 FIX: Create a new session with full integration (RAG + persistence-wired tools)
+    ///
+    /// This method creates a session with:
+    /// - Vector store for RAG retrieval (optional)
+    /// - Tool registry with persistence services wired (optional, uses default if None)
+    ///
+    /// Use this for production deployments where tool calls should persist to ScyllaDB.
+    pub fn create_with_full_integration(
+        &self,
+        config: AgentConfig,
+        vector_store: Option<Arc<voice_agent_rag::VectorStore>>,
+        tools: Option<Arc<voice_agent_tools::ToolRegistry>>,
+    ) -> Result<Arc<Session>, ServerError> {
         let mut sessions = self.sessions.write();
 
         // Check capacity
@@ -471,16 +557,22 @@ impl SessionManager {
 
         let id = uuid::Uuid::new_v4().to_string();
         let rag_enabled = vector_store.is_some();
-        let session = if let Some(vs) = vector_store {
-            Arc::new(Session::with_vector_store(&id, config, vs))
-        } else {
-            Arc::new(Session::new(&id, config))
+        let tools_wired = tools.is_some();
+
+        let session = match (vector_store, tools) {
+            (Some(vs), Some(t)) => {
+                Arc::new(Session::with_full_integration(&id, config, Some(vs), t))
+            },
+            (Some(vs), None) => Arc::new(Session::with_vector_store(&id, config, vs)),
+            (None, Some(t)) => Arc::new(Session::with_full_integration(&id, config, None, t)),
+            (None, None) => Arc::new(Session::new(&id, config)),
         };
         sessions.insert(id.clone(), session.clone());
 
         tracing::info!(
             session_id = %id,
             rag_enabled = rag_enabled,
+            tools_wired = tools_wired,
             "Created session"
         );
 

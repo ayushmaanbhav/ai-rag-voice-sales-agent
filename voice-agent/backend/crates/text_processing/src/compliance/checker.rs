@@ -1,12 +1,12 @@
 //! Rule-based compliance checker
 
+use super::rules::ComplianceRules;
 use async_trait::async_trait;
 use regex::Regex;
 use voice_agent_core::{
-    ComplianceChecker, ComplianceResult, ComplianceViolation, Severity,
-    ViolationCategory, RequiredAddition, Result,
+    ComplianceChecker, ComplianceResult, ComplianceViolation, RequiredAddition, Result, Severity,
+    ViolationCategory,
 };
-use super::rules::ComplianceRules;
 
 /// Rule-based compliance checker
 pub struct RuleBasedComplianceChecker {
@@ -76,7 +76,8 @@ impl RuleBasedComplianceChecker {
                         format!("Forbidden phrase detected: '{}'", rule.phrase),
                         ViolationCategory::MisleadingClaim,
                         Severity::Critical,
-                    ).with_span(m.start(), m.end(), m.as_str())
+                    )
+                    .with_span(m.start(), m.end(), m.as_str())
                 })
             })
             .collect()
@@ -97,7 +98,8 @@ impl RuleBasedComplianceChecker {
                             format!("Claim '{}' requires disclaimer", rule.description),
                             ViolationCategory::MissingDisclosure,
                             Severity::Warning,
-                        ).with_span(m.start(), m.end(), m.as_str())
+                        )
+                        .with_span(m.start(), m.end(), m.as_str()),
                     );
                     additions.push(RequiredAddition::disclaimer(&rule.disclaimer));
                 }
@@ -152,7 +154,9 @@ impl RuleBasedComplianceChecker {
         let mut violations = Vec::new();
         let text_lower = text.to_lowercase();
 
-        let disparaging_words = ["bad", "worst", "fraud", "cheat", "scam", "terrible", "avoid"];
+        let disparaging_words = [
+            "bad", "worst", "fraud", "cheat", "scam", "terrible", "avoid",
+        ];
 
         for competitor in &self.rules.competitor_rules.competitors {
             if text_lower.contains(&competitor.to_lowercase()) {
@@ -202,7 +206,9 @@ impl ComplianceChecker for RuleBasedComplianceChecker {
         let is_compliant = if self.strict_mode {
             all_violations.is_empty()
         } else {
-            !all_violations.iter().any(|v| v.severity == Severity::Critical)
+            !all_violations
+                .iter()
+                .any(|v| v.severity == Severity::Critical)
         };
 
         Ok(ComplianceResult {
@@ -223,7 +229,11 @@ impl ComplianceChecker for RuleBasedComplianceChecker {
         let mut compliant_text = text.to_string();
 
         // Remove critical violations (replace with safe text)
-        for violation in result.violations.iter().filter(|v| v.severity == Severity::Critical) {
+        for violation in result
+            .violations
+            .iter()
+            .filter(|v| v.severity == Severity::Critical)
+        {
             if let Some((start, end)) = violation.text_span {
                 compliant_text.replace_range(start..end, "[removed]");
             }
@@ -247,8 +257,8 @@ impl ComplianceChecker for RuleBasedComplianceChecker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::rules::default_rules;
+    use super::*;
 
     fn create_checker() -> RuleBasedComplianceChecker {
         RuleBasedComplianceChecker::new(default_rules(), false)
@@ -261,7 +271,10 @@ mod tests {
 
         let result = checker.check(text).await.unwrap();
         assert!(!result.is_compliant);
-        assert!(result.violations.iter().any(|v| v.severity == Severity::Critical));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.severity == Severity::Critical));
     }
 
     #[tokio::test]
@@ -271,7 +284,13 @@ mod tests {
 
         let result = checker.check(text).await.unwrap();
         // May have warnings for rate mentions but should be compliant
-        assert!(result.is_compliant || !result.violations.iter().any(|v| v.severity == Severity::Critical));
+        assert!(
+            result.is_compliant
+                || !result
+                    .violations
+                    .iter()
+                    .any(|v| v.severity == Severity::Critical)
+        );
     }
 
     #[tokio::test]
@@ -280,15 +299,24 @@ mod tests {
 
         // Valid rate
         let result = checker.check("Our rate is 10.5%").await.unwrap();
-        assert!(result.violations.iter().all(|v| !matches!(v.category, ViolationCategory::Regulatory)));
+        assert!(result
+            .violations
+            .iter()
+            .all(|v| !matches!(v.category, ViolationCategory::Regulatory)));
 
         // Too low
         let result = checker.check("Our rate is 2%").await.unwrap();
-        assert!(result.violations.iter().any(|v| v.rule_id == "RATE_TOO_LOW"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.rule_id == "RATE_TOO_LOW"));
 
         // Too high
         let result = checker.check("Our rate is 30%").await.unwrap();
-        assert!(result.violations.iter().any(|v| v.rule_id == "RATE_TOO_HIGH"));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.rule_id == "RATE_TOO_HIGH"));
     }
 
     #[tokio::test]
@@ -297,9 +325,10 @@ mod tests {
         let text = "Muthoot is a fraud company, use Kotak instead";
 
         let result = checker.check(text).await.unwrap();
-        assert!(result.violations.iter().any(|v|
-            matches!(v.category, ViolationCategory::CompetitorDisparagement)
-        ));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| matches!(v.category, ViolationCategory::CompetitorDisparagement)));
     }
 
     #[tokio::test]

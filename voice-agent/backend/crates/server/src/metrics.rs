@@ -4,8 +4,8 @@
 
 use axum::{
     extract::State,
-    response::IntoResponse,
     http::{header, StatusCode},
+    response::IntoResponse,
 };
 use metrics::{counter, gauge, histogram};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
@@ -103,9 +103,7 @@ use crate::state::AppState;
 /// Metrics endpoint handler
 ///
 /// Returns Prometheus-formatted metrics.
-pub async fn metrics_handler(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
     // Update active sessions gauge
     let session_count = state.sessions.count();
     record_active_sessions(session_count);
@@ -115,17 +113,18 @@ pub async fn metrics_handler(
             let metrics = handle.render();
             (
                 StatusCode::OK,
-                [(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+                [(
+                    header::CONTENT_TYPE,
+                    "text/plain; version=0.0.4; charset=utf-8",
+                )],
                 metrics,
             )
-        }
-        None => {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                [(header::CONTENT_TYPE, "text/plain")],
-                "Metrics not initialized".to_string(),
-            )
-        }
+        },
+        None => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(header::CONTENT_TYPE, "text/plain")],
+            "Metrics not initialized".to_string(),
+        ),
     }
 }
 

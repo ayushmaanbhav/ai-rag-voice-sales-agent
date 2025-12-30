@@ -1,9 +1,9 @@
 //! Conversation types including stages and turns
 
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Conversation stages for sales flow
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -29,18 +29,25 @@ pub enum ConversationStage {
 
 /// P2 FIX: Static transition map using once_cell::Lazy for O(1) lookup.
 /// Previously, allowed_transitions() created a new Vec on every call.
-static STAGE_TRANSITIONS: Lazy<HashMap<ConversationStage, &'static [ConversationStage]>> = Lazy::new(|| {
-    use ConversationStage::*;
-    let mut map = HashMap::new();
-    map.insert(Greeting, &[Discovery, Farewell] as &[_]);
-    map.insert(Discovery, &[Qualification, Presentation, Farewell] as &[_]);
-    map.insert(Qualification, &[Presentation, Discovery, Farewell] as &[_]);
-    map.insert(Presentation, &[ObjectionHandling, Closing, Farewell] as &[_]);
-    map.insert(ObjectionHandling, &[Presentation, Closing, Farewell] as &[_]);
-    map.insert(Closing, &[ObjectionHandling, Farewell] as &[_]);
-    map.insert(Farewell, &[] as &[_]);
-    map
-});
+static STAGE_TRANSITIONS: Lazy<HashMap<ConversationStage, &'static [ConversationStage]>> =
+    Lazy::new(|| {
+        use ConversationStage::*;
+        let mut map = HashMap::new();
+        map.insert(Greeting, &[Discovery, Farewell] as &[_]);
+        map.insert(Discovery, &[Qualification, Presentation, Farewell] as &[_]);
+        map.insert(Qualification, &[Presentation, Discovery, Farewell] as &[_]);
+        map.insert(
+            Presentation,
+            &[ObjectionHandling, Closing, Farewell] as &[_],
+        );
+        map.insert(
+            ObjectionHandling,
+            &[Presentation, Closing, Farewell] as &[_],
+        );
+        map.insert(Closing, &[ObjectionHandling, Farewell] as &[_]);
+        map.insert(Farewell, &[] as &[_]);
+        map
+    });
 
 impl ConversationStage {
     /// Get allowed transitions from current stage
@@ -61,31 +68,31 @@ impl ConversationStage {
             ConversationStage::Greeting => {
                 "Introduce yourself warmly. Acknowledge any previous relationship with the bank. \
                  Ask an open question to understand their current situation."
-            }
+            },
             ConversationStage::Discovery => {
                 "Ask about their current gold loan situation. Understand pain points with \
                  current lender. Identify gold quantity and purpose of loan."
-            }
+            },
             ConversationStage::Qualification => {
                 "Assess eligibility based on gold quantity and purity. Understand loan amount \
                  needs. Check for any documentation requirements."
-            }
+            },
             ConversationStage::Presentation => {
                 "Present personalized benefits. Show savings calculator results. Emphasize \
                  trust and safety of Kotak. Mention the Switch & Save program."
-            }
+            },
             ConversationStage::ObjectionHandling => {
                 "Listen empathetically. Address specific concerns. Provide evidence and \
                  testimonials. Never be pushy or dismissive."
-            }
+            },
             ConversationStage::Closing => {
                 "Summarize benefits. Ask for commitment. Offer to schedule appointment. \
                  Create appropriate urgency without pressure."
-            }
+            },
             ConversationStage::Farewell => {
                 "Thank them for their time. Provide clear next steps. Leave door open \
                  for future contact. End on a positive note."
-            }
+            },
         }
     }
 
@@ -115,7 +122,6 @@ impl ConversationStage {
         }
     }
 }
-
 
 impl std::fmt::Display for ConversationStage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -376,6 +382,9 @@ mod tests {
             .with_slot("amount", "100000");
 
         assert_eq!(intent.slots.len(), 2);
-        assert_eq!(intent.slots.get("loan_type"), Some(&"gold_loan".to_string()));
+        assert_eq!(
+            intent.slots.get("loan_type"),
+            Some(&"gold_loan".to_string())
+        );
     }
 }

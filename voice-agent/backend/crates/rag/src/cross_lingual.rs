@@ -6,8 +6,8 @@
 //! - Transliteration mapping
 //! - Query language detection
 
-use std::collections::HashMap;
 use parking_lot::RwLock;
+use std::collections::HashMap;
 
 /// Detected script in text
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,14 +156,8 @@ impl CrossLingualNormalizer {
         let chars: Vec<char> = text.chars().collect();
         let total = chars.len().max(1) as f32;
 
-        let devanagari_count = chars
-            .iter()
-            .filter(|c| Self::is_devanagari(**c))
-            .count() as f32;
-        let latin_count = chars
-            .iter()
-            .filter(|c| c.is_ascii_alphabetic())
-            .count() as f32;
+        let devanagari_count = chars.iter().filter(|c| Self::is_devanagari(**c)).count() as f32;
+        let latin_count = chars.iter().filter(|c| c.is_ascii_alphabetic()).count() as f32;
 
         let devanagari_ratio = devanagari_count / total;
         let latin_ratio = latin_count / total;
@@ -215,9 +209,7 @@ impl CrossLingualNormalizer {
         let variants = self.spelling_variants.read();
         for (variant, standard) in variants.iter() {
             if normalized.to_lowercase().contains(variant) {
-                normalized = normalized
-                    .to_lowercase()
-                    .replace(variant, standard);
+                normalized = normalized.to_lowercase().replace(variant, standard);
                 was_normalized = true;
             }
         }
@@ -231,16 +223,14 @@ impl CrossLingualNormalizer {
 
                 for (roman, dev) in r2d.iter() {
                     if query.to_lowercase().contains(roman) {
-                        dev_query = dev_query
-                            .to_lowercase()
-                            .replace(roman, dev);
+                        dev_query = dev_query.to_lowercase().replace(roman, dev);
                     }
                 }
 
                 if dev_query != query.to_lowercase() {
                     transliterations.push(dev_query);
                 }
-            }
+            },
             DetectedScript::Devanagari => {
                 // Devanagari -> Add Roman transliteration
                 let d2r = self.devanagari_to_roman.read();
@@ -255,7 +245,7 @@ impl CrossLingualNormalizer {
                 if roman_query != query {
                     transliterations.push(roman_query);
                 }
-            }
+            },
             DetectedScript::Mixed => {
                 // For mixed, generate both directions
                 let r2d = self.roman_to_devanagari.read();
@@ -282,8 +272,8 @@ impl CrossLingualNormalizer {
                 if roman_query != query {
                     transliterations.push(roman_query);
                 }
-            }
-            DetectedScript::Unknown => {}
+            },
+            DetectedScript::Unknown => {},
         }
 
         NormalizedQuery {
@@ -404,7 +394,9 @@ mod tests {
 
         assert!(!result.transliterations.is_empty());
         // Should have Devanagari transliteration
-        let has_devanagari = result.transliterations.iter()
+        let has_devanagari = result
+            .transliterations
+            .iter()
             .any(|t| normalizer.detect_language(t).primary_script == DetectedScript::Devanagari);
         assert!(has_devanagari);
     }

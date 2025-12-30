@@ -3,9 +3,9 @@
 //! Expands common abbreviations for clear pronunciation in TTS.
 //! Handles domain-specific (banking) and general abbreviations.
 
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashMap;
 
 /// Common abbreviations with their TTS expansions
 static ABBREVIATIONS: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
@@ -19,7 +19,7 @@ static ABBREVIATIONS: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     map.insert("KYC", "K Y C");
     map.insert("kyc", "K Y C");
     map.insert("PAN", "P A N");
-    map.insert("pan", "P A N");  // Note: context-sensitive, "pan" could be utensil
+    map.insert("pan", "P A N"); // Note: context-sensitive, "pan" could be utensil
     map.insert("IFSC", "I F S C");
     map.insert("ifsc", "I F S C");
     map.insert("NEFT", "N E F T");
@@ -54,11 +54,11 @@ static ABBREVIATIONS: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     map.insert("sip", "S I P");
     map.insert("MF", "M F");
     map.insert("mf", "M F");
-    map.insert("CIBIL", "CIBIL");  // Pronounceable as word
+    map.insert("CIBIL", "CIBIL"); // Pronounceable as word
     map.insert("cibil", "CIBIL");
     map.insert("RBI", "R B I");
     map.insert("rbi", "R B I");
-    map.insert("SEBI", "SEBI");  // Pronounceable
+    map.insert("SEBI", "SEBI"); // Pronounceable
     map.insert("sebi", "SEBI");
     map.insert("NSE", "N S E");
     map.insert("nse", "N S E");
@@ -136,7 +136,7 @@ static ABBREVIATIONS: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     map.insert("inr", "rupees");
     map.insert("Cr", "crore");
     map.insert("cr", "crore");
-    map.insert("L", "lakh");  // Context: after number
+    map.insert("L", "lakh"); // Context: after number
     map.insert("lac", "lakh");
     map.insert("lacs", "lakhs");
 
@@ -165,7 +165,8 @@ impl AbbreviationExpander {
 
     /// Add custom abbreviation
     pub fn add_abbreviation(&mut self, abbrev: &str, expansion: &str) {
-        self.custom.insert(abbrev.to_string(), expansion.to_string());
+        self.custom
+            .insert(abbrev.to_string(), expansion.to_string());
     }
 
     /// Expand abbreviations in text
@@ -198,25 +199,28 @@ impl AbbreviationExpander {
     fn expand_unknown_acronyms(&self, text: &str) -> String {
         let pattern = Regex::new(r"\b([A-Z]{2,6})\b").unwrap();
 
-        pattern.replace_all(text, |caps: &regex::Captures| {
-            let acronym = caps.get(1).unwrap().as_str();
+        pattern
+            .replace_all(text, |caps: &regex::Captures| {
+                let acronym = caps.get(1).unwrap().as_str();
 
-            // Skip if already in our abbreviation list
-            if ABBREVIATIONS.contains_key(acronym) {
-                return acronym.to_string();
-            }
+                // Skip if already in our abbreviation list
+                if ABBREVIATIONS.contains_key(acronym) {
+                    return acronym.to_string();
+                }
 
-            // Check if it's pronounceable (has vowels in right places)
-            if self.is_pronounceable(acronym) {
-                return acronym.to_string();
-            }
+                // Check if it's pronounceable (has vowels in right places)
+                if self.is_pronounceable(acronym) {
+                    return acronym.to_string();
+                }
 
-            // Spell it out
-            acronym.chars()
-                .map(|c| c.to_string())
-                .collect::<Vec<_>>()
-                .join(" ")
-        }).to_string()
+                // Spell it out
+                acronym
+                    .chars()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .to_string()
     }
 
     /// Check if an acronym is pronounceable as a word
@@ -268,7 +272,10 @@ mod tests {
     fn test_banking_abbreviations() {
         let expander = AbbreviationExpander::new();
         assert_eq!(expander.expand("Your EMI is due"), "Your E M I is due");
-        assert_eq!(expander.expand("Complete KYC first"), "Complete K Y C first");
+        assert_eq!(
+            expander.expand("Complete KYC first"),
+            "Complete K Y C first"
+        );
         assert_eq!(expander.expand("Enter OTP"), "Enter O T P");
     }
 
@@ -283,7 +290,9 @@ mod tests {
     fn test_custom_abbreviation() {
         let mut expander = AbbreviationExpander::new();
         expander.add_abbreviation("KMBL", "Kotak Mahindra Bank Limited");
-        assert!(expander.expand("Welcome to KMBL").contains("Kotak Mahindra Bank Limited"));
+        assert!(expander
+            .expand("Welcome to KMBL")
+            .contains("Kotak Mahindra Bank Limited"));
     }
 
     #[test]

@@ -1,9 +1,9 @@
 //! ScyllaDB client and connection management
 
-use scylla::{Session, SessionBuilder};
-use std::sync::Arc;
 use crate::error::PersistenceError;
 use crate::schema;
+use scylla::{Session, SessionBuilder};
+use std::sync::Arc;
 
 /// ScyllaDB configuration
 #[derive(Debug, Clone)]
@@ -50,7 +50,12 @@ impl ScyllaClient {
 
     /// Ensure keyspace and tables exist
     pub async fn ensure_schema(&self) -> Result<(), PersistenceError> {
-        schema::create_keyspace(&self.session, &self.config.keyspace, self.config.replication_factor).await?;
+        schema::create_keyspace(
+            &self.session,
+            &self.config.keyspace,
+            self.config.replication_factor,
+        )
+        .await?;
         schema::create_tables(&self.session, &self.config.keyspace).await?;
         tracing::info!(keyspace = %self.config.keyspace, "Schema ensured");
         Ok(())

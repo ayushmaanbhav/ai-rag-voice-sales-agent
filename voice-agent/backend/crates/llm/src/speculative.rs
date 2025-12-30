@@ -10,13 +10,13 @@
 //! between draft and verify models. We implement a simpler draft-verify
 //! pattern that works without shared KV cache.
 
+use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
-use parking_lot::Mutex;
 
-use crate::backend::{LlmBackend, GenerationResult};
+use crate::backend::{GenerationResult, LlmBackend};
 use crate::prompt::{Message, Role};
 use crate::LlmError;
 
@@ -159,18 +159,17 @@ impl SpeculativeExecutor {
     ) -> Result<SpeculativeResult, LlmError> {
         // For now, use SLM-first with streaming
         match self.config.mode {
-            SpeculativeMode::SlmFirst => {
-                self.execute_slm_first_stream(messages, tx).await
-            }
+            SpeculativeMode::SlmFirst => self.execute_slm_first_stream(messages, tx).await,
             SpeculativeMode::HybridStreaming => {
-                self.execute_hybrid_streaming_with_output(messages, tx).await
-            }
+                self.execute_hybrid_streaming_with_output(messages, tx)
+                    .await
+            },
             _ => {
                 // Fall back to non-streaming for other modes
                 let result = self.execute(messages).await?;
                 let _ = tx.send(result.text.clone()).await;
                 Ok(result)
-            }
+            },
         }
     }
 
@@ -201,21 +200,22 @@ impl SpeculativeExecutor {
 
         // P2 FIX: Parallel execution - start LLM speculatively if complexity is moderate
         // This saves latency when we need to fall back from SLM
-        let llm_handle = if self.config.fallback_enabled && complexity > self.config.speculative_llm_threshold {
-            let llm = self.llm.clone();
-            let messages_for_llm = messages.to_vec();
+        let llm_handle =
+            if self.config.fallback_enabled && complexity > self.config.speculative_llm_threshold {
+                let llm = self.llm.clone();
+                let messages_for_llm = messages.to_vec();
 
-            tracing::debug!(
-                complexity = complexity,
-                "Starting speculative LLM execution in parallel with SLM"
-            );
+                tracing::debug!(
+                    complexity = complexity,
+                    "Starting speculative LLM execution in parallel with SLM"
+                );
 
-            Some(tokio::spawn(async move {
-                llm.generate(&messages_for_llm).await
-            }))
-        } else {
-            None
-        };
+                Some(tokio::spawn(async move {
+                    llm.generate(&messages_for_llm).await
+                }))
+            } else {
+                None
+            };
 
         // Try SLM first with timeout
         let slm_timeout = Duration::from_millis(self.config.slm_timeout_ms);
@@ -248,7 +248,9 @@ impl SpeculativeExecutor {
                         match handle.await {
                             Ok(Ok(r)) => r,
                             Ok(Err(e)) => return Err(e),
-                            Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                            Err(e) => {
+                                return Err(LlmError::Generation(format!("LLM task failed: {}", e)))
+                            },
                         }
                     } else {
                         // No speculative LLM, start fresh
@@ -279,7 +281,7 @@ impl SpeculativeExecutor {
                         complexity_score: Some(complexity),
                     })
                 }
-            }
+            },
             Ok(Err(_e)) if self.config.fallback_enabled => {
                 // SLM error, use LLM result (already in progress if speculative)
                 let llm_result = if let Some(handle) = llm_handle {
@@ -287,7 +289,9 @@ impl SpeculativeExecutor {
                     match handle.await {
                         Ok(Ok(r)) => r,
                         Ok(Err(e)) => return Err(e),
-                        Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                        Err(e) => {
+                            return Err(LlmError::Generation(format!("LLM task failed: {}", e)))
+                        },
                     }
                 } else {
                     self.llm.generate(messages).await?
@@ -302,13 +306,13 @@ impl SpeculativeExecutor {
                     used_fallback: true,
                     complexity_score: Some(complexity),
                 })
-            }
+            },
             Ok(Err(e)) => {
                 if let Some(handle) = llm_handle {
                     handle.abort();
                 }
                 Err(e)
-            }
+            },
             Err(_) if self.config.fallback_enabled => {
                 // Timeout, use LLM result (already in progress if speculative)
                 let llm_result = if let Some(handle) = llm_handle {
@@ -316,7 +320,9 @@ impl SpeculativeExecutor {
                     match handle.await {
                         Ok(Ok(r)) => r,
                         Ok(Err(e)) => return Err(e),
-                        Err(e) => return Err(LlmError::Generation(format!("LLM task failed: {}", e))),
+                        Err(e) => {
+                            return Err(LlmError::Generation(format!("LLM task failed: {}", e)))
+                        },
                     }
                 } else {
                     self.llm.generate(messages).await?
@@ -331,13 +337,13 @@ impl SpeculativeExecutor {
                     used_fallback: true,
                     complexity_score: Some(complexity),
                 })
-            }
+            },
             Err(_) => {
                 if let Some(handle) = llm_handle {
                     handle.abort();
                 }
                 Err(LlmError::Timeout)
-            }
+            },
         }
     }
 
@@ -379,7 +385,10 @@ impl SpeculativeExecutor {
     ///
     /// P0 FIX: Now properly aborts the losing model to save resources.
     /// Uses tokio::spawn with AbortHandle to cancel the slower model.
-    async fn execute_race_parallel(&self, messages: &[Message]) -> Result<SpeculativeResult, LlmError> {
+    async fn execute_race_parallel(
+        &self,
+        messages: &[Message],
+    ) -> Result<SpeculativeResult, LlmError> {
         let start = Instant::now();
 
         // Clone what we need for the spawned tasks
@@ -389,13 +398,9 @@ impl SpeculativeExecutor {
         let messages_for_llm = messages.to_vec();
 
         // Spawn both as abortable tasks
-        let slm_handle = tokio::spawn(async move {
-            slm.generate(&messages_for_slm).await
-        });
+        let slm_handle = tokio::spawn(async move { slm.generate(&messages_for_slm).await });
 
-        let llm_handle = tokio::spawn(async move {
-            llm.generate(&messages_for_llm).await
-        });
+        let llm_handle = tokio::spawn(async move { llm.generate(&messages_for_llm).await });
 
         // P0 FIX: Get abort handles BEFORE select! (which moves the JoinHandles)
         let slm_abort = slm_handle.abort_handle();
@@ -482,7 +487,10 @@ impl SpeculativeExecutor {
     }
 
     /// Hybrid streaming strategy
-    async fn execute_hybrid_streaming(&self, messages: &[Message]) -> Result<SpeculativeResult, LlmError> {
+    async fn execute_hybrid_streaming(
+        &self,
+        messages: &[Message],
+    ) -> Result<SpeculativeResult, LlmError> {
         // For non-streaming hybrid, just use SLM-first
         self.execute_slm_first(messages).await
     }
@@ -501,9 +509,8 @@ impl SpeculativeExecutor {
         let slm = self.slm.clone();
         let messages_clone = messages.to_vec();
 
-        let slm_handle = tokio::spawn(async move {
-            slm.generate_stream(&messages_clone, slm_tx).await
-        });
+        let slm_handle =
+            tokio::spawn(async move { slm.generate_stream(&messages_clone, slm_tx).await });
 
         let mut tokens = Vec::new();
         let mut should_switch = false;
@@ -559,7 +566,8 @@ impl SpeculativeExecutor {
             })
         } else {
             // Continue with SLM
-            let result = slm_handle.await
+            let result = slm_handle
+                .await
                 .map_err(|e| LlmError::Generation(e.to_string()))??;
 
             self.update_stats(true, false, start.elapsed());
@@ -584,7 +592,10 @@ impl SpeculativeExecutor {
     ///
     /// This provides better quality than pure SLM with lower latency than pure LLM,
     /// as the LLM only needs to verify/correct rather than generate from scratch.
-    async fn execute_draft_verify(&self, messages: &[Message]) -> Result<SpeculativeResult, LlmError> {
+    async fn execute_draft_verify(
+        &self,
+        messages: &[Message],
+    ) -> Result<SpeculativeResult, LlmError> {
         let start = Instant::now();
 
         // Check complexity - very complex queries go straight to LLM
@@ -622,19 +633,20 @@ impl SpeculativeExecutor {
             // Draft with SLM (limited tokens)
             let draft_result = timeout(
                 Duration::from_millis(self.config.slm_timeout_ms * 2), // More time for drafting
-                self.slm.generate(&draft_messages)
-            ).await;
+                self.slm.generate(&draft_messages),
+            )
+            .await;
 
             let draft = match draft_result {
                 Ok(Ok(result)) => {
                     total_slm_tokens += result.tokens;
                     result.text
-                }
+                },
                 _ => {
                     // SLM failed, fall back to LLM for remaining
                     tracing::debug!("Draft failed, falling back to LLM");
                     break;
-                }
+                },
             };
 
             // If draft is empty or very short, we're done
@@ -686,7 +698,9 @@ impl SpeculativeExecutor {
         }
 
         // If we exhausted iterations without completion, finish with LLM
-        if iterations >= self.config.max_draft_iterations && !self.is_complete_response(&accepted_text, messages) {
+        if iterations >= self.config.max_draft_iterations
+            && !self.is_complete_response(&accepted_text, messages)
+        {
             let mut llm_messages = messages.to_vec();
             if !accepted_text.is_empty() {
                 llm_messages.push(Message {
@@ -719,7 +733,8 @@ impl SpeculativeExecutor {
                 tokens: total_slm_tokens + total_llm_tokens,
                 time_to_first_token_ms: 0, // Not tracked in this mode
                 total_time_ms: start.elapsed().as_millis() as u64,
-                tokens_per_second: (total_slm_tokens + total_llm_tokens) as f32 / start.elapsed().as_secs_f32(),
+                tokens_per_second: (total_slm_tokens + total_llm_tokens) as f32
+                    / start.elapsed().as_secs_f32(),
                 finish_reason: crate::backend::FinishReason::Stop,
                 context: None,
             },
@@ -752,7 +767,8 @@ impl SpeculativeExecutor {
     /// Estimate coherence of response with conversation
     fn estimate_coherence(&self, response: &str, messages: &[Message]) -> f32 {
         let empty = String::new();
-        let last_user = messages.iter()
+        let last_user = messages
+            .iter()
             .rev()
             .find(|m| matches!(m.role, Role::User))
             .map(|m| &m.content)
@@ -792,22 +808,39 @@ impl SpeculativeExecutor {
 
         // Domain-specific terms
         let gold_loan_terms = [
-            "gold", "loan", "interest", "rate", "emi", "tenure",
-            "collateral", "purity", "carat", "valuation", "disbursement",
-            "सोना", "ऋण", "ब्याज", "दर", "कार्यकाल", // Hindi terms
-            "kotak", "muthoot", "manappuram", "iifl",
+            "gold",
+            "loan",
+            "interest",
+            "rate",
+            "emi",
+            "tenure",
+            "collateral",
+            "purity",
+            "carat",
+            "valuation",
+            "disbursement",
+            "सोना",
+            "ऋण",
+            "ब्याज",
+            "दर",
+            "कार्यकाल", // Hindi terms
+            "kotak",
+            "muthoot",
+            "manappuram",
+            "iifl",
         ];
 
-        let matches = gold_loan_terms.iter()
+        let matches = gold_loan_terms
+            .iter()
             .filter(|term| lower.contains(*term))
             .count();
 
         // Score based on matches
         match matches {
-            0 => 0.5,  // No domain terms
-            1 => 0.7,  // Some relevance
+            0 => 0.5,      // No domain terms
+            1 => 0.7,      // Some relevance
             2..=3 => 0.85, // Good relevance
-            _ => 0.95, // Very relevant
+            _ => 0.95,     // Very relevant
         }
     }
 
@@ -816,15 +849,24 @@ impl SpeculativeExecutor {
         let trimmed = response.trim();
 
         // Check for end punctuation
-        if trimmed.ends_with('.') || trimmed.ends_with('?') ||
-           trimmed.ends_with('!') || trimmed.ends_with('।') {
+        if trimmed.ends_with('.')
+            || trimmed.ends_with('?')
+            || trimmed.ends_with('!')
+            || trimmed.ends_with('।')
+        {
             return true;
         }
 
         // Check for common closing phrases
         let closers = [
-            "thank you", "धन्यवाद", "please let me know", "any questions",
-            "help you", "assist you", "और कुछ", "और जानकारी",
+            "thank you",
+            "धन्यवाद",
+            "please let me know",
+            "any questions",
+            "help you",
+            "assist you",
+            "और कुछ",
+            "और जानकारी",
         ];
 
         let lower = trimmed.to_lowercase();
@@ -835,9 +877,7 @@ impl SpeculativeExecutor {
     fn estimate_complexity(&self, messages: &[Message]) -> f32 {
         // Simple heuristics for complexity
         let empty = String::new();
-        let last_message = messages.last()
-            .map(|m| &m.content)
-            .unwrap_or(&empty);
+        let last_message = messages.last().map(|m| &m.content).unwrap_or(&empty);
 
         let mut score: f32 = 0.0;
 
@@ -848,9 +888,16 @@ impl SpeculativeExecutor {
 
         // Question words
         let complex_markers = [
-            "explain", "analyze", "compare", "describe",
-            "calculate", "summarize", "translate",
-            "समझाइए", "विश्लेषण", "तुलना", // Hindi
+            "explain",
+            "analyze",
+            "compare",
+            "describe",
+            "calculate",
+            "summarize",
+            "translate",
+            "समझाइए",
+            "विश्लेषण",
+            "तुलना", // Hindi
         ];
 
         let lower = last_message.to_lowercase();
@@ -903,8 +950,12 @@ impl SpeculativeExecutor {
         // P1 FIX: Only penalize actual error indicators, not polite phrases
         // "sorry" and "cannot" are valid in Indian English greetings/politeness
         let error_indicators = [
-            "error:", "exception", "failed to", "invalid input",
-            "त्रुटि", "गलती हुई", // Hindi error indicators
+            "error:",
+            "exception",
+            "failed to",
+            "invalid input",
+            "त्रुटि",
+            "गलती हुई", // Hindi error indicators
         ];
         let lower = response.to_lowercase();
         for indicator in &error_indicators {
@@ -915,9 +966,13 @@ impl SpeculativeExecutor {
         }
 
         // Detect gibberish/garbage output (repeated special characters)
-        let special_char_ratio = response.chars()
-            .filter(|c| !c.is_alphanumeric() && !c.is_whitespace() && *c != '।' && *c != '?' && *c != '!')
-            .count() as f32 / response.len().max(1) as f32;
+        let special_char_ratio = response
+            .chars()
+            .filter(|c| {
+                !c.is_alphanumeric() && !c.is_whitespace() && *c != '।' && *c != '?' && *c != '!'
+            })
+            .count() as f32
+            / response.len().max(1) as f32;
         if special_char_ratio > 0.3 {
             score -= 0.4;
         }
@@ -1032,7 +1087,8 @@ mod tests {
         // P1 FIX: Test domain relevance scoring
 
         // High relevance - multiple gold loan terms
-        let high_relevance = "The gold loan interest rate is 7.5% per annum with flexible tenure options.";
+        let high_relevance =
+            "The gold loan interest rate is 7.5% per annum with flexible tenure options.";
         // Would need executor instance to test, but logic should score this ~0.95
 
         // Low relevance - no domain terms

@@ -16,20 +16,18 @@
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, broadcast, RwLock};
+use tokio::sync::{broadcast, mpsc, RwLock};
 use tokio::time::interval;
 
-use voice_agent_pipeline::{
-    stt::{StreamingStt, SttConfig, SttEngine, IndicConformerConfig},
-    tts::{StreamingTts, TtsConfig, TtsEngine, TtsEvent, create_hindi_g2p},
-    vad::{SileroVad, SileroConfig, VadState, VadResult},
-};
 use voice_agent_core::AudioFrame;
-use voice_agent_transport::{
-    TransportSession, SessionConfig, TransportEvent,
+use voice_agent_pipeline::{
+    stt::{IndicConformerConfig, StreamingStt, SttConfig, SttEngine},
+    tts::{create_hindi_g2p, StreamingTts, TtsConfig, TtsEngine, TtsEvent},
+    vad::{SileroConfig, SileroVad, VadResult, VadState},
 };
+use voice_agent_transport::{SessionConfig, TransportEvent, TransportSession};
 
-use crate::{GoldLoanAgent, AgentConfig, AgentEvent, AgentError};
+use crate::{AgentConfig, AgentError, AgentEvent, GoldLoanAgent};
 
 /// Voice session configuration
 #[derive(Debug, Clone)]
@@ -113,7 +111,10 @@ pub enum VoiceSessionEvent {
     /// Session started
     Started { session_id: String },
     /// State changed
-    StateChanged { old: VoiceSessionState, new: VoiceSessionState },
+    StateChanged {
+        old: VoiceSessionState,
+        new: VoiceSessionState,
+    },
     /// Partial transcript available
     PartialTranscript { text: String },
     /// Final transcript available
@@ -160,7 +161,10 @@ pub struct VoiceSession {
 
 impl VoiceSession {
     /// Create a new voice session
-    pub fn new(session_id: impl Into<String>, config: VoiceSessionConfig) -> Result<Self, AgentError> {
+    pub fn new(
+        session_id: impl Into<String>,
+        config: VoiceSessionConfig,
+    ) -> Result<Self, AgentError> {
         let session_id = session_id.into();
         let (event_tx, _) = broadcast::channel(100);
         let (shutdown_tx, _) = broadcast::channel(1);
@@ -178,9 +182,17 @@ impl VoiceSession {
 
         // Add domain vocabulary for entity boosting
         stt.add_entities([
-            "kotak", "mahindra", "muthoot", "manappuram", "iifl",
-            "gold loan", "interest rate", "processing fee",
-            "lakh", "rupees", "percent",
+            "kotak",
+            "mahindra",
+            "muthoot",
+            "manappuram",
+            "iifl",
+            "gold loan",
+            "interest rate",
+            "processing fee",
+            "lakh",
+            "rupees",
+            "percent",
         ]);
 
         // Create TTS
@@ -192,9 +204,12 @@ impl VoiceSession {
                 match SileroVad::new(model_path, config.vad.clone()) {
                     Ok(v) => Some(Arc::new(parking_lot::Mutex::new(v))),
                     Err(e) => {
-                        tracing::warn!("Failed to load Silero VAD: {}, falling back to energy-based", e);
+                        tracing::warn!(
+                            "Failed to load Silero VAD: {}, falling back to energy-based",
+                            e
+                        );
                         None
-                    }
+                    },
                 }
             } else {
                 // Create energy-based fallback VAD
@@ -236,10 +251,13 @@ impl VoiceSession {
     /// Connect transport with SDP offer and return answer
     pub async fn connect_transport(&self, offer: &str) -> Result<String, AgentError> {
         let mut transport_guard = self.transport.write().await;
-        let transport = transport_guard.as_mut()
+        let transport = transport_guard
+            .as_mut()
             .ok_or_else(|| AgentError::Pipeline("No transport attached".to_string()))?;
 
-        transport.connect(offer).await
+        transport
+            .connect(offer)
+            .await
             .map_err(|e| AgentError::Pipeline(format!("Transport connection failed: {}", e)))
     }
 
@@ -453,7 +471,7 @@ impl VoiceSession {
                 None => {
                     tracing::error!("Audio output receiver already taken");
                     return;
-                }
+                },
             };
 
             let mut timestamp_ms: u64 = 0;
@@ -504,22 +522,26 @@ impl VoiceSession {
         match state {
             VoiceSessionState::Listening => {
                 // Process through STT
-                if let Some(result) = self.stt.process(samples)
+                if let Some(result) = self
+                    .stt
+                    .process(samples)
                     .map_err(|e| AgentError::Pipeline(e.to_string()))?
                 {
                     let _ = self.event_tx.send(VoiceSessionEvent::PartialTranscript {
                         text: result.text.clone(),
                     });
                 }
-            }
+            },
             VoiceSessionState::Speaking if self.config.barge_in_enabled => {
                 // Check for barge-in (voice activity during TTS)
-                let energy: f32 = samples.iter().map(|s| s.powi(2)).sum::<f32>() / samples.len() as f32;
-                if energy > 0.01 {  // Energy threshold for barge-in
+                let energy: f32 =
+                    samples.iter().map(|s| s.powi(2)).sum::<f32>() / samples.len() as f32;
+                if energy > 0.01 {
+                    // Energy threshold for barge-in
                     self.handle_barge_in().await?;
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
 
         Ok(())
@@ -569,7 +591,8 @@ impl VoiceSession {
 
         // Convert to phonemes for Indian language support
         let g2p = create_hindi_g2p();
-        let _phonemes = g2p.convert(text)
+        let _phonemes = g2p
+            .convert(text)
             .map_err(|e| AgentError::Pipeline(e.to_string()))?;
 
         // Start TTS
@@ -578,10 +601,14 @@ impl VoiceSession {
 
         // Process TTS chunks
         loop {
-            match self.tts.process_next()
+            match self
+                .tts
+                .process_next()
                 .map_err(|e| AgentError::Pipeline(e.to_string()))?
             {
-                Some(TtsEvent::Audio { samples, is_final, .. }) => {
+                Some(TtsEvent::Audio {
+                    samples, is_final, ..
+                }) => {
                     let _ = self.event_tx.send(VoiceSessionEvent::AudioChunk {
                         samples: samples.to_vec(),
                         sample_rate: self.tts.sample_rate(),
@@ -590,16 +617,16 @@ impl VoiceSession {
                     if is_final {
                         break;
                     }
-                }
+                },
                 Some(TtsEvent::Complete) => break,
                 Some(TtsEvent::BargedIn { .. }) => {
                     let _ = self.event_tx.send(VoiceSessionEvent::BargedIn);
                     break;
-                }
+                },
                 Some(TtsEvent::Error(e)) => {
                     return Err(AgentError::Pipeline(e));
-                }
-                _ => {}
+                },
+                _ => {},
             }
 
             // Check for external events
@@ -696,35 +723,47 @@ impl VoiceSession {
     pub fn detect_voice_activity(&self, samples: &[f32]) -> (bool, VadResult) {
         if let Some(ref vad) = self.vad {
             // Use Silero VAD
-            use voice_agent_core::{SampleRate, Channels};
-            let mut frame = AudioFrame::new(
-                samples.to_vec(),
-                SampleRate::Hz16000,
-                Channels::Mono,
-                0,
-            );
+            use voice_agent_core::{Channels, SampleRate};
+            let mut frame =
+                AudioFrame::new(samples.to_vec(), SampleRate::Hz16000, Channels::Mono, 0);
 
             let vad_guard = vad.lock();
             match vad_guard.process(&mut frame) {
                 Ok((_state, _prob, result)) => {
                     let is_speech = matches!(
                         result,
-                        VadResult::SpeechConfirmed | VadResult::SpeechContinue | VadResult::PotentialSpeechStart
+                        VadResult::SpeechConfirmed
+                            | VadResult::SpeechContinue
+                            | VadResult::PotentialSpeechStart
                     );
                     (is_speech, result)
-                }
+                },
                 Err(e) => {
                     tracing::warn!("VAD error: {}, falling back to energy", e);
                     let energy = calculate_energy(samples);
                     let is_speech = energy > self.config.vad_energy_threshold;
-                    (is_speech, if is_speech { VadResult::SpeechContinue } else { VadResult::Silence })
-                }
+                    (
+                        is_speech,
+                        if is_speech {
+                            VadResult::SpeechContinue
+                        } else {
+                            VadResult::Silence
+                        },
+                    )
+                },
             }
         } else {
             // Use simple energy-based detection
             let energy = calculate_energy(samples);
             let is_speech = energy > self.config.vad_energy_threshold;
-            (is_speech, if is_speech { VadResult::SpeechContinue } else { VadResult::Silence })
+            (
+                is_speech,
+                if is_speech {
+                    VadResult::SpeechContinue
+                } else {
+                    VadResult::Silence
+                },
+            )
         }
     }
 

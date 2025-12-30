@@ -9,22 +9,23 @@
 //! - Proper tool_result handling
 //! - Claude-specific optimizations (extended thinking for opus)
 
-use std::collections::HashMap;
-use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
-use voice_agent_core::llm_types::{ToolDefinition, ToolCall};
+use crate::backend::{FinishReason, GenerationResult, LlmBackend};
 use crate::prompt::Message;
-use crate::backend::{LlmBackend, GenerationResult, FinishReason};
 use crate::LlmError;
+use voice_agent_core::llm_types::{ToolCall, ToolDefinition};
 
 /// Claude model variants
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ClaudeModel {
     /// Claude Opus 4.5 - Most capable, best for complex tasks
+    #[default]
     Opus4_5,
     /// Claude Sonnet 4 - Fast and capable
     Sonnet4,
@@ -48,12 +49,6 @@ impl ClaudeModel {
             "haiku" | "haiku-3.5" | "claude-3-5-haiku-20241022" => Some(ClaudeModel::Haiku3_5),
             _ => None,
         }
-    }
-}
-
-impl Default for ClaudeModel {
-    fn default() -> Self {
-        ClaudeModel::Opus4_5
     }
 }
 
@@ -146,7 +141,7 @@ impl ClaudeBackend {
     pub fn new(config: ClaudeConfig) -> Result<Self, LlmError> {
         if config.api_key.is_empty() {
             return Err(LlmError::Configuration(
-                "ANTHROPIC_API_KEY not set. Set it via environment or config.".to_string()
+                "ANTHROPIC_API_KEY not set. Set it via environment or config.".to_string(),
             ));
         }
 
@@ -168,7 +163,8 @@ impl ClaudeBackend {
         let claude_tools = self.convert_tools(tools);
 
         // Extract system message if present
-        let system = messages.iter()
+        let system = messages
+            .iter()
             .find(|m| matches!(m.role, crate::prompt::Role::System))
             .map(|m| m.content.clone());
 
@@ -177,13 +173,18 @@ impl ClaudeBackend {
             max_tokens: self.config.max_tokens,
             messages: claude_messages,
             system,
-            tools: if claude_tools.is_empty() { None } else { Some(claude_tools) },
+            tools: if claude_tools.is_empty() {
+                None
+            } else {
+                Some(claude_tools)
+            },
             temperature: Some(self.config.temperature),
             top_p: self.config.top_p,
             stream: Some(false),
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/v1/messages", self.config.endpoint))
             .header("x-api-key", &self.config.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -198,7 +199,9 @@ impl ClaudeBackend {
             return Err(LlmError::Api(format!("HTTP {}: {}", status, error_text)));
         }
 
-        let response: ClaudeApiResponse = response.json().await
+        let response: ClaudeApiResponse = response
+            .json()
+            .await
             .map_err(|e| LlmError::InvalidResponse(e.to_string()))?;
 
         Ok(self.parse_response(response))
@@ -214,7 +217,8 @@ impl ClaudeBackend {
         let claude_messages = self.convert_messages(messages);
         let claude_tools = self.convert_tools(tools);
 
-        let system = messages.iter()
+        let system = messages
+            .iter()
             .find(|m| matches!(m.role, crate::prompt::Role::System))
             .map(|m| m.content.clone());
 
@@ -223,13 +227,18 @@ impl ClaudeBackend {
             max_tokens: self.config.max_tokens,
             messages: claude_messages,
             system,
-            tools: if claude_tools.is_empty() { None } else { Some(claude_tools) },
+            tools: if claude_tools.is_empty() {
+                None
+            } else {
+                Some(claude_tools)
+            },
             temperature: Some(self.config.temperature),
             top_p: self.config.top_p,
             stream: Some(true),
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/v1/messages", self.config.endpoint))
             .header("x-api-key", &self.config.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -280,28 +289,26 @@ impl ClaudeBackend {
                                 if let Some(usage) = message.usage {
                                     input_tokens = usage.input_tokens;
                                 }
-                            }
+                            },
                             ClaudeStreamEvent::ContentBlockStart { content_block, .. } => {
                                 match content_block {
-                                    ClaudeContentBlock::Text { .. } => {}
+                                    ClaudeContentBlock::Text { .. } => {},
                                     ClaudeContentBlock::ToolUse { id, name, .. } => {
                                         current_tool_id = id;
                                         current_tool_name = name;
                                         current_tool_input.clear();
-                                    }
+                                    },
                                 }
-                            }
-                            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => {
-                                match delta {
-                                    ClaudeDelta::TextDelta { text } => {
-                                        full_text.push_str(&text);
-                                        let _ = tx.send(text).await;
-                                    }
-                                    ClaudeDelta::InputJsonDelta { partial_json } => {
-                                        current_tool_input.push_str(&partial_json);
-                                    }
-                                }
-                            }
+                            },
+                            ClaudeStreamEvent::ContentBlockDelta { delta, .. } => match delta {
+                                ClaudeDelta::TextDelta { text } => {
+                                    full_text.push_str(&text);
+                                    let _ = tx.send(text).await;
+                                },
+                                ClaudeDelta::InputJsonDelta { partial_json } => {
+                                    current_tool_input.push_str(&partial_json);
+                                },
+                            },
                             ClaudeStreamEvent::ContentBlockStop { .. } => {
                                 if !current_tool_name.is_empty() {
                                     // Parse the tool input JSON
@@ -318,7 +325,7 @@ impl ClaudeBackend {
                                     current_tool_id.clear();
                                     current_tool_input.clear();
                                 }
-                            }
+                            },
                             ClaudeStreamEvent::MessageDelta { delta, usage } => {
                                 if let Some(reason) = delta.stop_reason {
                                     finish_reason = reason;
@@ -326,8 +333,8 @@ impl ClaudeBackend {
                                 if let Some(u) = usage {
                                     output_tokens = u.output_tokens;
                                 }
-                            }
-                            _ => {}
+                            },
+                            _ => {},
                         }
                     }
                 }
@@ -345,14 +352,15 @@ impl ClaudeBackend {
 
     /// Convert messages to Claude format
     fn convert_messages(&self, messages: &[Message]) -> Vec<ClaudeMessage> {
-        messages.iter()
+        messages
+            .iter()
             .filter(|m| !matches!(m.role, crate::prompt::Role::System))
             .map(|m| ClaudeMessage {
                 role: match m.role {
                     crate::prompt::Role::User => "user".to_string(),
                     crate::prompt::Role::Assistant => "assistant".to_string(),
                     crate::prompt::Role::Tool => "user".to_string(), // Tool results come as user messages
-                    crate::prompt::Role::System => unreachable!(), // Filtered out
+                    crate::prompt::Role::System => unreachable!(),   // Filtered out
                 },
                 content: ClaudeContent::Text(m.content.clone()),
             })
@@ -361,7 +369,8 @@ impl ClaudeBackend {
 
     /// Convert tool definitions to Claude format
     fn convert_tools(&self, tools: &[ToolDefinition]) -> Vec<ClaudeTool> {
-        tools.iter()
+        tools
+            .iter()
             .map(|t| ClaudeTool {
                 name: t.name.clone(),
                 description: t.description.clone(),
@@ -379,7 +388,7 @@ impl ClaudeBackend {
             match block {
                 ClaudeContentBlock::Text { text: t } => {
                     text.push_str(&t);
-                }
+                },
                 ClaudeContentBlock::ToolUse { id, name, input } => {
                     let arguments: HashMap<String, serde_json::Value> =
                         serde_json::from_value(input).unwrap_or_default();
@@ -388,7 +397,7 @@ impl ClaudeBackend {
                         name,
                         arguments,
                     });
-                }
+                },
             }
         }
 
@@ -525,7 +534,9 @@ enum ClaudeContent {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ClaudeContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -568,14 +579,29 @@ struct ClaudeUsage {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(dead_code)] // Fields required for serde deserialization
 enum ClaudeStreamEvent {
-    MessageStart { message: ClaudeMessageStart },
-    ContentBlockStart { index: usize, content_block: ClaudeContentBlock },
-    ContentBlockDelta { index: usize, delta: ClaudeDelta },
-    ContentBlockStop { index: usize },
-    MessageDelta { delta: ClaudeMessageDeltaBody, usage: Option<ClaudeUsageDelta> },
+    MessageStart {
+        message: ClaudeMessageStart,
+    },
+    ContentBlockStart {
+        index: usize,
+        content_block: ClaudeContentBlock,
+    },
+    ContentBlockDelta {
+        index: usize,
+        delta: ClaudeDelta,
+    },
+    ContentBlockStop {
+        index: usize,
+    },
+    MessageDelta {
+        delta: ClaudeMessageDeltaBody,
+        usage: Option<ClaudeUsageDelta>,
+    },
     MessageStop,
     Ping,
-    Error { error: ClaudeError },
+    Error {
+        error: ClaudeError,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -619,7 +645,10 @@ mod tests {
     fn test_claude_model_id() {
         assert_eq!(ClaudeModel::Opus4_5.model_id(), "claude-opus-4-5-20251101");
         assert_eq!(ClaudeModel::Sonnet4.model_id(), "claude-sonnet-4-20250514");
-        assert_eq!(ClaudeModel::Haiku3_5.model_id(), "claude-3-5-haiku-20241022");
+        assert_eq!(
+            ClaudeModel::Haiku3_5.model_id(),
+            "claude-3-5-haiku-20241022"
+        );
     }
 
     #[test]
@@ -645,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_tool_conversion() {
-        use crate::prompt::{ToolBuilder, gold_loan_tools};
+        use crate::prompt::{gold_loan_tools, ToolBuilder};
 
         // Test with actual gold loan tools
         let tools = gold_loan_tools();

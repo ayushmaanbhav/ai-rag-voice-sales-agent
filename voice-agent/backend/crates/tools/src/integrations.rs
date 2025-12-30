@@ -35,7 +35,9 @@ impl From<IntegrationError> for crate::mcp::ToolError {
         match err {
             IntegrationError::NotFound(msg) => crate::mcp::ToolError::not_found(msg),
             IntegrationError::InvalidRequest(msg) => crate::mcp::ToolError::invalid_params(msg),
-            IntegrationError::RateLimited => crate::mcp::ToolError::internal("Rate limited - please retry later"),
+            IntegrationError::RateLimited => {
+                crate::mcp::ToolError::internal("Rate limited - please retry later")
+            },
             _ => crate::mcp::ToolError::internal(err.to_string()),
         }
     }
@@ -135,7 +137,11 @@ pub trait CrmIntegration: Send + Sync {
     async fn add_note(&self, lead_id: &str, note: &str) -> Result<(), IntegrationError>;
 
     /// Update lead status
-    async fn update_status(&self, lead_id: &str, status: LeadStatus) -> Result<(), IntegrationError>;
+    async fn update_status(
+        &self,
+        lead_id: &str,
+        status: LeadStatus,
+    ) -> Result<(), IntegrationError>;
 }
 
 /// Stub CRM implementation for development/testing
@@ -158,7 +164,10 @@ impl Default for StubCrmIntegration {
 #[async_trait]
 impl CrmIntegration for StubCrmIntegration {
     async fn create_lead(&self, mut lead: CrmLead) -> Result<String, IntegrationError> {
-        let id = format!("LEAD-{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+        let id = format!(
+            "LEAD-{}",
+            uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+        );
         lead.id = Some(id.clone());
         tracing::info!(lead_id = %id, name = %lead.name, "Stub CRM: Created lead");
         Ok(id)
@@ -203,7 +212,11 @@ impl CrmIntegration for StubCrmIntegration {
         Ok(())
     }
 
-    async fn update_status(&self, lead_id: &str, status: LeadStatus) -> Result<(), IntegrationError> {
+    async fn update_status(
+        &self,
+        lead_id: &str,
+        status: LeadStatus,
+    ) -> Result<(), IntegrationError> {
         tracing::info!(lead_id = %lead_id, status = ?status, "Stub CRM: Updated status");
         Ok(())
     }
@@ -333,13 +346,41 @@ impl CalendarIntegration for StubCalendarIntegration {
 
         // Return mock available slots
         Ok(vec![
-            TimeSlot { time: "10:00 AM".to_string(), available: true, remaining_capacity: 3 },
-            TimeSlot { time: "11:00 AM".to_string(), available: true, remaining_capacity: 2 },
-            TimeSlot { time: "12:00 PM".to_string(), available: false, remaining_capacity: 0 },
-            TimeSlot { time: "2:00 PM".to_string(), available: true, remaining_capacity: 4 },
-            TimeSlot { time: "3:00 PM".to_string(), available: true, remaining_capacity: 3 },
-            TimeSlot { time: "4:00 PM".to_string(), available: true, remaining_capacity: 5 },
-            TimeSlot { time: "5:00 PM".to_string(), available: true, remaining_capacity: 2 },
+            TimeSlot {
+                time: "10:00 AM".to_string(),
+                available: true,
+                remaining_capacity: 3,
+            },
+            TimeSlot {
+                time: "11:00 AM".to_string(),
+                available: true,
+                remaining_capacity: 2,
+            },
+            TimeSlot {
+                time: "12:00 PM".to_string(),
+                available: false,
+                remaining_capacity: 0,
+            },
+            TimeSlot {
+                time: "2:00 PM".to_string(),
+                available: true,
+                remaining_capacity: 4,
+            },
+            TimeSlot {
+                time: "3:00 PM".to_string(),
+                available: true,
+                remaining_capacity: 3,
+            },
+            TimeSlot {
+                time: "4:00 PM".to_string(),
+                available: true,
+                remaining_capacity: 5,
+            },
+            TimeSlot {
+                time: "5:00 PM".to_string(),
+                available: true,
+                remaining_capacity: 2,
+            },
         ])
     }
 
@@ -347,7 +388,10 @@ impl CalendarIntegration for StubCalendarIntegration {
         &self,
         mut appointment: Appointment,
     ) -> Result<String, IntegrationError> {
-        let id = format!("APT-{}", uuid::Uuid::new_v4().to_string()[..8].to_uppercase());
+        let id = format!(
+            "APT-{}",
+            uuid::Uuid::new_v4().to_string()[..8].to_uppercase()
+        );
         appointment.id = Some(id.clone());
         tracing::info!(
             appointment_id = %id,
@@ -431,7 +475,10 @@ mod tests {
     #[tokio::test]
     async fn test_stub_calendar_get_slots() {
         let calendar = StubCalendarIntegration::new();
-        let slots = calendar.get_available_slots("KMBL001", "2024-12-30").await.unwrap();
+        let slots = calendar
+            .get_available_slots("KMBL001", "2024-12-30")
+            .await
+            .unwrap();
         assert!(!slots.is_empty());
         assert!(slots.iter().any(|s| s.available));
     }

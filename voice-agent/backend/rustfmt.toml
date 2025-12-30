@@ -1,0 +1,35 @@
+# Rust formatter configuration for voice-agent-rust
+# Uses only stable rustfmt options for compatibility
+
+# Edition
+edition = "2021"
+
+# Line width - 100 is more readable than 80 for modern displays
+max_width = 100
+
+# Use spaces, 4 per indent level (Rust standard)
+hard_tabs = false
+tab_spaces = 4
+
+# Imports - reorder for consistency
+reorder_imports = true
+reorder_modules = true
+
+# Function call formatting
+fn_params_layout = "Tall"
+
+# Match expressions
+match_block_trailing_comma = true
+
+# Chains (method calls)
+chain_width = 60
+
+# Use shorthand syntax where available
+use_field_init_shorthand = true
+use_try_shorthand = true
+
+# ABI
+force_explicit_abi = true
+
+# Heuristics for small items
+use_small_heuristics = "Default"

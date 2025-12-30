@@ -1,11 +1,11 @@
 //! Pipeline processing traits
 
+use crate::transcript::TranscriptResult;
+use crate::{AudioFrame, Language, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::{Result, AudioFrame, Language};
-use crate::transcript::TranscriptResult;
 
 /// Frame types that flow through the pipeline
 ///
@@ -27,10 +27,7 @@ pub enum Frame {
     TranscriptFinal(TranscriptResult),
 
     /// LLM response chunk (streaming)
-    LLMChunk {
-        text: String,
-        is_final: bool,
-    },
+    LLMChunk { text: String, is_final: bool },
 
     /// Complete sentence ready for TTS
     Sentence {
@@ -82,7 +79,6 @@ pub enum Frame {
     Metrics(Arc<MetricsEvent>),
 
     // P0-1 FIX: Additional Frame variants for full text processing pipeline
-
     /// Grammar-corrected text (output of grammar correction stage)
     GrammarCorrected {
         original: String,
@@ -233,7 +229,9 @@ impl ProcessorContext {
 
     /// Get state value
     pub fn get_state<T: serde::de::DeserializeOwned>(&self, key: &str) -> Option<T> {
-        self.state.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
+        self.state
+            .get(key)
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
     }
 
     /// Set state value
@@ -292,11 +290,7 @@ pub trait FrameProcessor: Send + Sync + 'static {
     ///
     /// # Returns
     /// Vector of output frames (may be empty, one, or multiple)
-    async fn process(
-        &self,
-        frame: Frame,
-        context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>>;
+    async fn process(&self, frame: Frame, context: &mut ProcessorContext) -> Result<Vec<Frame>>;
 
     /// Get processor name for tracing
     fn name(&self) -> &'static str;
@@ -335,8 +329,7 @@ mod tests {
 
     #[test]
     fn test_processor_context() {
-        let mut ctx = ProcessorContext::new("session-123")
-            .with_language(Language::Hindi);
+        let mut ctx = ProcessorContext::new("session-123").with_language(Language::Hindi);
 
         assert_eq!(ctx.session_id, "session-123");
         assert_eq!(ctx.language, Some(Language::Hindi));
@@ -352,7 +345,12 @@ mod tests {
     #[test]
     fn test_frame_predicates() {
         assert!(Frame::EndOfStream.is_end_of_stream());
-        assert!(Frame::Error { stage: "test".into(), message: "err".into(), recoverable: false }.is_error());
+        assert!(Frame::Error {
+            stage: "test".into(),
+            message: "err".into(),
+            recoverable: false
+        }
+        .is_error());
         assert!(Frame::Control(ControlFrame::Flush).is_control());
     }
 }

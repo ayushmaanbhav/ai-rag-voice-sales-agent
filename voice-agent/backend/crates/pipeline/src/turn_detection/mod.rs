@@ -3,8 +3,8 @@
 //! Combines VAD-based silence detection with semantic completeness analysis.
 //! Architecture: Silence detector + Lightweight transformer classifier
 
-mod semantic;
 mod hybrid;
+mod semantic;
 
+pub use hybrid::{HybridTurnDetector, TurnDetectionConfig, TurnDetectionResult, TurnState};
 pub use semantic::SemanticTurnDetector;
-pub use hybrid::{HybridTurnDetector, TurnDetectionConfig, TurnState, TurnDetectionResult};

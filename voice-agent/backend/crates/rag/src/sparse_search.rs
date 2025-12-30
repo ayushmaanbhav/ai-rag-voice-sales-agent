@@ -6,17 +6,16 @@
 //! For production Hindi NLP, consider integrating ICU or language-specific
 //! stemmers (e.g., NLTK's Hindi stemmer via Python bindings).
 
-use std::path::Path;
-use std::collections::HashMap;
-use tantivy::{
-    schema::{Schema, TEXT, STORED, STRING, Field, OwnedValue, TextFieldIndexing, TextOptions},
-    tokenizer::{SimpleTokenizer, LowerCaser, TextAnalyzer, RemoveLongFilter, Stemmer, Language},
-    Index, IndexWriter, IndexReader,
-    query::QueryParser,
-    collector::TopDocs,
-    TantivyDocument,
-};
 use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::path::Path;
+use tantivy::{
+    collector::TopDocs,
+    query::QueryParser,
+    schema::{Field, OwnedValue, Schema, TextFieldIndexing, TextOptions, STORED, STRING},
+    tokenizer::{Language, LowerCaser, RemoveLongFilter, SimpleTokenizer, Stemmer, TextAnalyzer},
+    Index, IndexReader, IndexWriter, TantivyDocument,
+};
 
 use crate::RagError;
 
@@ -84,7 +83,7 @@ impl SparseIndex {
             .set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer("multilingual")
-                    .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions)
+                    .set_index_option(tantivy::schema::IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
 
@@ -110,9 +109,7 @@ impl SparseIndex {
         let tokenizer = Self::build_tokenizer(&config);
         index.tokenizers().register("multilingual", tokenizer);
 
-        let reader = index
-            .reader()
-            .map_err(|e| RagError::Index(e.to_string()))?;
+        let reader = index.reader().map_err(|e| RagError::Index(e.to_string()))?;
 
         let writer = index
             .writer(50_000_000) // 50MB buffer
@@ -153,16 +150,23 @@ impl SparseIndex {
             if config.language == "hi" || config.language == "hindi" {
                 tracing::info!("Hindi: using SimpleTokenizer (no stemming available in Tantivy)");
             } else if config.language != "en" {
-                tracing::warn!("Language '{}' has no stemmer, using simple tokenization", config.language);
+                tracing::warn!(
+                    "Language '{}' has no stemmer, using simple tokenization",
+                    config.language
+                );
             }
             base.build()
         }
     }
 
     /// Index documents
-    pub fn index_documents(&self, documents: &[super::vector_store::Document]) -> Result<(), RagError> {
+    pub fn index_documents(
+        &self,
+        documents: &[super::vector_store::Document],
+    ) -> Result<(), RagError> {
         let mut writer = self.writer.write();
-        let writer = writer.as_mut()
+        let writer = writer
+            .as_mut()
             .ok_or_else(|| RagError::Index("Writer not available".to_string()))?;
 
         for doc in documents {
@@ -178,15 +182,18 @@ impl SparseIndex {
                 tantivy_doc.add_text(self.category_field, category);
             }
 
-            writer.add_document(tantivy_doc)
+            writer
+                .add_document(tantivy_doc)
                 .map_err(|e| RagError::Index(e.to_string()))?;
         }
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| RagError::Index(e.to_string()))?;
 
         // Reload reader
-        self.reader.reload()
+        self.reader
+            .reload()
             .map_err(|e| RagError::Index(e.to_string()))?;
 
         Ok(())
@@ -197,7 +204,8 @@ impl SparseIndex {
         let k = top_k.unwrap_or(self.config.top_k);
 
         let searcher = self.reader.searcher();
-        let query_parser = QueryParser::for_index(&self.index, vec![self.text_field, self.title_field]);
+        let query_parser =
+            QueryParser::for_index(&self.index, vec![self.text_field, self.title_field]);
 
         let query = query_parser
             .parse_query(query)
@@ -255,7 +263,8 @@ impl SparseIndex {
     /// Delete documents by ID
     pub fn delete(&self, ids: &[String]) -> Result<(), RagError> {
         let mut writer = self.writer.write();
-        let writer = writer.as_mut()
+        let writer = writer
+            .as_mut()
             .ok_or_else(|| RagError::Index("Writer not available".to_string()))?;
 
         for id in ids {
@@ -263,10 +272,12 @@ impl SparseIndex {
             writer.delete_term(term);
         }
 
-        writer.commit()
+        writer
+            .commit()
             .map_err(|e| RagError::Index(e.to_string()))?;
 
-        self.reader.reload()
+        self.reader
+            .reload()
             .map_err(|e| RagError::Index(e.to_string()))?;
 
         Ok(())

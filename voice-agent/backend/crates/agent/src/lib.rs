@@ -12,15 +12,17 @@
 //! - P1-1 FIX: Agent trait abstraction for testability
 //! - P1-2 FIX: Intent detection moved to text_processing crate
 
+pub mod agent;
 pub mod conversation;
 pub mod memory;
 pub mod stage;
-pub mod agent;
 pub mod voice_session;
 // P2 FIX: Persuasion engine for objection handling
 pub mod persuasion;
 // P1-1 FIX: Agent trait abstraction
 pub mod traits;
+// P3 FIX: FSM adapter to bridge StageManager with core ConversationFSM trait
+pub mod fsm_adapter;
 
 // P1-2 FIX: Re-export intent module from text_processing for backward compatibility
 pub mod intent {
@@ -33,31 +35,37 @@ pub mod intent {
 
 pub use conversation::{Conversation, ConversationConfig, ConversationEvent};
 pub use memory::{ConversationMemory, MemoryConfig, MemoryEntry};
-pub use stage::{StageManager, ConversationStage, StageTransition, RagTimingStrategy, TransitionReason};
-// P1-2 FIX: Re-export intent types from text_processing
-pub use voice_agent_text_processing::intent::{IntentDetector, Intent, Slot, SlotType, DetectedIntent};
-// P2 FIX: Persuasion engine exports
-pub use persuasion::{
-    PersuasionEngine, ObjectionType, ObjectionResponse, ValueProposition,
-    CompetitorComparison, SwitchSavings, PersuasionScript,
+pub use stage::{
+    ConversationStage, RagTimingStrategy, StageManager, StageTransition, TransitionReason,
 };
-pub use agent::{GoldLoanAgent, AgentConfig, AgentEvent};
-pub use voice_session::{VoiceSession, VoiceSessionConfig, VoiceSessionState, VoiceSessionEvent};
+// P1-2 FIX: Re-export intent types from text_processing
+pub use voice_agent_text_processing::intent::{
+    DetectedIntent, Intent, IntentDetector, Slot, SlotType,
+};
+// P2 FIX: Persuasion engine exports
+pub use agent::{AgentConfig, AgentEvent, GoldLoanAgent};
+pub use persuasion::{
+    CompetitorComparison, ObjectionResponse, ObjectionType, PersuasionEngine, PersuasionScript,
+    SwitchSavings, ValueProposition,
+};
+pub use voice_session::{VoiceSession, VoiceSessionConfig, VoiceSessionEvent, VoiceSessionState};
 // P1-1 FIX: Export Agent traits
-pub use traits::{Agent, PrefetchingAgent, PersonalizableAgent};
+pub use traits::{Agent, PersonalizableAgent, PrefetchingAgent};
+// P3 FIX: Export FSM adapter
+pub use fsm_adapter::{create_fsm_adapter, StageManagerAdapter};
 
 // Re-export transport types for convenience
 pub use voice_agent_transport::{
-    TransportSession, SessionConfig, TransportEvent,
-    WebRtcConfig, WebSocketConfig, AudioFormat, AudioCodec,
+    AudioCodec, AudioFormat, SessionConfig, TransportEvent, TransportSession, WebRtcConfig,
+    WebSocketConfig,
 };
 
 // Re-export VAD and STT types for convenience
-pub use voice_agent_pipeline::vad::{
-    SileroVad, SileroConfig, VadState, VadResult, VadEngine, VadConfig,
-};
 pub use voice_agent_pipeline::stt::{
-    IndicConformerStt, IndicConformerConfig, StreamingStt, SttConfig, SttEngine,
+    IndicConformerConfig, IndicConformerStt, StreamingStt, SttConfig, SttEngine,
+};
+pub use voice_agent_pipeline::vad::{
+    SileroConfig, SileroVad, VadConfig, VadEngine, VadResult, VadState,
 };
 
 // Re-export vad module for use in tests

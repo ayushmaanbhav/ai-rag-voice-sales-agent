@@ -76,9 +76,8 @@ impl IndicF5Model {
         let dtype = config.quantization.to_dtype();
 
         // Load SafeTensors weights with specified dtype
-        let vb = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], dtype, &device)?
-        };
+        let vb =
+            unsafe { VarBuilder::from_mmaped_safetensors(&[model_path.as_ref()], dtype, &device)? };
 
         tracing::info!(
             "Loading IndicF5 model with {:?} quantization (est. memory: {} MB)",
@@ -171,7 +170,11 @@ impl IndicF5Model {
         let token_tensor = Tensor::from_vec(tokens.clone(), (1, tokens.len()), &self.device)?;
 
         // Extract mel from reference audio
-        let ref_audio = Tensor::from_vec(reference_audio.to_vec(), (1, reference_audio.len()), &self.device)?;
+        let ref_audio = Tensor::from_vec(
+            reference_audio.to_vec(),
+            (1, reference_audio.len()),
+            &self.device,
+        )?;
         let ref_mel = self.mel_extractor.forward(&ref_audio)?;
 
         // Estimate target length based on text
@@ -203,7 +206,11 @@ impl IndicF5Model {
         let tokens = self.vocabulary.encode(text);
         let token_tensor = Tensor::from_vec(tokens.clone(), (1, tokens.len()), &self.device)?;
 
-        let ref_audio = Tensor::from_vec(reference_audio.to_vec(), (1, reference_audio.len()), &self.device)?;
+        let ref_audio = Tensor::from_vec(
+            reference_audio.to_vec(),
+            (1, reference_audio.len()),
+            &self.device,
+        )?;
         let ref_mel = self.mel_extractor.forward(&ref_audio)?;
 
         let target_len = self.config.frames_for_duration(duration_secs);
@@ -228,7 +235,7 @@ impl IndicF5Model {
         chunk_callback: F,
     ) -> Result<()>
     where
-        F: Fn(&[f32]) -> bool,  // Returns false to stop
+        F: Fn(&[f32]) -> bool, // Returns false to stop
     {
         // For streaming, we could:
         // 1. Split text into sentences/phrases
@@ -236,7 +243,11 @@ impl IndicF5Model {
         // 3. Vocode and yield chunks
 
         let sentences = self.split_text_for_streaming(text);
-        let ref_audio = Tensor::from_vec(reference_audio.to_vec(), (1, reference_audio.len()), &self.device)?;
+        let ref_audio = Tensor::from_vec(
+            reference_audio.to_vec(),
+            (1, reference_audio.len()),
+            &self.device,
+        )?;
         let ref_mel = self.mel_extractor.forward(&ref_audio)?;
 
         for sentence in sentences {
@@ -272,7 +283,7 @@ impl IndicF5Model {
         // Rough estimate: ~10 frames per character for Hindi
         // Add reference length for in-context learning
         let estimated = text_len * 10 + ref_len;
-        estimated.max(ref_len + 50)  // Minimum 50 frames of generation
+        estimated.max(ref_len + 50) // Minimum 50 frames of generation
     }
 
     /// Split text for streaming synthesis
@@ -396,7 +407,11 @@ impl IndicF5Vocabulary {
         let mut tokens = vec![self.special_tokens.bos];
 
         for ch in text.chars() {
-            let id = self.char_to_id.get(&ch).copied().unwrap_or(self.special_tokens.unk);
+            let id = self
+                .char_to_id
+                .get(&ch)
+                .copied()
+                .unwrap_or(self.special_tokens.unk);
             tokens.push(id);
         }
 
@@ -408,9 +423,11 @@ impl IndicF5Vocabulary {
     pub fn decode(&self, tokens: &[u32]) -> String {
         tokens
             .iter()
-            .filter(|&&id| id != self.special_tokens.pad
-                && id != self.special_tokens.bos
-                && id != self.special_tokens.eos)
+            .filter(|&&id| {
+                id != self.special_tokens.pad
+                    && id != self.special_tokens.bos
+                    && id != self.special_tokens.eos
+            })
             .filter_map(|&id| self.id_to_char.get(&id))
             .collect()
     }

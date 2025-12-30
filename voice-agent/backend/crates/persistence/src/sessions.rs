@@ -1,9 +1,9 @@
 //! Session persistence using ScyllaDB
 
+use crate::{PersistenceError, ScyllaClient};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use crate::{ScyllaClient, PersistenceError};
 
 /// Session data stored in ScyllaDB
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,23 +78,26 @@ impl SessionStore for ScyllaSessionStore {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                &session.session_id,
-                session.created_at.timestamp_millis(),
-                session.updated_at.timestamp_millis(),
-                session.expires_at.timestamp_millis(),
-                &session.customer_phone,
-                &session.customer_name,
-                &session.customer_segment,
-                &session.language,
-                &session.conversation_stage,
-                session.turn_count,
-                &session.memory_json,
-                &session.metadata_json,
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    &session.session_id,
+                    session.created_at.timestamp_millis(),
+                    session.updated_at.timestamp_millis(),
+                    session.expires_at.timestamp_millis(),
+                    &session.customer_phone,
+                    &session.customer_name,
+                    &session.customer_segment,
+                    &session.language,
+                    &session.conversation_stage,
+                    session.turn_count,
+                    &session.memory_json,
+                    &session.metadata_json,
+                ),
+            )
+            .await?;
 
         tracing::debug!(session_id = %session.session_id, "Session created in ScyllaDB");
         Ok(())
@@ -110,7 +113,9 @@ impl SessionStore for ScyllaSessionStore {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (session_id,))
             .await?;
 
@@ -142,13 +147,18 @@ impl SessionStore for ScyllaSessionStore {
                     i32,
                     Option<String>,
                     Option<String>,
-                ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+                ) = row
+                    .into_typed()
+                    .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 return Ok(Some(SessionData {
                     session_id,
-                    created_at: DateTime::from_timestamp_millis(created_at).unwrap_or_else(Utc::now),
-                    updated_at: DateTime::from_timestamp_millis(updated_at).unwrap_or_else(Utc::now),
-                    expires_at: DateTime::from_timestamp_millis(expires_at).unwrap_or_else(Utc::now),
+                    created_at: DateTime::from_timestamp_millis(created_at)
+                        .unwrap_or_else(Utc::now),
+                    updated_at: DateTime::from_timestamp_millis(updated_at)
+                        .unwrap_or_else(Utc::now),
+                    expires_at: DateTime::from_timestamp_millis(expires_at)
+                        .unwrap_or_else(Utc::now),
                     customer_phone,
                     customer_name,
                     customer_segment,
@@ -180,21 +190,24 @@ impl SessionStore for ScyllaSessionStore {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                Utc::now().timestamp_millis(),
-                &session.customer_phone,
-                &session.customer_name,
-                &session.customer_segment,
-                &session.language,
-                &session.conversation_stage,
-                session.turn_count,
-                &session.memory_json,
-                &session.metadata_json,
-                &session.session_id,
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    Utc::now().timestamp_millis(),
+                    &session.customer_phone,
+                    &session.customer_name,
+                    &session.customer_segment,
+                    &session.language,
+                    &session.conversation_stage,
+                    session.turn_count,
+                    &session.memory_json,
+                    &session.metadata_json,
+                    &session.session_id,
+                ),
+            )
+            .await?;
 
         tracing::debug!(session_id = %session.session_id, "Session updated in ScyllaDB");
         Ok(())
@@ -206,7 +219,10 @@ impl SessionStore for ScyllaSessionStore {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(query, (session_id,)).await?;
+        self.client
+            .session()
+            .query_unpaged(query, (session_id,))
+            .await?;
         tracing::debug!(session_id = %session_id, "Session deleted from ScyllaDB");
         Ok(())
     }
@@ -220,10 +236,17 @@ impl SessionStore for ScyllaSessionStore {
         let now = Utc::now();
         let expires = now + Duration::hours(24);
 
-        self.client.session().query_unpaged(
-            query,
-            (now.timestamp_millis(), expires.timestamp_millis(), session_id),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    now.timestamp_millis(),
+                    expires.timestamp_millis(),
+                    session_id,
+                ),
+            )
+            .await?;
 
         Ok(())
     }
@@ -239,9 +262,7 @@ impl SessionStore for ScyllaSessionStore {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
-            .query_unpaged(query, (limit,))
-            .await?;
+        let result = self.client.session().query_unpaged(query, (limit,)).await?;
 
         let mut sessions = Vec::new();
         if let Some(rows) = result.rows {
@@ -260,17 +281,30 @@ impl SessionStore for ScyllaSessionStore {
                     memory_json,
                     metadata_json,
                 ): (
-                    String, i64, i64, i64,
-                    Option<String>, Option<String>, Option<String>,
-                    String, String, i32,
-                    Option<String>, Option<String>,
-                ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+                    String,
+                    i64,
+                    i64,
+                    i64,
+                    Option<String>,
+                    Option<String>,
+                    Option<String>,
+                    String,
+                    String,
+                    i32,
+                    Option<String>,
+                    Option<String>,
+                ) = row
+                    .into_typed()
+                    .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 sessions.push(SessionData {
                     session_id,
-                    created_at: DateTime::from_timestamp_millis(created_at).unwrap_or_else(Utc::now),
-                    updated_at: DateTime::from_timestamp_millis(updated_at).unwrap_or_else(Utc::now),
-                    expires_at: DateTime::from_timestamp_millis(expires_at).unwrap_or_else(Utc::now),
+                    created_at: DateTime::from_timestamp_millis(created_at)
+                        .unwrap_or_else(Utc::now),
+                    updated_at: DateTime::from_timestamp_millis(updated_at)
+                        .unwrap_or_else(Utc::now),
+                    expires_at: DateTime::from_timestamp_millis(expires_at)
+                        .unwrap_or_else(Utc::now),
                     customer_phone,
                     customer_name,
                     customer_segment,

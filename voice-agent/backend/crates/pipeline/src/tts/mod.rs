@@ -7,9 +7,9 @@
 //! - Hindi/Hinglish G2P conversion
 //! - Native Candle-based IndicF5 model (optional)
 
-mod streaming;
 mod chunker;
 mod g2p;
+mod streaming;
 
 /// Candle-based TTS implementations (native Rust with SafeTensors)
 #[cfg(feature = "candle")]
@@ -22,9 +22,9 @@ pub mod candle {
     pub struct IndicF5Config;
 }
 
+pub use chunker::{ChunkStrategy, WordChunker};
+pub use g2p::{create_hindi_g2p, G2pConfig, HindiG2p, Language, Phoneme};
 pub use streaming::{StreamingTts, TtsConfig, TtsEngine, TtsEvent};
-pub use chunker::{WordChunker, ChunkStrategy};
-pub use g2p::{HindiG2p, G2pConfig, Language, Phoneme, create_hindi_g2p};
 
 use crate::PipelineError;
 

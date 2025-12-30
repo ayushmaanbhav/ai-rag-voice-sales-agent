@@ -20,30 +20,30 @@
 //! println!("Processed: {}", result.text);
 //! ```
 
-pub mod grammar;
-pub mod translation;
-pub mod pii;
 pub mod compliance;
-pub mod simplifier;  // P2 FIX: Text simplifier for TTS
-pub mod intent;      // P1-2 FIX: Intent detection moved from agent crate
-pub mod sentiment;   // P2-1 FIX: Sentiment analysis for customer emotion detection
-pub mod entities;    // P2-5 FIX: Loan entity extraction
+pub mod entities;
+pub mod grammar;
+pub mod intent; // P1-2 FIX: Intent detection moved from agent crate
+pub mod pii;
+pub mod sentiment; // P2-1 FIX: Sentiment analysis for customer emotion detection
+pub mod simplifier; // P2 FIX: Text simplifier for TTS
+pub mod translation; // P2-5 FIX: Loan entity extraction
 
-mod pipeline;
 mod error;
+mod pipeline;
 
-pub use pipeline::{TextProcessingPipeline, TextProcessingConfig, ProcessedText};
-pub use error::{TextProcessingError, Result};
+pub use error::{Result, TextProcessingError};
+pub use pipeline::{ProcessedText, TextProcessingConfig, TextProcessingPipeline};
 
 // Re-export key types
-pub use grammar::{GrammarConfig, GrammarProvider, LLMGrammarCorrector, NoopCorrector};
-pub use translation::{TranslationConfig, TranslationProvider, ScriptDetector};
-pub use pii::{PIIConfig, PIIProvider, HybridPIIDetector, IndianPIIPatterns};
 pub use compliance::{ComplianceConfig, ComplianceProvider, RuleBasedComplianceChecker};
-pub use simplifier::{TextSimplifier, TextSimplifierConfig, NumberToWords, AbbreviationExpander};
+pub use grammar::{GrammarConfig, GrammarProvider, LLMGrammarCorrector, NoopCorrector};
+pub use pii::{HybridPIIDetector, IndianPIIPatterns, PIIConfig, PIIProvider};
+pub use simplifier::{AbbreviationExpander, NumberToWords, TextSimplifier, TextSimplifierConfig};
+pub use translation::{ScriptDetector, TranslationConfig, TranslationProvider};
 // P1-2 FIX: Intent detection exports
-pub use intent::{IntentDetector, Intent, Slot, SlotType, DetectedIntent};
+pub use intent::{DetectedIntent, Intent, IntentDetector, Slot, SlotType};
 // P2-1 FIX: Sentiment analysis exports
-pub use sentiment::{SentimentAnalyzer, Sentiment, SentimentResult, SentimentConfig};
+pub use sentiment::{Sentiment, SentimentAnalyzer, SentimentConfig, SentimentResult};
 // P2-5 FIX: Loan entity extraction exports
-pub use entities::{LoanEntityExtractor, LoanEntities, Currency, Weight, Percentage, Duration};
+pub use entities::{Currency, Duration, LoanEntities, LoanEntityExtractor, Percentage, Weight};

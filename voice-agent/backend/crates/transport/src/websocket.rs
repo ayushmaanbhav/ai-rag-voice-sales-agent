@@ -3,13 +3,13 @@
 //! WebSocket-based audio transport for browsers that don't support WebRTC.
 //! Higher latency than WebRTC but more widely supported.
 
-use std::sync::Arc;
 use async_trait::async_trait;
 use parking_lot::RwLock;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
+use crate::traits::{AudioSink, AudioSource, ConnectionStats, Transport, TransportEvent};
 use crate::{AudioFormat, TransportError};
-use crate::traits::{Transport, TransportEvent, AudioSink, AudioSource, ConnectionStats};
 
 /// WebSocket transport state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,10 +76,12 @@ impl Transport for WebSocketTransport {
         *self.state.write() = WebSocketState::Connected;
 
         if let Some(tx) = &self.event_tx {
-            let _ = tx.send(TransportEvent::Connected {
-                session_id: self.session_id.clone(),
-                remote_addr: None,
-            }).await;
+            let _ = tx
+                .send(TransportEvent::Connected {
+                    session_id: self.session_id.clone(),
+                    remote_addr: None,
+                })
+                .await;
         }
 
         Ok("websocket-connected".to_string())

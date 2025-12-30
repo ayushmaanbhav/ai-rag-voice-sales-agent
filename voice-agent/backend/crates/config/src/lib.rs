@@ -14,41 +14,41 @@
 //! - Prompt templates and scripts
 //! - Unified domain config loader
 
-pub mod settings;
-pub mod pipeline;
 pub mod agent;
-pub mod gold_loan;
 pub mod branch;
-pub mod product;
 pub mod competitor;
-pub mod prompts;
 pub mod domain;
+pub mod gold_loan;
+pub mod pipeline;
+pub mod product;
+pub mod prompts;
+pub mod settings;
 
-pub use settings::{Settings, ServerConfig, RateLimitConfig, RagConfig, AuthConfig, RuntimeEnvironment, TurnServerConfig, PersistenceConfig, load_settings};
+pub use agent::{AgentConfig, MemoryConfig, PersonaConfig};
+pub use gold_loan::{CompetitorRates, GoldLoanConfig, PurityFactors, TieredRates};
 pub use pipeline::PipelineConfig;
-pub use agent::{AgentConfig, PersonaConfig, MemoryConfig};
-pub use gold_loan::{GoldLoanConfig, PurityFactors, CompetitorRates, TieredRates};
+pub use settings::{
+    load_settings, AuthConfig, PersistenceConfig, RagConfig, RateLimitConfig, RuntimeEnvironment,
+    ServerConfig, Settings, TurnServerConfig,
+};
 
 // Phase 6 exports
 pub use branch::{
-    BranchConfig, Branch, Coordinates, OperatingHours, BranchFeatures,
-    DoorstepServiceConfig,
-};
-pub use product::{
-    ProductConfig, ProductVariant, EligibilityConfig, DocumentationConfig,
-    ProductFeatures, TenureConfig, FeesConfig, FeeStructure, FeeType,
-    GoldPurityRequirements, ExistingCustomerBenefits, SellingPoint, DigitalFeatures,
+    Branch, BranchConfig, BranchFeatures, Coordinates, DoorstepServiceConfig, OperatingHours,
 };
 pub use competitor::{
-    CompetitorConfig, Competitor, CompetitorType, ComparisonPoint,
-    SwitchingBenefits, BalanceTransferBenefits, ObjectionHandler, MonthlySavings,
+    BalanceTransferBenefits, ComparisonPoint, Competitor, CompetitorConfig, CompetitorType,
+    MonthlySavings, ObjectionHandler, SwitchingBenefits,
+};
+pub use domain::{domain_config, init_domain_config, DomainConfig, DomainConfigManager};
+pub use product::{
+    DigitalFeatures, DocumentationConfig, EligibilityConfig, ExistingCustomerBenefits,
+    FeeStructure, FeeType, FeesConfig, GoldPurityRequirements, ProductConfig, ProductFeatures,
+    ProductVariant, SellingPoint, TenureConfig,
 };
 pub use prompts::{
-    PromptTemplates, SystemPrompt, StagePrompt, ResponseTemplates,
-    GreetingTemplates, ClosingTemplates, FallbackTemplates,
-};
-pub use domain::{
-    DomainConfig, DomainConfigManager, domain_config, init_domain_config,
+    ClosingTemplates, FallbackTemplates, GreetingTemplates, PromptTemplates, ResponseTemplates,
+    StagePrompt, SystemPrompt,
 };
 
 use thiserror::Error;

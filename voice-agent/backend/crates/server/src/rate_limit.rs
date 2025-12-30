@@ -40,12 +40,14 @@ impl RateLimiter {
         if elapsed_secs > 0.0 {
             // Refill message tokens
             let message_refill = elapsed_secs * self.config.messages_per_second as f32;
-            let max_messages = self.config.messages_per_second as f32 * self.config.burst_multiplier;
+            let max_messages =
+                self.config.messages_per_second as f32 * self.config.burst_multiplier;
             self.message_tokens = (self.message_tokens + message_refill).min(max_messages);
 
             // Refill audio tokens
             let audio_refill = elapsed_secs * self.config.audio_bytes_per_second as f32;
-            let max_audio = self.config.audio_bytes_per_second as f32 * self.config.burst_multiplier;
+            let max_audio =
+                self.config.audio_bytes_per_second as f32 * self.config.burst_multiplier;
             self.audio_tokens = (self.audio_tokens + audio_refill).min(max_audio);
 
             self.last_refill = now;
@@ -110,10 +112,10 @@ impl std::fmt::Display for RateLimitError {
         match self {
             RateLimitError::MessageRateExceeded => {
                 write!(f, "Message rate limit exceeded")
-            }
+            },
             RateLimitError::AudioRateExceeded => {
                 write!(f, "Audio rate limit exceeded")
-            }
+            },
         }
     }
 }

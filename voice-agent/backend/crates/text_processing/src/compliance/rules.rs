@@ -103,10 +103,9 @@ impl Default for ComplianceRules {
 
 /// Load rules from TOML file
 pub fn load_rules(path: &str) -> Result<ComplianceRules, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read rules file: {}", e))?;
-    toml::from_str(&content)
-        .map_err(|e| format!("Failed to parse rules file: {}", e))
+    let content =
+        std::fs::read_to_string(path).map_err(|e| format!("Failed to read rules file: {}", e))?;
+    toml::from_str(&content).map_err(|e| format!("Failed to parse rules file: {}", e))
 }
 
 /// Get default compliance rules for banking

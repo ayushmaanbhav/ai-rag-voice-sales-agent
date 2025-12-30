@@ -155,7 +155,7 @@ impl ProcessorChain {
                                     break;
                                 }
                             }
-                        }
+                        },
                         Err(e) => {
                             tracing::error!(
                                 processor = processor_name,
@@ -169,7 +169,7 @@ impl ProcessorChain {
                                 recoverable: true,
                             };
                             let _ = tx.send(error_frame).await;
-                        }
+                        },
                     }
 
                     if is_eos {
@@ -288,11 +288,7 @@ impl PassthroughProcessor {
 
 #[async_trait::async_trait]
 impl FrameProcessor for PassthroughProcessor {
-    async fn process(
-        &self,
-        frame: Frame,
-        _context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, _context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         Ok(vec![frame])
     }
 
@@ -325,11 +321,7 @@ impl<F> FrameProcessor for FilterProcessor<F>
 where
     F: Fn(&Frame) -> bool + Send + Sync + 'static,
 {
-    async fn process(
-        &self,
-        frame: Frame,
-        _context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, _context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         if (self.predicate)(&frame) {
             Ok(vec![frame])
         } else {
@@ -366,11 +358,7 @@ impl<F> FrameProcessor for MapProcessor<F>
 where
     F: Fn(Frame) -> Frame + Send + Sync + 'static,
 {
-    async fn process(
-        &self,
-        frame: Frame,
-        _context: &mut ProcessorContext,
-    ) -> Result<Vec<Frame>> {
+    async fn process(&self, frame: Frame, _context: &mut ProcessorContext) -> Result<Vec<Frame>> {
         Ok(vec![(self.mapper)(frame)])
     }
 

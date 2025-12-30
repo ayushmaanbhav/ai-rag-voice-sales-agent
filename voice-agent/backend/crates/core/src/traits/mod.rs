@@ -34,32 +34,31 @@
 //!   - FrameProcessor: Process frames in the pipeline
 //! ```
 
-mod speech;
-mod llm;
-mod retriever;
-mod text_processing;
-mod pipeline;
 mod fsm;
+mod llm;
+mod pipeline;
+mod retriever;
+mod speech;
+mod text_processing;
 mod tool;
 
 pub use speech::{SpeechToText, TextToSpeech};
 // P1 FIX: Export VoiceActivityDetector trait and types
-pub use speech::{VoiceActivityDetector, VADConfig, VADEvent, VADState, AudioProcessor};
 pub use llm::LanguageModel;
+pub use pipeline::{ControlFrame, Frame, FrameProcessor, MetricsEvent, ProcessorContext};
 pub use retriever::{
-    Retriever, RetrieveOptions, Document, ConversationContext,
-    ConversationTurn, MetadataFilter, FilterOp,
+    ConversationContext, ConversationTurn, Document, FilterOp, MetadataFilter, RetrieveOptions,
+    Retriever,
 };
-pub use text_processing::{GrammarCorrector, Translator, PIIRedactor, ComplianceChecker};
-pub use pipeline::{FrameProcessor, Frame, ProcessorContext, ControlFrame, MetricsEvent};
+pub use speech::{AudioProcessor, VADConfig, VADEvent, VADState, VoiceActivityDetector};
+pub use text_processing::{ComplianceChecker, GrammarCorrector, PIIRedactor, Translator};
 // P0 FIX: Export ConversationFSM trait and types
 pub use fsm::{
-    ConversationFSM, ConversationEvent, FSMAction, FSMError,
-    FSMCheckpoint, FSMMetrics, ConversationOutcome, ObjectionType,
-    TransitionRecord,
+    ConversationEvent, ConversationFSM, ConversationOutcome, FSMAction, FSMCheckpoint, FSMError,
+    FSMMetrics, ObjectionType, TransitionRecord,
 };
 // P3 FIX: Export Tool trait and types
 pub use tool::{
-    Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
-    ToolSchema, InputSchema, PropertySchema, validate_property,
+    validate_property, ContentBlock, ErrorCode, InputSchema, PropertySchema, Tool, ToolError,
+    ToolInput, ToolOutput, ToolSchema,
 };

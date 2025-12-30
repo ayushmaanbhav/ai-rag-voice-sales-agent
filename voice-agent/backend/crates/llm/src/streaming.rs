@@ -58,11 +58,11 @@ impl StreamingGenerator {
             Some(token) => {
                 self.tokens.push(token.clone());
                 Some(token)
-            }
+            },
             None => {
                 self.complete = true;
                 None
-            }
+            },
         }
     }
 
@@ -99,11 +99,11 @@ impl Stream for StreamingGenerator {
             Poll::Ready(Some(token)) => {
                 self.tokens.push(token.clone());
                 Poll::Ready(Some(token))
-            }
+            },
             Poll::Ready(None) => {
                 self.complete = true;
                 Poll::Ready(None)
-            }
+            },
             Poll::Pending => Poll::Pending,
         }
     }

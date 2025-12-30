@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
-use voice_agent_core::{GrammarCorrector, DomainContext, Result};
+use voice_agent_core::{DomainContext, GrammarCorrector, Result};
 
 /// Pass-through corrector that does nothing
 #[derive(Debug, Clone, Copy, Default)]

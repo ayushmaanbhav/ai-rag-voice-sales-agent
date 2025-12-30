@@ -18,23 +18,22 @@
 //! - Native browser support
 //! - Adaptive bitrate
 
-use std::sync::Arc;
 use axum::{
-    extract::{State, Path, Json},
+    extract::{Json, Path, State},
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, RwLock, Mutex};
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex, RwLock};
 
+use voice_agent_core::{AudioFrame, Channels, SampleRate};
+use voice_agent_pipeline::{PipelineConfig, PipelineEvent, VoicePipeline};
 use voice_agent_transport::{
-    WebRtcTransport, WebRtcConfig, IceServer, IceCandidate,
-    TransportEvent, Transport,
+    IceCandidate, IceServer, Transport, TransportEvent, WebRtcConfig, WebRtcTransport,
 };
-use voice_agent_pipeline::{VoicePipeline, PipelineConfig, PipelineEvent};
-use voice_agent_core::{AudioFrame, SampleRate, Channels};
 
-use crate::state::AppState;
 use crate::session::Session;
+use crate::state::AppState;
 
 /// WebRTC session state stored alongside the voice session
 pub struct WebRtcSession {
@@ -137,11 +136,12 @@ pub async fn handle_offer(
     Json(offer): Json<SdpOffer>,
 ) -> Result<Json<SdpAnswer>, (StatusCode, Json<serde_json::Value>)> {
     // Verify session exists
-    let session = state.sessions.get(&session_id)
-        .ok_or_else(|| (
+    let session = state.sessions.get(&session_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Session not found" }))
-        ))?;
+            Json(serde_json::json!({ "error": "Session not found" })),
+        )
+    })?;
 
     // Get WebRTC config from settings
     let webrtc_config = {
@@ -150,12 +150,12 @@ pub async fn handle_offer(
     };
 
     // Create WebRTC transport
-    let mut transport = WebRtcTransport::new(webrtc_config)
-        .await
-        .map_err(|e| (
+    let mut transport = WebRtcTransport::new(webrtc_config).await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("Failed to create transport: {}", e) }))
-        ))?;
+            Json(serde_json::json!({ "error": format!("Failed to create transport: {}", e) })),
+        )
+    })?;
 
     // Set up event channel
     let (event_tx, event_rx) = mpsc::channel::<TransportEvent>(100);
@@ -166,19 +166,19 @@ pub async fn handle_offer(
     transport.set_ice_candidate_callback(ice_tx);
 
     // Process the offer and get answer
-    let answer_sdp = transport.connect(&offer.sdp)
-        .await
-        .map_err(|e| (
+    let answer_sdp = transport.connect(&offer.sdp).await.map_err(|e| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Failed to process offer: {}", e) }))
-        ))?;
+            Json(serde_json::json!({ "error": format!("Failed to process offer: {}", e) })),
+        )
+    })?;
 
     // P1 FIX: Create voice pipeline for WebRTC audio processing
     let pipeline = match VoicePipeline::simple(PipelineConfig::default()) {
         Ok(p) => {
             tracing::info!("Created voice pipeline for WebRTC session {}", session_id);
             Some(Arc::new(Mutex::new(p)))
-        }
+        },
         Err(e) => {
             tracing::warn!(
                 session_id = %session_id,
@@ -186,18 +186,16 @@ pub async fn handle_offer(
                 "Failed to create voice pipeline for WebRTC, audio processing disabled"
             );
             None
-        }
+        },
     };
 
     let transport = Arc::new(RwLock::new(transport));
 
     // P1 FIX: Spawn audio processing task if pipeline is available
     let (audio_task, pipeline_task) = if let Some(ref pipeline) = pipeline {
-        let (audio_handle, pipeline_handle) = spawn_webrtc_audio_processor(
-            transport.clone(),
-            pipeline.clone(),
-            session.clone(),
-        ).await;
+        let (audio_handle, pipeline_handle) =
+            spawn_webrtc_audio_processor(transport.clone(), pipeline.clone(), session.clone())
+                .await;
         (Some(audio_handle), Some(pipeline_handle))
     } else {
         (None, None)
@@ -240,28 +238,34 @@ pub async fn add_ice_candidate(
     Path(session_id): Path<String>,
     Json(candidate): Json<IceCandidateRequest>,
 ) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
-    let session = state.sessions.get(&session_id)
-        .ok_or_else(|| (
+    let session = state.sessions.get(&session_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Session not found" }))
-        ))?;
+            Json(serde_json::json!({ "error": "Session not found" })),
+        )
+    })?;
 
     // Get the WebRTC transport from session
-    let transport = session.get_webrtc_transport()
-        .ok_or_else(|| (
+    let transport = session.get_webrtc_transport().ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" }))
-        ))?;
+            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" })),
+        )
+    })?;
 
     let ice_candidate: IceCandidate = candidate.into();
 
-    transport.read().await
+    transport
+        .read()
+        .await
         .add_ice_candidate(&ice_candidate)
         .await
-        .map_err(|e| (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("Failed to add ICE candidate: {}", e) }))
-        ))?;
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("Failed to add ICE candidate: {}", e) })),
+            )
+        })?;
 
     tracing::debug!(
         session_id = %session_id,
@@ -283,19 +287,23 @@ pub async fn get_ice_candidates(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
 ) -> Result<Json<Vec<IceCandidateRequest>>, (StatusCode, Json<serde_json::Value>)> {
-    let session = state.sessions.get(&session_id)
-        .ok_or_else(|| (
+    let session = state.sessions.get(&session_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Session not found" }))
-        ))?;
+            Json(serde_json::json!({ "error": "Session not found" })),
+        )
+    })?;
 
-    let transport = session.get_webrtc_transport()
-        .ok_or_else(|| (
+    let transport = session.get_webrtc_transport().ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" }))
-        ))?;
+            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" })),
+        )
+    })?;
 
-    let candidates: Vec<IceCandidateRequest> = transport.read().await
+    let candidates: Vec<IceCandidateRequest> = transport
+        .read()
+        .await
         .local_candidates()
         .into_iter()
         .map(|c| c.into())
@@ -313,17 +321,19 @@ pub async fn get_status(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
 ) -> Result<Json<WebRtcStatus>, (StatusCode, Json<serde_json::Value>)> {
-    let session = state.sessions.get(&session_id)
-        .ok_or_else(|| (
+    let session = state.sessions.get(&session_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Session not found" }))
-        ))?;
+            Json(serde_json::json!({ "error": "Session not found" })),
+        )
+    })?;
 
-    let transport = session.get_webrtc_transport()
-        .ok_or_else(|| (
+    let transport = session.get_webrtc_transport().ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" }))
-        ))?;
+            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" })),
+        )
+    })?;
 
     let guard = transport.read().await;
 
@@ -331,7 +341,9 @@ pub async fn get_status(
     let state = if guard.is_connected() {
         "connected".to_string()
     } else {
-        guard.ice_connection_state().unwrap_or_else(|| "unknown".to_string())
+        guard
+            .ice_connection_state()
+            .unwrap_or_else(|| "unknown".to_string())
     };
 
     Ok(Json(WebRtcStatus {
@@ -353,25 +365,26 @@ pub async fn ice_restart(
     State(state): State<AppState>,
     Path(session_id): Path<String>,
 ) -> Result<Json<SdpOffer>, (StatusCode, Json<serde_json::Value>)> {
-    let session = state.sessions.get(&session_id)
-        .ok_or_else(|| (
+    let session = state.sessions.get(&session_id).ok_or_else(|| {
+        (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "error": "Session not found" }))
-        ))?;
+            Json(serde_json::json!({ "error": "Session not found" })),
+        )
+    })?;
 
-    let transport = session.get_webrtc_transport()
-        .ok_or_else(|| (
+    let transport = session.get_webrtc_transport().ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" }))
-        ))?;
+            Json(serde_json::json!({ "error": "WebRTC not initialized for this session" })),
+        )
+    })?;
 
-    let new_offer = transport.read().await
-        .ice_restart()
-        .await
-        .map_err(|e| (
+    let new_offer = transport.read().await.ice_restart().await.map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("ICE restart failed: {}", e) }))
-        ))?;
+            Json(serde_json::json!({ "error": format!("ICE restart failed: {}", e) })),
+        )
+    })?;
 
     tracing::info!(
         session_id = %session_id,
@@ -418,7 +431,7 @@ async fn spawn_webrtc_audio_processor(
                     "No audio source available for WebRTC, audio task exiting"
                 );
                 return;
-            }
+            },
         };
 
         let mut frame_count: u64 = 0;
@@ -436,9 +449,7 @@ async fn spawn_webrtc_audio_processor(
                     // P1 FIX: Resample from 48kHz to 16kHz by averaging every 3 samples
                     let samples_16k: Vec<f32> = samples_48k
                         .chunks(RESAMPLE_RATIO)
-                        .map(|chunk| {
-                            chunk.iter().sum::<f32>() / chunk.len() as f32
-                        })
+                        .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
                         .collect();
 
                     if samples_16k.is_empty() {
@@ -463,11 +474,11 @@ async fn spawn_webrtc_audio_processor(
                             "WebRTC pipeline processing error"
                         );
                     }
-                }
+                },
                 Ok(None) => {
                     // No audio available, yield and try again
                     tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                }
+                },
                 Err(e) => {
                     tracing::debug!(
                         session_id = %session_id_for_audio,
@@ -475,7 +486,7 @@ async fn spawn_webrtc_audio_processor(
                         "WebRTC audio receive error, stopping audio task"
                     );
                     break;
-                }
+                },
             }
         }
 
@@ -503,7 +514,7 @@ async fn spawn_webrtc_audio_processor(
                         "WebRTC partial transcript"
                     );
                     // Could send to WebRTC data channel if available
-                }
+                },
                 PipelineEvent::FinalTranscript(transcript) => {
                     let text = transcript.text.clone();
                     tracing::info!(
@@ -522,32 +533,36 @@ async fn spawn_webrtc_audio_processor(
                                     "Agent response generated for WebRTC"
                                 );
                                 // TTS audio will come through PipelineEvent::TtsAudio
-                            }
+                            },
                             Err(e) => {
                                 tracing::error!(
                                     session_id = %session_id_for_pipeline,
                                     error = %e,
                                     "Agent processing failed for WebRTC"
                                 );
-                            }
+                            },
                         }
                     }
-                }
+                },
                 PipelineEvent::VadStateChanged(vad_state) => {
                     tracing::debug!(
                         session_id = %session_id_for_pipeline,
                         is_speaking = ?vad_state,
                         "WebRTC VAD state changed"
                     );
-                }
+                },
                 PipelineEvent::TurnStateChanged(turn_state) => {
                     tracing::debug!(
                         session_id = %session_id_for_pipeline,
                         turn_type = ?turn_state,
                         "WebRTC turn state changed"
                     );
-                }
-                PipelineEvent::TtsAudio { samples, text: _, is_final } => {
+                },
+                PipelineEvent::TtsAudio {
+                    samples,
+                    text: _,
+                    is_final,
+                } => {
                     // P2 FIX: Send TTS audio back via WebRTC audio sink
                     if let Some(ref sink) = audio_sink {
                         // Upsample from 16kHz to 48kHz for WebRTC (Opus expects 48kHz)
@@ -580,7 +595,7 @@ async fn spawn_webrtc_audio_processor(
                             "WebRTC TTS audio (no audio sink available)"
                         );
                     }
-                }
+                },
                 PipelineEvent::BargeIn { at_word } => {
                     tracing::debug!(
                         session_id = %session_id_for_pipeline,
@@ -591,14 +606,14 @@ async fn spawn_webrtc_audio_processor(
                     if let Some(ref sink) = audio_sink {
                         let _ = sink.flush().await;
                     }
-                }
+                },
                 PipelineEvent::Error(e) => {
                     tracing::error!(
                         session_id = %session_id_for_pipeline,
                         error = %e,
                         "WebRTC pipeline error"
                     );
-                }
+                },
             }
         }
 
@@ -617,13 +632,16 @@ fn build_webrtc_config(config: &voice_agent_config::Settings) -> WebRtcConfig {
     let ice_servers = if config.server.stun_servers.is_empty() {
         vec![IceServer::default()] // Google's public STUN server
     } else {
-        config.server.stun_servers.iter().map(|url| {
-            IceServer {
+        config
+            .server
+            .stun_servers
+            .iter()
+            .map(|url| IceServer {
                 urls: vec![url.clone()],
                 username: None,
                 credential: None,
-            }
-        }).collect()
+            })
+            .collect()
     };
 
     // Add TURN servers if configured

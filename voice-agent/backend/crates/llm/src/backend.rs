@@ -11,12 +11,12 @@
 //!
 //! Use `OllamaBackend::generate_with_session` for multi-turn conversations.
 
-use std::sync::Arc;
-use std::time::Duration;
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 use crate::prompt::Message;
@@ -130,7 +130,8 @@ pub trait LlmBackend: Send + Sync {
         let grapheme_count = text.graphemes(true).count();
 
         // Count Devanagari characters (U+0900 to U+097F)
-        let devanagari_count = text.chars()
+        let devanagari_count = text
+            .chars()
             .filter(|c| ('\u{0900}'..='\u{097F}').contains(c))
             .count();
 
@@ -192,9 +193,14 @@ impl OllamaBackend {
     ///
     /// First call: Full prompt processing
     /// Subsequent calls: Only new tokens are processed (2-5x faster)
-    pub async fn generate_with_session(&self, messages: &[Message]) -> Result<GenerationResult, LlmError> {
+    pub async fn generate_with_session(
+        &self,
+        messages: &[Message],
+    ) -> Result<GenerationResult, LlmError> {
         let context = self.session_context.lock().clone();
-        let result = self.generate_with_context(messages, context.as_deref()).await?;
+        let result = self
+            .generate_with_context(messages, context.as_deref())
+            .await?;
 
         // Store the new context for next call
         if let Some(ref ctx) = result.context {
@@ -237,7 +243,9 @@ impl OllamaBackend {
             if attempt > 0 {
                 tracing::warn!(
                     "LLM request failed, retrying in {:?} (attempt {}/{})",
-                    backoff, attempt, self.config.max_retries
+                    backoff,
+                    attempt,
+                    self.config.max_retries
                 );
                 tokio::time::sleep(backoff).await;
                 backoff *= 2;
@@ -249,20 +257,25 @@ impl OllamaBackend {
                     return Ok(GenerationResult {
                         text: result.message.content,
                         tokens: result.eval_count.unwrap_or(0) as usize,
-                        time_to_first_token_ms: result.prompt_eval_duration.unwrap_or(0) / 1_000_000,
+                        time_to_first_token_ms: result.prompt_eval_duration.unwrap_or(0)
+                            / 1_000_000,
                         total_time_ms: total_time.as_millis() as u64,
-                        tokens_per_second: result.eval_count.unwrap_or(0) as f32 /
-                            (result.eval_duration.unwrap_or(1) as f32 / 1e9),
-                        finish_reason: if result.done { FinishReason::Stop } else { FinishReason::Length },
+                        tokens_per_second: result.eval_count.unwrap_or(0) as f32
+                            / (result.eval_duration.unwrap_or(1) as f32 / 1e9),
+                        finish_reason: if result.done {
+                            FinishReason::Stop
+                        } else {
+                            FinishReason::Length
+                        },
                         context: result.context, // P0 FIX: Capture context for reuse
                     });
-                }
+                },
                 Err(e) if Self::is_retryable(&e) => {
                     last_error = Some(e);
-                }
+                },
                 Err(e) => {
                     return Err(e);
-                }
+                },
             }
         }
 
@@ -282,8 +295,12 @@ impl OllamaBackend {
     }
 
     /// P1 FIX: Execute a single request (used by retry logic)
-    async fn execute_request(&self, request: &OllamaChatRequest) -> Result<OllamaChatResponse, LlmError> {
-        let response = self.client
+    async fn execute_request(
+        &self,
+        request: &OllamaChatRequest,
+    ) -> Result<OllamaChatResponse, LlmError> {
+        let response = self
+            .client
             .post(self.api_url("/chat"))
             .json(request)
             .send()
@@ -294,21 +311,23 @@ impl OllamaBackend {
             let error = response.text().await.unwrap_or_default();
             // 5xx errors are retryable, 4xx are not
             if status.is_server_error() {
-                return Err(LlmError::Network(format!("Server error {}: {}", status, error)));
+                return Err(LlmError::Network(format!(
+                    "Server error {}: {}",
+                    status, error
+                )));
             }
             return Err(LlmError::Api(error));
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .map_err(|e| LlmError::InvalidResponse(e.to_string()))
     }
 
     /// P1 FIX: Check if an error is retryable
     fn is_retryable(error: &LlmError) -> bool {
-        matches!(error,
-            LlmError::Network(_) |
-            LlmError::Timeout
-        )
+        matches!(error, LlmError::Network(_) | LlmError::Timeout)
     }
 }
 
@@ -355,7 +374,8 @@ impl LlmBackend for OllamaBackend {
             think: Some(false), // Disable extended thinking for faster responses
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(self.api_url("/chat"))
             .json(&request)
             .send()
@@ -427,9 +447,7 @@ impl LlmBackend for OllamaBackend {
         Ok(GenerationResult {
             text: full_response,
             tokens: total_tokens,
-            time_to_first_token_ms: first_token_time
-                .map(|t| t.as_millis() as u64)
-                .unwrap_or(0),
+            time_to_first_token_ms: first_token_time.map(|t| t.as_millis() as u64).unwrap_or(0),
             total_time_ms: total_time.as_millis() as u64,
             tokens_per_second: total_tokens as f32 / total_time.as_secs_f32(),
             finish_reason: FinishReason::Stop,
@@ -619,7 +637,9 @@ impl OpenAIBackend {
     /// Create new OpenAI backend
     pub fn new(config: OpenAIConfig) -> Result<Self, LlmError> {
         if config.api_key.is_empty() && !config.endpoint.starts_with("http://localhost") {
-            return Err(LlmError::Configuration("API key required for remote endpoints".to_string()));
+            return Err(LlmError::Configuration(
+                "API key required for remote endpoints".to_string(),
+            ));
         }
 
         let client = Client::builder()
@@ -642,7 +662,10 @@ impl OpenAIBackend {
             )
         } else {
             // Standard OpenAI format
-            format!("{}/chat/completions", self.config.endpoint.trim_end_matches('/'))
+            format!(
+                "{}/chat/completions",
+                self.config.endpoint.trim_end_matches('/')
+            )
         }
     }
 
@@ -707,8 +730,9 @@ impl LlmBackend for OpenAIBackend {
             stream: Some(false),
         };
 
-        let response = self.client
-            .post(&self.chat_url())
+        let response = self
+            .client
+            .post(self.chat_url())
             .headers(self.build_headers())
             .json(&request)
             .send()
@@ -720,10 +744,14 @@ impl LlmBackend for OpenAIBackend {
             return Err(LlmError::Api(format!("HTTP {}: {}", status, error_text)));
         }
 
-        let response: OpenAIChatResponse = response.json().await
+        let response: OpenAIChatResponse = response
+            .json()
+            .await
             .map_err(|e| LlmError::InvalidResponse(e.to_string()))?;
 
-        let choice = response.choices.first()
+        let choice = response
+            .choices
+            .first()
             .ok_or_else(|| LlmError::InvalidResponse("No choices in response".to_string()))?;
 
         let total_time_ms = start.elapsed().as_millis() as u64;
@@ -780,8 +808,9 @@ impl LlmBackend for OpenAIBackend {
             stream: Some(true),
         };
 
-        let response = self.client
-            .post(&self.chat_url())
+        let response = self
+            .client
+            .post(self.chat_url())
             .headers(self.build_headers())
             .json(&request)
             .send()
@@ -1013,7 +1042,7 @@ mod tests {
             "https://my-resource.openai.azure.com",
             "azure-key",
             "gpt-4-deployment",
-            "2024-02-01"
+            "2024-02-01",
         );
         assert!(config.api_version.is_some());
         assert_eq!(config.model, "gpt-4-deployment");
@@ -1059,7 +1088,7 @@ mod tests {
             "https://myresource.openai.azure.com",
             "key",
             "deployment",
-            "2024-02-01"
+            "2024-02-01",
         );
         let backend = OpenAIBackend::new(config).unwrap();
         assert!(backend.chat_url().contains("openai/deployments/deployment"));
@@ -1070,12 +1099,10 @@ mod tests {
     fn test_openai_request_serialization() {
         let request = OpenAIChatRequest {
             model: "gpt-4".to_string(),
-            messages: vec![
-                OpenAIMessage {
-                    role: "user".to_string(),
-                    content: "Hello".to_string(),
-                }
-            ],
+            messages: vec![OpenAIMessage {
+                role: "user".to_string(),
+                content: "Hello".to_string(),
+            }],
             max_tokens: Some(256),
             temperature: Some(0.7),
             top_p: Some(0.9),

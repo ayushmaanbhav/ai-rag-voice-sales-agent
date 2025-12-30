@@ -254,10 +254,7 @@ impl CandleBertEmbedder {
     }
 
     /// Load from HuggingFace Hub
-    pub fn from_hub(
-        repo_id: &str,
-        embed_config: CandleEmbeddingConfig,
-    ) -> Result<Self, RagError> {
+    pub fn from_hub(repo_id: &str, embed_config: CandleEmbeddingConfig) -> Result<Self, RagError> {
         use hf_hub::{api::sync::Api, Repo, RepoType};
 
         let device = match embed_config.device {
@@ -275,11 +272,14 @@ impl CandleBertEmbedder {
         let repo = api.repo(Repo::new(repo_id.to_string(), RepoType::Model));
 
         // Download files
-        let config_path = repo.get("config.json")
+        let config_path = repo
+            .get("config.json")
             .map_err(|e| RagError::Model(format!("Failed to download config: {}", e)))?;
-        let tokenizer_path = repo.get("tokenizer.json")
+        let tokenizer_path = repo
+            .get("tokenizer.json")
             .map_err(|e| RagError::Model(format!("Failed to download tokenizer: {}", e)))?;
-        let weights_path = repo.get("model.safetensors")
+        let weights_path = repo
+            .get("model.safetensors")
             .map_err(|e| RagError::Model(format!("Failed to download weights: {}", e)))?;
 
         // Load config
@@ -337,12 +337,14 @@ impl CandleBertEmbedder {
         let batch_size = texts.len();
 
         // Tokenize
-        let encodings = self.tokenizer
+        let encodings = self
+            .tokenizer
             .encode_batch(texts.to_vec(), true)
             .map_err(|e| RagError::Embedding(e.to_string()))?;
 
         // Prepare input tensors
-        let max_len = encodings.iter()
+        let max_len = encodings
+            .iter()
             .map(|e| e.get_ids().len())
             .max()
             .unwrap_or(0)
@@ -376,15 +378,19 @@ impl CandleBertEmbedder {
             .map_err(|e| RagError::Embedding(e.to_string()))?;
 
         // Run model
-        let output = self.model.forward(&input_ids, &token_type_ids, Some(&attention_mask))
+        let output = self
+            .model
+            .forward(&input_ids, &token_type_ids, Some(&attention_mask))
             .map_err(|e| RagError::Embedding(format!("Model forward failed: {}", e)))?;
 
         // Pool embeddings
-        let embeddings = self.pool(&output, &attention_mask)
+        let embeddings = self
+            .pool(&output, &attention_mask)
             .map_err(|e| RagError::Embedding(format!("Pooling failed: {}", e)))?;
 
         // Convert to Vec<Vec<f32>>
-        let embeddings_data: Vec<f32> = embeddings.to_vec2()
+        let embeddings_data: Vec<f32> = embeddings
+            .to_vec2()
             .map_err(|e| RagError::Embedding(e.to_string()))?
             .into_iter()
             .flatten()
@@ -434,11 +440,11 @@ impl CandleBertEmbedder {
                 let count = count.maximum(&Tensor::new(1e-9f32, &self.device)?)?;
 
                 sum.broadcast_div(&count)
-            }
+            },
             PoolingStrategy::Cls => {
                 // Take first token (CLS)
                 hidden_states.narrow(1, 0, 1)?.squeeze(1)
-            }
+            },
             PoolingStrategy::Max => {
                 // Expand attention mask
                 let mask = attention_mask.unsqueeze(D::Minus1)?;
@@ -446,11 +452,12 @@ impl CandleBertEmbedder {
 
                 // Apply mask (set padding to large negative)
                 let large_neg = Tensor::new(-1e9f32, &self.device)?;
-                let masked = hidden_states.broadcast_mul(&mask)?
+                let masked = hidden_states
+                    .broadcast_mul(&mask)?
                     .broadcast_add(&mask.broadcast_mul(&large_neg)?.broadcast_sub(&large_neg)?)?;
 
                 masked.max(1)
-            }
+            },
         }
     }
 
@@ -520,21 +527,14 @@ impl UnifiedEmbedder {
         tokenizer_path: P,
         config: CandleEmbeddingConfig,
     ) -> Result<Self, RagError> {
-        let embedder = CandleBertEmbedder::from_safetensors(
-            model_path,
-            config_path,
-            tokenizer_path,
-            config,
-        )?;
+        let embedder =
+            CandleBertEmbedder::from_safetensors(model_path, config_path, tokenizer_path, config)?;
         Ok(Self::Candle(embedder))
     }
 
     /// Create from HuggingFace Hub (Candle)
     #[cfg(feature = "candle")]
-    pub fn from_hub(
-        repo_id: &str,
-        config: CandleEmbeddingConfig,
-    ) -> Result<Self, RagError> {
+    pub fn from_hub(repo_id: &str, config: CandleEmbeddingConfig) -> Result<Self, RagError> {
         let embedder = CandleBertEmbedder::from_hub(repo_id, config)?;
         Ok(Self::Candle(embedder))
     }

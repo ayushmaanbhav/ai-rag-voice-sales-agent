@@ -2,13 +2,13 @@
 //!
 //! Manages tool registration, discovery, and execution.
 
+use async_trait::async_trait;
+use serde_json::Value;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
-use serde_json::Value;
 
-use crate::mcp::{Tool, ToolSchema, ToolOutput, ToolError};
+use crate::mcp::{Tool, ToolError, ToolOutput, ToolSchema};
 
 /// Default timeout for tool execution (30 seconds)
 const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 30;
@@ -95,7 +95,9 @@ impl ToolExecutor for ToolRegistry {
     /// P1 FIX: Wraps tool execution in a timeout to prevent indefinite blocking.
     /// P5 FIX: Uses per-tool timeout instead of global default.
     async fn execute(&self, name: &str, arguments: Value) -> Result<ToolOutput, ToolError> {
-        let tool = self.tools.get(name)
+        let tool = self
+            .tools
+            .get(name)
             .ok_or_else(|| ToolError::not_found(format!("Tool not found: {}", name)))?;
 
         // Validate input
@@ -105,7 +107,11 @@ impl ToolExecutor for ToolRegistry {
         let timeout_secs = tool.timeout_secs();
         let timeout_duration = Duration::from_secs(timeout_secs);
 
-        tracing::trace!(tool = name, timeout_secs = timeout_secs, "Executing tool with timeout");
+        tracing::trace!(
+            tool = name,
+            timeout_secs = timeout_secs,
+            "Executing tool with timeout"
+        );
 
         match tokio::time::timeout(timeout_duration, tool.execute(arguments)).await {
             Ok(result) => result,
@@ -114,9 +120,7 @@ impl ToolExecutor for ToolRegistry {
     }
 
     fn list_tools(&self) -> Vec<ToolSchema> {
-        self.tools.values()
-            .map(|t| t.schema())
-            .collect()
+        self.tools.values().map(|t| t.schema()).collect()
     }
 
     fn get_tool(&self, name: &str) -> Option<ToolSchema> {
@@ -184,9 +188,7 @@ impl ToolCallTracker {
 
     /// Get calls by tool name
     pub fn by_name(&self, name: &str) -> Vec<&ToolCall> {
-        self.calls.iter()
-            .filter(|c| c.name == name)
-            .collect()
+        self.calls.iter().filter(|c| c.name == name).collect()
     }
 
     /// Clear history
@@ -222,12 +224,18 @@ pub fn create_default_registry() -> ToolRegistry {
 ///
 /// Uses the provided GoldLoanConfig instead of defaults, allowing
 /// for configurable interest rates, LTV, competitor rates, etc.
-pub fn create_registry_with_config(gold_loan_config: &voice_agent_config::GoldLoanConfig) -> ToolRegistry {
+pub fn create_registry_with_config(
+    gold_loan_config: &voice_agent_config::GoldLoanConfig,
+) -> ToolRegistry {
     let mut registry = ToolRegistry::new();
 
     // P0-4: Register gold loan tools with injected config
-    registry.register(crate::gold_loan::EligibilityCheckTool::with_config(gold_loan_config.clone()));
-    registry.register(crate::gold_loan::SavingsCalculatorTool::with_config(gold_loan_config.clone()));
+    registry.register(crate::gold_loan::EligibilityCheckTool::with_config(
+        gold_loan_config.clone(),
+    ));
+    registry.register(crate::gold_loan::SavingsCalculatorTool::with_config(
+        gold_loan_config.clone(),
+    ));
     registry.register(crate::gold_loan::LeadCaptureTool::new());
     registry.register(crate::gold_loan::AppointmentSchedulerTool::new());
     registry.register(crate::gold_loan::BranchLocatorTool::new());
@@ -249,7 +257,9 @@ pub fn create_registry_with_config(gold_loan_config: &voice_agent_config::GoldLo
 /// P0-4 FIX: Create registry with full domain configuration
 ///
 /// Takes the complete DomainConfig and extracts relevant parts for each tool.
-pub fn create_registry_with_domain_config(domain_config: &voice_agent_config::DomainConfig) -> ToolRegistry {
+pub fn create_registry_with_domain_config(
+    domain_config: &voice_agent_config::DomainConfig,
+) -> ToolRegistry {
     create_registry_with_config(&domain_config.gold_loan)
 }
 
@@ -367,20 +377,12 @@ impl ToolExecutor for ConfigurableToolRegistry {
 }
 
 /// P4 FIX: Integration configuration for tool registry
+#[derive(Default)]
 pub struct IntegrationConfig {
     /// CRM integration for lead management
     pub crm: Option<Arc<dyn crate::integrations::CrmIntegration>>,
     /// Calendar integration for appointment scheduling
     pub calendar: Option<Arc<dyn crate::integrations::CalendarIntegration>>,
-}
-
-impl Default for IntegrationConfig {
-    fn default() -> Self {
-        Self {
-            crm: None,
-            calendar: None,
-        }
-    }
 }
 
 impl IntegrationConfig {
@@ -399,7 +401,10 @@ impl IntegrationConfig {
     }
 
     /// Set calendar integration
-    pub fn with_calendar(mut self, calendar: Arc<dyn crate::integrations::CalendarIntegration>) -> Self {
+    pub fn with_calendar(
+        mut self,
+        calendar: Arc<dyn crate::integrations::CalendarIntegration>,
+    ) -> Self {
         self.calendar = Some(calendar);
         self
     }
@@ -426,7 +431,9 @@ pub fn create_registry_with_integrations(config: IntegrationConfig) -> ToolRegis
 
     // P4 FIX: Register AppointmentSchedulerTool with calendar integration if available
     if let Some(calendar) = config.calendar {
-        registry.register(crate::gold_loan::AppointmentSchedulerTool::with_calendar(calendar));
+        registry.register(crate::gold_loan::AppointmentSchedulerTool::with_calendar(
+            calendar,
+        ));
     } else {
         registry.register(crate::gold_loan::AppointmentSchedulerTool::new());
     }
@@ -443,6 +450,7 @@ pub fn create_registry_with_integrations(config: IntegrationConfig) -> ToolRegis
 ///
 /// Includes both business integrations (CRM, Calendar) and persistence
 /// services (SMS, Gold Price) for production deployment.
+#[derive(Default)]
 pub struct FullIntegrationConfig {
     /// CRM integration for lead management
     pub crm: Option<Arc<dyn crate::integrations::CrmIntegration>>,
@@ -452,17 +460,8 @@ pub struct FullIntegrationConfig {
     pub sms_service: Option<Arc<dyn voice_agent_persistence::SmsService>>,
     /// Gold price service (persisted to ScyllaDB)
     pub gold_price_service: Option<Arc<dyn voice_agent_persistence::GoldPriceService>>,
-}
-
-impl Default for FullIntegrationConfig {
-    fn default() -> Self {
-        Self {
-            crm: None,
-            calendar: None,
-            sms_service: None,
-            gold_price_service: None,
-        }
-    }
+    /// P2-1 FIX: Domain configuration for business logic (rates, LTV, etc.)
+    pub gold_loan_config: Option<voice_agent_config::GoldLoanConfig>,
 }
 
 impl FullIntegrationConfig {
@@ -471,9 +470,21 @@ impl FullIntegrationConfig {
         Self {
             crm: Some(Arc::new(crate::integrations::StubCrmIntegration::new())),
             calendar: Some(Arc::new(crate::integrations::StubCalendarIntegration::new())),
-            sms_service: Some(Arc::new(persistence.sms.clone()) as Arc<dyn voice_agent_persistence::SmsService>),
-            gold_price_service: Some(Arc::new(persistence.gold_price.clone()) as Arc<dyn voice_agent_persistence::GoldPriceService>),
+            sms_service: Some(
+                Arc::new(persistence.sms.clone()) as Arc<dyn voice_agent_persistence::SmsService>
+            ),
+            gold_price_service: Some(Arc::new(persistence.gold_price.clone())
+                as Arc<dyn voice_agent_persistence::GoldPriceService>),
+            gold_loan_config: None, // Set separately via with_gold_loan_config()
         }
+    }
+
+    /// P2-1 FIX: Create from persistence layer with domain config
+    pub fn from_persistence_with_config(
+        persistence: &voice_agent_persistence::PersistenceLayer,
+        gold_loan_config: voice_agent_config::GoldLoanConfig,
+    ) -> Self {
+        Self::from_persistence(persistence).with_gold_loan_config(gold_loan_config)
     }
 
     /// Set CRM integration
@@ -483,7 +494,10 @@ impl FullIntegrationConfig {
     }
 
     /// Set calendar integration
-    pub fn with_calendar(mut self, calendar: Arc<dyn crate::integrations::CalendarIntegration>) -> Self {
+    pub fn with_calendar(
+        mut self,
+        calendar: Arc<dyn crate::integrations::CalendarIntegration>,
+    ) -> Self {
         self.calendar = Some(calendar);
         self
     }
@@ -495,8 +509,24 @@ impl FullIntegrationConfig {
     }
 
     /// Set gold price service
-    pub fn with_gold_price_service(mut self, price: Arc<dyn voice_agent_persistence::GoldPriceService>) -> Self {
+    pub fn with_gold_price_service(
+        mut self,
+        price: Arc<dyn voice_agent_persistence::GoldPriceService>,
+    ) -> Self {
         self.gold_price_service = Some(price);
+        self
+    }
+
+    /// P2-1 FIX: Set gold loan domain configuration
+    ///
+    /// This config controls business logic like:
+    /// - Interest rates (base and tiered)
+    /// - LTV percentages
+    /// - Gold price per gram
+    /// - Processing fees
+    /// - Competitor rates for comparison
+    pub fn with_gold_loan_config(mut self, config: voice_agent_config::GoldLoanConfig) -> Self {
+        self.gold_loan_config = Some(config);
         self
     }
 }
@@ -506,13 +536,22 @@ impl FullIntegrationConfig {
 /// Creates a tool registry with:
 /// - Business integrations (CRM, Calendar)
 /// - Persistence services (SMS → ScyllaDB, Gold Price → ScyllaDB)
+/// - Domain configuration for business logic (rates, LTV, etc.)
 /// - All MCP tools properly wired
 pub fn create_registry_with_persistence(config: FullIntegrationConfig) -> ToolRegistry {
     let mut registry = ToolRegistry::new();
 
-    // Register gold loan tools (no persistence needed)
-    registry.register(crate::gold_loan::EligibilityCheckTool::new());
-    registry.register(crate::gold_loan::SavingsCalculatorTool::new());
+    // P2-1 FIX: Use domain config for tools that need business logic
+    // This ensures tools use configured rates/LTV instead of hardcoded defaults
+    let gold_loan_config = config.gold_loan_config.unwrap_or_default();
+
+    // Register gold loan tools WITH config (P2-1 FIX)
+    registry.register(crate::gold_loan::EligibilityCheckTool::with_config(
+        gold_loan_config.clone(),
+    ));
+    registry.register(crate::gold_loan::SavingsCalculatorTool::with_config(
+        gold_loan_config,
+    ));
     registry.register(crate::gold_loan::BranchLocatorTool::new());
 
     // LeadCaptureTool with CRM integration
@@ -524,14 +563,18 @@ pub fn create_registry_with_persistence(config: FullIntegrationConfig) -> ToolRe
 
     // AppointmentSchedulerTool with calendar integration
     if let Some(calendar) = config.calendar {
-        registry.register(crate::gold_loan::AppointmentSchedulerTool::with_calendar(calendar));
+        registry.register(crate::gold_loan::AppointmentSchedulerTool::with_calendar(
+            calendar,
+        ));
     } else {
         registry.register(crate::gold_loan::AppointmentSchedulerTool::new());
     }
 
     // P2 FIX: GetGoldPriceTool with persistence service
     if let Some(price_service) = config.gold_price_service {
-        registry.register(crate::gold_loan::GetGoldPriceTool::with_price_service(price_service));
+        registry.register(crate::gold_loan::GetGoldPriceTool::with_price_service(
+            price_service,
+        ));
     } else {
         registry.register(crate::gold_loan::GetGoldPriceTool::new());
     }

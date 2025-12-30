@@ -288,6 +288,18 @@ impl ToolDefinition {
             parameters,
         }
     }
+
+    /// P0 FIX: Create tool definition from a ToolSchema
+    ///
+    /// Converts MCP ToolSchema to LLM ToolDefinition for generate_with_tools()
+    pub fn from_schema(schema: &crate::traits::ToolSchema) -> Self {
+        Self {
+            name: schema.name.clone(),
+            description: schema.description.clone(),
+            parameters: serde_json::to_value(&schema.input_schema)
+                .unwrap_or_else(|_| serde_json::json!({"type": "object"})),
+        }
+    }
 }
 
 /// Tool call

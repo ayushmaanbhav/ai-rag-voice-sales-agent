@@ -154,7 +154,10 @@ impl SileroVad {
     /// P0 FIX: Lock is held throughout the entire process to prevent race conditions.
     /// The previous implementation released the lock before compute_probability(),
     /// which could allow another thread to modify state between inference and update.
-    pub fn process(&self, frame: &mut AudioFrame) -> Result<(VadState, f32, VadResult), PipelineError> {
+    pub fn process(
+        &self,
+        frame: &mut AudioFrame,
+    ) -> Result<(VadState, f32, VadResult), PipelineError> {
         // Quick energy check for obvious silence
         if frame.energy_db < self.config.energy_floor_db {
             frame.vad_probability = Some(0.0);
@@ -216,13 +219,18 @@ impl SileroVad {
         // Run inference
         // Silero VAD v5 inputs: input, sr, h, c
         // Silero VAD v5 outputs: output, hn, cn
-        let outputs = self.session.run(ort::inputs![
-            "input" => input.view(),
-            "sr" => sr.view(),
-            "h" => state.h_state.view(),
-            "c" => state.c_state.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "input" => input.view(),
+                    "sr" => sr.view(),
+                    "h" => state.h_state.view(),
+                    "c" => state.c_state.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         // Extract speech probability
         let speech_prob: f32 = outputs
@@ -289,7 +297,7 @@ impl SileroVad {
                 state.speech_frames = 1;
                 state.silence_frames = 0;
                 VadResult::PotentialSpeechStart
-            }
+            },
 
             (VadState::SpeechStart, true) => {
                 state.speech_frames += 1;
@@ -299,30 +307,30 @@ impl SileroVad {
                 } else {
                     VadResult::PotentialSpeechStart
                 }
-            }
+            },
 
             (VadState::SpeechStart, false) => {
                 state.state = VadState::Silence;
                 state.speech_frames = 0;
                 VadResult::Silence
-            }
+            },
 
             (VadState::Speech, true) => {
                 state.silence_frames = 0;
                 VadResult::SpeechContinue
-            }
+            },
 
             (VadState::Speech, false) => {
                 state.state = VadState::SpeechEnd;
                 state.silence_frames = 1;
                 VadResult::PotentialSpeechEnd
-            }
+            },
 
             (VadState::SpeechEnd, true) => {
                 state.state = VadState::Speech;
                 state.silence_frames = 0;
                 VadResult::SpeechContinue
-            }
+            },
 
             (VadState::SpeechEnd, false) => {
                 state.silence_frames += 1;
@@ -334,11 +342,9 @@ impl SileroVad {
                 } else {
                     VadResult::PotentialSpeechEnd
                 }
-            }
+            },
 
-            (VadState::Silence, false) => {
-                VadResult::Silence
-            }
+            (VadState::Silence, false) => VadResult::Silence,
         };
 
         Ok((state.state, probability, result))
@@ -370,7 +376,6 @@ impl SileroVad {
         self.mutable.lock().silence_frames
     }
 }
-
 
 /// Implement VadEngine trait for SileroVad
 #[async_trait::async_trait]
@@ -420,19 +425,14 @@ mod tests {
     #[cfg(not(feature = "onnx"))]
     #[test]
     fn test_silero_energy_detection() {
-        use voice_agent_core::{SampleRate, Channels};
+        use voice_agent_core::{Channels, SampleRate};
 
         let config = SileroConfig::default();
         let vad = SileroVad::simple(config).unwrap();
 
         // Silent audio
         let silence = vec![0.0f32; 512];
-        let mut frame = AudioFrame::new(
-            silence,
-            SampleRate::Hz16000,
-            Channels::Mono,
-            0,
-        );
+        let mut frame = AudioFrame::new(silence, SampleRate::Hz16000, Channels::Mono, 0);
 
         let (state, prob, result) = vad.process(&mut frame).unwrap();
         assert_eq!(state, VadState::Silence);
@@ -441,12 +441,7 @@ mod tests {
 
         // "Speech" audio (high energy)
         let speech: Vec<f32> = (0..512).map(|i| (i as f32 * 0.1).sin() * 0.5).collect();
-        let mut frame = AudioFrame::new(
-            speech,
-            SampleRate::Hz16000,
-            Channels::Mono,
-            1,
-        );
+        let mut frame = AudioFrame::new(speech, SampleRate::Hz16000, Channels::Mono, 1);
 
         let (_state, prob, _result) = vad.process(&mut frame).unwrap();
         // Should detect potential speech start

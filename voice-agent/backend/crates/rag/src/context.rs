@@ -319,12 +319,7 @@ impl ContextManager {
     ///
     /// # Returns
     /// Documents that fit within budget
-    pub fn fit_documents<F>(
-        &self,
-        docs: &[String],
-        stage: Stage,
-        tokenizer: F,
-    ) -> Vec<String>
+    pub fn fit_documents<F>(&self, docs: &[String], stage: Stage, tokenizer: F) -> Vec<String>
     where
         F: Fn(&str) -> usize,
     {
@@ -363,7 +358,7 @@ impl ContextManager {
         let mut high = text.len();
 
         while low < high {
-            let mid = (low + high + 1) / 2;
+            let mid = (low + high).div_ceil(2);
             let truncated = &text[..mid];
             if tokenizer(truncated) <= max_tokens {
                 low = mid;
@@ -401,7 +396,10 @@ mod tests {
     fn test_stage_from_str() {
         assert_eq!(Stage::from_str("greeting"), Stage::Greeting);
         assert_eq!(Stage::from_str("Presentation"), Stage::Presentation);
-        assert_eq!(Stage::from_str("objection_handling"), Stage::ObjectionHandling);
+        assert_eq!(
+            Stage::from_str("objection_handling"),
+            Stage::ObjectionHandling
+        );
         assert_eq!(Stage::from_str("invalid"), Stage::Greeting); // Default
     }
 

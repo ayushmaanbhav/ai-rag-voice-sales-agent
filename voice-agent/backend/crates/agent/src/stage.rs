@@ -2,9 +2,9 @@
 //!
 //! Manages conversation stages and transitions for gold loan sales flow.
 
-use std::collections::HashMap;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// P4 FIX: RAG timing strategy for prefetch behavior
 ///
@@ -37,9 +37,7 @@ impl RagTimingStrategy {
         match self {
             RagTimingStrategy::Eager => confidence > 0.5,
             RagTimingStrategy::Conservative => confidence > 0.8,
-            RagTimingStrategy::StageAware => {
-                confidence > 0.7 && stage.rag_context_fraction() > 0.1
-            }
+            RagTimingStrategy::StageAware => confidence > 0.7 && stage.rag_context_fraction() > 0.1,
             RagTimingStrategy::Disabled => false,
         }
     }
@@ -66,8 +64,7 @@ impl RagTimingStrategy {
 }
 
 /// Conversation stage
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ConversationStage {
     /// Initial greeting and rapport building
     #[default]
@@ -115,7 +112,7 @@ impl ConversationStage {
             ConversationStage::Greeting => 1024,
             ConversationStage::Discovery => 2048,
             ConversationStage::Qualification => 2048,
-            ConversationStage::Presentation => 3584,    // Room for RAG context
+            ConversationStage::Presentation => 3584, // Room for RAG context
             ConversationStage::ObjectionHandling => 3584, // Need full context
             ConversationStage::Closing => 2560,
             ConversationStage::Farewell => 1024,
@@ -143,13 +140,13 @@ impl ConversationStage {
     /// Returns the number of most recent user+assistant turn pairs to include.
     pub fn history_turns_to_keep(&self) -> usize {
         match self {
-            ConversationStage::Greeting => 0,             // Fresh start
-            ConversationStage::Discovery => 3,            // Recent context
-            ConversationStage::Qualification => 4,        // More context
-            ConversationStage::Presentation => 5,         // Full history
-            ConversationStage::ObjectionHandling => 6,    // Need all context
-            ConversationStage::Closing => 4,              // Key exchanges
-            ConversationStage::Farewell => 2,             // Just recent
+            ConversationStage::Greeting => 0,          // Fresh start
+            ConversationStage::Discovery => 3,         // Recent context
+            ConversationStage::Qualification => 4,     // More context
+            ConversationStage::Presentation => 5,      // Full history
+            ConversationStage::ObjectionHandling => 6, // Need all context
+            ConversationStage::Closing => 4,           // Key exchanges
+            ConversationStage::Farewell => 2,          // Just recent
         }
     }
 
@@ -176,10 +173,9 @@ impl ConversationStage {
     /// Get suggested questions for this stage
     pub fn suggested_questions(&self) -> Vec<&'static str> {
         match self {
-            ConversationStage::Greeting => vec![
-                "How are you doing today?",
-                "Is this a good time to talk?",
-            ],
+            ConversationStage::Greeting => {
+                vec!["How are you doing today?", "Is this a good time to talk?"]
+            },
             ConversationStage::Discovery => vec![
                 "Can you tell me about your current gold loan?",
                 "What interest rate are you paying currently?",
@@ -213,10 +209,9 @@ impl ConversationStage {
     /// Get all valid transitions from this stage
     pub fn valid_transitions(&self) -> Vec<ConversationStage> {
         match self {
-            ConversationStage::Greeting => vec![
-                ConversationStage::Discovery,
-                ConversationStage::Farewell,
-            ],
+            ConversationStage::Greeting => {
+                vec![ConversationStage::Discovery, ConversationStage::Farewell]
+            },
             ConversationStage::Discovery => vec![
                 ConversationStage::Qualification,
                 ConversationStage::Presentation,
@@ -247,7 +242,6 @@ impl ConversationStage {
         }
     }
 }
-
 
 /// Stage transition
 #[derive(Debug, Clone)]
@@ -318,47 +312,68 @@ impl StageManager {
     fn default_requirements() -> HashMap<ConversationStage, StageRequirements> {
         let mut req = HashMap::new();
 
-        req.insert(ConversationStage::Greeting, StageRequirements {
-            min_turns: 1,
-            required_info: vec![],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Greeting,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec![],
+                required_intents: vec![],
+            },
+        );
 
-        req.insert(ConversationStage::Discovery, StageRequirements {
-            min_turns: 2,
-            required_info: vec!["current_lender".into()],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Discovery,
+            StageRequirements {
+                min_turns: 2,
+                required_info: vec!["current_lender".into()],
+                required_intents: vec![],
+            },
+        );
 
-        req.insert(ConversationStage::Qualification, StageRequirements {
-            min_turns: 1,
-            required_info: vec!["gold_weight".into()],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Qualification,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec!["gold_weight".into()],
+                required_intents: vec![],
+            },
+        );
 
-        req.insert(ConversationStage::Presentation, StageRequirements {
-            min_turns: 1,
-            required_info: vec![],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Presentation,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec![],
+                required_intents: vec![],
+            },
+        );
 
-        req.insert(ConversationStage::ObjectionHandling, StageRequirements {
-            min_turns: 1,
-            required_info: vec![],
-            required_intents: vec!["objection_raised".into()],
-        });
+        req.insert(
+            ConversationStage::ObjectionHandling,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec![],
+                required_intents: vec!["objection_raised".into()],
+            },
+        );
 
-        req.insert(ConversationStage::Closing, StageRequirements {
-            min_turns: 1,
-            required_info: vec![],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Closing,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec![],
+                required_intents: vec![],
+            },
+        );
 
-        req.insert(ConversationStage::Farewell, StageRequirements {
-            min_turns: 1,
-            required_info: vec![],
-            required_intents: vec![],
-        });
+        req.insert(
+            ConversationStage::Farewell,
+            StageRequirements {
+                min_turns: 1,
+                required_info: vec![],
+                required_intents: vec![],
+            },
+        );
 
         req
     }
@@ -377,7 +392,9 @@ impl StageManager {
 
     /// Record collected information
     pub fn record_info(&self, key: &str, value: &str) {
-        self.collected_info.lock().insert(key.to_string(), value.to_string());
+        self.collected_info
+            .lock()
+            .insert(key.to_string(), value.to_string());
     }
 
     /// Record a detected intent
@@ -438,15 +455,16 @@ impl StageManager {
     }
 
     /// Transition to a new stage
-    pub fn transition(&self, to: ConversationStage, reason: TransitionReason) -> Result<StageTransition, String> {
+    pub fn transition(
+        &self,
+        to: ConversationStage,
+        reason: TransitionReason,
+    ) -> Result<StageTransition, String> {
         let from = self.current();
 
         // Check if transition is valid
         if !from.valid_transitions().contains(&to) && to != from {
-            return Err(format!(
-                "Invalid transition from {:?} to {:?}",
-                from, to
-            ));
+            return Err(format!("Invalid transition from {:?} to {:?}", from, to));
         }
 
         let transition = StageTransition {
@@ -520,7 +538,8 @@ mod tests {
         assert_eq!(manager.current(), ConversationStage::Greeting);
 
         // Valid transition
-        let result = manager.transition(ConversationStage::Discovery, TransitionReason::NaturalFlow);
+        let result =
+            manager.transition(ConversationStage::Discovery, TransitionReason::NaturalFlow);
         assert!(result.is_ok());
         assert_eq!(manager.current(), ConversationStage::Discovery);
     }
@@ -584,11 +603,17 @@ mod tests {
 
         // Presentation should have highest RAG fraction
         let presentation_rag = ConversationStage::Presentation.rag_context_fraction();
-        assert!(presentation_rag >= 0.3, "Presentation RAG fraction should be >= 0.3");
+        assert!(
+            presentation_rag >= 0.3,
+            "Presentation RAG fraction should be >= 0.3"
+        );
 
         // ObjectionHandling should also have high RAG fraction
         let objection_rag = ConversationStage::ObjectionHandling.rag_context_fraction();
-        assert!(objection_rag >= 0.3, "ObjectionHandling RAG fraction should be >= 0.3");
+        assert!(
+            objection_rag >= 0.3,
+            "ObjectionHandling RAG fraction should be >= 0.3"
+        );
     }
 
     #[test]

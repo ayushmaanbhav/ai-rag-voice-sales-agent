@@ -9,109 +9,353 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
-use voice_agent_core::{PIIEntity, PIIType, DetectionMethod};
+use voice_agent_core::{DetectionMethod, PIIEntity, PIIType};
 
 /// Indian name prefixes/titles (English)
 static ENGLISH_TITLES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "miss", "dr", "dr.",
-        "prof", "prof.", "sir", "shri", "shree", "smt", "smt.", "kumari",
-        "master", "late", "capt", "capt.", "col", "col.", "maj", "maj.",
-    ].into_iter().collect()
+        "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "miss", "dr", "dr.", "prof", "prof.", "sir",
+        "shri", "shree", "smt", "smt.", "kumari", "master", "late", "capt", "capt.", "col", "col.",
+        "maj", "maj.",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Hindi titles in Devanagari
 static HINDI_TITLES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "श्री", "श्रीमती", "सुश्री", "कुमारी", "डॉ", "डॉ.", "प्रो", "प्रो.",
-        "स्वर्गीय", "कैप्टन", "कर्नल", "मेजर",
-    ].into_iter().collect()
+        "श्री",
+        "श्रीमती",
+        "सुश्री",
+        "कुमारी",
+        "डॉ",
+        "डॉ.",
+        "प्रो",
+        "प्रो.",
+        "स्वर्गीय",
+        "कैप्टन",
+        "कर्नल",
+        "मेजर",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Common Indian first names for validation
 static COMMON_FIRST_NAMES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
         // Male names
-        "rahul", "amit", "raj", "vijay", "suresh", "ramesh", "rakesh", "anil",
-        "sanjay", "ajay", "kumar", "ashok", "mohan", "ravi", "deepak", "manoj",
-        "krishna", "ganesh", "sunil", "arun", "vinod", "pradeep", "rajesh",
-        "satish", "santosh", "mahesh", "naresh", "dinesh", "mukesh", "girish",
-        "prakash", "vikram", "nitin", "rohit", "sachin", "sudhir", "manish",
+        "rahul", "amit", "raj", "vijay", "suresh", "ramesh", "rakesh", "anil", "sanjay", "ajay",
+        "kumar", "ashok", "mohan", "ravi", "deepak", "manoj", "krishna", "ganesh", "sunil", "arun",
+        "vinod", "pradeep", "rajesh", "satish", "santosh", "mahesh", "naresh", "dinesh", "mukesh",
+        "girish", "prakash", "vikram", "nitin", "rohit", "sachin", "sudhir", "manish",
         // Female names
-        "priya", "sunita", "anita", "neha", "pooja", "divya", "kavita", "rekha",
-        "meena", "seema", "suman", "renu", "usha", "nisha", "anju", "kiran",
-        "lakshmi", "sarita", "geeta", "rita", "sita", "radha", "maya", "shanti",
-        "rani", "pushpa", "kamla", "savita", "mamta", "rashmi", "archana",
-    ].into_iter().collect()
+        "priya", "sunita", "anita", "neha", "pooja", "divya", "kavita", "rekha", "meena", "seema",
+        "suman", "renu", "usha", "nisha", "anju", "kiran", "lakshmi", "sarita", "geeta", "rita",
+        "sita", "radha", "maya", "shanti", "rani", "pushpa", "kamla", "savita", "mamta", "rashmi",
+        "archana",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Common Indian last names
 static COMMON_LAST_NAMES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
-        "sharma", "verma", "gupta", "singh", "kumar", "yadav", "jain", "agarwal",
-        "aggarwal", "patel", "shah", "mehta", "desai", "joshi", "tiwari", "mishra",
-        "pandey", "dubey", "tripathi", "shukla", "srivastava", "saxena", "kapoor",
-        "khanna", "malhotra", "chopra", "arora", "bhatia", "sethi", "ahuja",
-        "choudhary", "chaudhary", "thakur", "rawat", "chauhan", "rajput", "rathore",
-        "reddy", "naidu", "rao", "iyer", "iyengar", "mukherjee", "banerjee",
-        "chatterjee", "ghosh", "das", "roy", "paul", "pillai", "nair", "menon",
-        "varma", "bose", "sen", "dutta", "ganguly",
-    ].into_iter().collect()
+        "sharma",
+        "verma",
+        "gupta",
+        "singh",
+        "kumar",
+        "yadav",
+        "jain",
+        "agarwal",
+        "aggarwal",
+        "patel",
+        "shah",
+        "mehta",
+        "desai",
+        "joshi",
+        "tiwari",
+        "mishra",
+        "pandey",
+        "dubey",
+        "tripathi",
+        "shukla",
+        "srivastava",
+        "saxena",
+        "kapoor",
+        "khanna",
+        "malhotra",
+        "chopra",
+        "arora",
+        "bhatia",
+        "sethi",
+        "ahuja",
+        "choudhary",
+        "chaudhary",
+        "thakur",
+        "rawat",
+        "chauhan",
+        "rajput",
+        "rathore",
+        "reddy",
+        "naidu",
+        "rao",
+        "iyer",
+        "iyengar",
+        "mukherjee",
+        "banerjee",
+        "chatterjee",
+        "ghosh",
+        "das",
+        "roy",
+        "paul",
+        "pillai",
+        "nair",
+        "menon",
+        "varma",
+        "bose",
+        "sen",
+        "dutta",
+        "ganguly",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Indian state names (for address detection)
 static INDIAN_STATES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
         // States
-        "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
-        "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
-        "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya", "mizoram",
-        "nagaland", "odisha", "orissa", "punjab", "rajasthan", "sikkim", "tamil nadu",
-        "telangana", "tripura", "uttar pradesh", "uttarakhand", "west bengal",
+        "andhra pradesh",
+        "arunachal pradesh",
+        "assam",
+        "bihar",
+        "chhattisgarh",
+        "goa",
+        "gujarat",
+        "haryana",
+        "himachal pradesh",
+        "jharkhand",
+        "karnataka",
+        "kerala",
+        "madhya pradesh",
+        "maharashtra",
+        "manipur",
+        "meghalaya",
+        "mizoram",
+        "nagaland",
+        "odisha",
+        "orissa",
+        "punjab",
+        "rajasthan",
+        "sikkim",
+        "tamil nadu",
+        "telangana",
+        "tripura",
+        "uttar pradesh",
+        "uttarakhand",
+        "west bengal",
         // Union Territories
-        "andaman and nicobar", "chandigarh", "dadra and nagar haveli", "daman and diu",
-        "delhi", "jammu and kashmir", "ladakh", "lakshadweep", "puducherry",
+        "andaman and nicobar",
+        "chandigarh",
+        "dadra and nagar haveli",
+        "daman and diu",
+        "delhi",
+        "jammu and kashmir",
+        "ladakh",
+        "lakshadweep",
+        "puducherry",
         // Abbreviations
-        "ap", "ar", "as", "br", "cg", "ga", "gj", "hr", "hp", "jh", "ka", "kl",
-        "mp", "mh", "mn", "ml", "mz", "nl", "od", "pb", "rj", "sk", "tn", "ts",
-        "tr", "up", "uk", "wb", "an", "ch", "dn", "dd", "dl", "jk", "la", "ld", "py",
-    ].into_iter().collect()
+        "ap",
+        "ar",
+        "as",
+        "br",
+        "cg",
+        "ga",
+        "gj",
+        "hr",
+        "hp",
+        "jh",
+        "ka",
+        "kl",
+        "mp",
+        "mh",
+        "mn",
+        "ml",
+        "mz",
+        "nl",
+        "od",
+        "pb",
+        "rj",
+        "sk",
+        "tn",
+        "ts",
+        "tr",
+        "up",
+        "uk",
+        "wb",
+        "an",
+        "ch",
+        "dn",
+        "dd",
+        "dl",
+        "jk",
+        "la",
+        "ld",
+        "py",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Major Indian cities (Tier 1 and Tier 2)
 static MAJOR_CITIES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
         // Tier 1
-        "mumbai", "delhi", "bangalore", "bengaluru", "chennai", "kolkata",
-        "hyderabad", "pune", "ahmedabad",
+        "mumbai",
+        "delhi",
+        "bangalore",
+        "bengaluru",
+        "chennai",
+        "kolkata",
+        "hyderabad",
+        "pune",
+        "ahmedabad",
         // Tier 2
-        "jaipur", "lucknow", "kanpur", "nagpur", "indore", "thane", "bhopal",
-        "visakhapatnam", "vizag", "vadodara", "baroda", "ludhiana", "agra",
-        "nashik", "faridabad", "meerut", "rajkot", "varanasi", "srinagar",
-        "aurangabad", "dhanbad", "amritsar", "allahabad", "ranchi", "coimbatore",
-        "jabalpur", "gwalior", "vijayawada", "jodhpur", "madurai", "raipur",
-        "kota", "guwahati", "chandigarh", "solapur", "hubli", "mysore", "mysuru",
-        "tiruchirappalli", "trichy", "bareilly", "aligarh", "moradabad", "gurgaon",
-        "gurugram", "noida", "greater noida", "navi mumbai", "ghaziabad",
-    ].into_iter().collect()
+        "jaipur",
+        "lucknow",
+        "kanpur",
+        "nagpur",
+        "indore",
+        "thane",
+        "bhopal",
+        "visakhapatnam",
+        "vizag",
+        "vadodara",
+        "baroda",
+        "ludhiana",
+        "agra",
+        "nashik",
+        "faridabad",
+        "meerut",
+        "rajkot",
+        "varanasi",
+        "srinagar",
+        "aurangabad",
+        "dhanbad",
+        "amritsar",
+        "allahabad",
+        "ranchi",
+        "coimbatore",
+        "jabalpur",
+        "gwalior",
+        "vijayawada",
+        "jodhpur",
+        "madurai",
+        "raipur",
+        "kota",
+        "guwahati",
+        "chandigarh",
+        "solapur",
+        "hubli",
+        "mysore",
+        "mysuru",
+        "tiruchirappalli",
+        "trichy",
+        "bareilly",
+        "aligarh",
+        "moradabad",
+        "gurgaon",
+        "gurugram",
+        "noida",
+        "greater noida",
+        "navi mumbai",
+        "ghaziabad",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Address indicator words
 static ADDRESS_INDICATORS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [
         // English
-        "road", "rd", "street", "st", "lane", "colony", "nagar", "vihar",
-        "enclave", "extension", "extn", "block", "sector", "phase", "floor",
-        "flat", "apartment", "apt", "house", "plot", "building", "complex",
-        "tower", "society", "soc", "near", "opposite", "opp", "behind",
-        "beside", "next to", "above", "below", "ground", "first", "second",
-        "third", "fourth", "fifth", "main", "cross", "layout", "garden",
-        "residency", "heights", "plaza", "arcade", "market", "bazaar",
-        "chowk", "circle", "square", "junction", "crossing", "bridge",
+        "road",
+        "rd",
+        "street",
+        "st",
+        "lane",
+        "colony",
+        "nagar",
+        "vihar",
+        "enclave",
+        "extension",
+        "extn",
+        "block",
+        "sector",
+        "phase",
+        "floor",
+        "flat",
+        "apartment",
+        "apt",
+        "house",
+        "plot",
+        "building",
+        "complex",
+        "tower",
+        "society",
+        "soc",
+        "near",
+        "opposite",
+        "opp",
+        "behind",
+        "beside",
+        "next to",
+        "above",
+        "below",
+        "ground",
+        "first",
+        "second",
+        "third",
+        "fourth",
+        "fifth",
+        "main",
+        "cross",
+        "layout",
+        "garden",
+        "residency",
+        "heights",
+        "plaza",
+        "arcade",
+        "market",
+        "bazaar",
+        "chowk",
+        "circle",
+        "square",
+        "junction",
+        "crossing",
+        "bridge",
         // Hindi (transliterated)
-        "marg", "path", "gali", "mohalla", "para", "basti", "puram", "wadi",
-        "abad", "gunj", "ganj", "pet", "peth", "wala",
-    ].into_iter().collect()
+        "marg",
+        "path",
+        "gali",
+        "mohalla",
+        "para",
+        "basti",
+        "puram",
+        "wadi",
+        "abad",
+        "gunj",
+        "ganj",
+        "pet",
+        "peth",
+        "wala",
+    ]
+    .into_iter()
+    .collect()
 });
 
 /// Compiled patterns for NER
@@ -286,7 +530,7 @@ impl NameAddressDetector {
                         match best_indicator_pos {
                             None => best_indicator_pos = Some(pos),
                             Some(best) if pos > best => best_indicator_pos = Some(pos),
-                            _ => {}
+                            _ => {},
                         }
                     }
                 }
@@ -369,18 +613,17 @@ impl NameAddressDetector {
                 let context_end = (state_pos + state.len() + 50).min(text.len());
                 let context = &text_lower[context_start..context_end];
 
-                let has_address_indicator = ADDRESS_INDICATORS
-                    .iter()
-                    .any(|ind| context.contains(ind));
+                let has_address_indicator =
+                    ADDRESS_INDICATORS.iter().any(|ind| context.contains(ind));
 
                 if has_address_indicator {
                     // Find actual boundaries
-                    let mut start = context_start;
+                    let start = context_start;
                     let mut end = state_pos + state.len();
 
                     // Look for pincode after state
                     if let Some(pincode_match) = self.patterns.pincode.find(&text[end..]) {
-                        end = end + pincode_match.end();
+                        end += pincode_match.end();
                     }
 
                     // Check we haven't already captured this
@@ -491,7 +734,10 @@ mod tests {
 
         let addresses = detector.detect_addresses(text);
         assert!(!addresses.is_empty());
-        assert!(addresses[0].text.to_lowercase().contains("karnataka") || addresses[0].text.contains("560001"));
+        assert!(
+            addresses[0].text.to_lowercase().contains("karnataka")
+                || addresses[0].text.contains("560001")
+        );
     }
 
     #[test]
@@ -535,8 +781,16 @@ mod tests {
         let has_address = entities.iter().any(|e| e.pii_type == PIIType::Address);
 
         // Should find at least one entity (name or address)
-        assert!(!entities.is_empty(), "Should detect at least one entity: {:?}", entities);
+        assert!(
+            !entities.is_empty(),
+            "Should detect at least one entity: {:?}",
+            entities
+        );
         // Either name or address should be detected
-        assert!(has_name || has_address, "Should detect name or address. Found: {:?}", entities);
+        assert!(
+            has_name || has_address,
+            "Should detect name or address. Found: {:?}",
+            entities
+        );
     }
 }

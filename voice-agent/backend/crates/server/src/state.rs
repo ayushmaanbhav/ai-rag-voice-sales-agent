@@ -2,18 +2,18 @@
 //!
 //! Shared state across all handlers.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
-use voice_agent_config::{Settings, load_settings, DomainConfigManager};
-use voice_agent_tools::ToolRegistry;
+use voice_agent_config::{load_settings, DomainConfigManager, Settings};
 use voice_agent_rag::VectorStore;
+use voice_agent_tools::ToolRegistry;
 // P2 FIX: Text processing pipeline for grammar, PII, compliance
-use voice_agent_text_processing::{TextProcessingPipeline, TextProcessingConfig, TextSimplifier};
+use voice_agent_text_processing::{TextProcessingConfig, TextProcessingPipeline, TextSimplifier};
 // P2 FIX: Audit logging for RBI compliance
 use voice_agent_persistence::{AuditLog, AuditLogger};
 
-use crate::session::{SessionManager, SessionStore, InMemorySessionStore};
+use crate::session::{InMemorySessionStore, SessionManager, SessionStore};
 
 /// Application state
 #[derive(Clone)]
@@ -143,6 +143,8 @@ impl AppState {
     /// This method wires the SMS and GoldPrice services from the persistence layer
     /// into the tool registry, enabling proper persistence of SMS messages and
     /// gold price queries to ScyllaDB.
+    ///
+    /// P2-1 FIX: Also wires domain config (GoldLoanConfig) to tools for business logic.
     pub fn with_full_persistence(
         config: Settings,
         store: Arc<dyn SessionStore>,
@@ -152,10 +154,15 @@ impl AppState {
     ) -> Self {
         let (text_processing, text_simplifier) = Self::create_text_processing();
 
+        // P2-1 FIX: Extract gold loan config for tools (rates, LTV, etc.)
+        let gold_loan_config = domain_config.gold_loan();
+
         // P1-4 FIX: Create tool registry with persistence services wired
+        // P2-1 FIX: Also wire domain config for business logic
         let integration_config = voice_agent_tools::FullIntegrationConfig::default()
             .with_sms_service(sms_service)
-            .with_gold_price_service(gold_price_service);
+            .with_gold_price_service(gold_price_service)
+            .with_gold_loan_config(gold_loan_config);
         let tools = voice_agent_tools::create_registry_with_persistence(integration_config);
 
         Self {
@@ -187,18 +194,31 @@ impl AppState {
     /// P2 FIX: Log an audit event for RBI compliance
     ///
     /// Returns Ok(()) if logger is not configured (noop).
-    pub async fn log_conversation_start(&self, session_id: &str, language: &str) -> Result<(), crate::ServerError> {
+    pub async fn log_conversation_start(
+        &self,
+        session_id: &str,
+        language: &str,
+    ) -> Result<(), crate::ServerError> {
         if let Some(ref logger) = self.audit_logger {
-            logger.log_conversation_start(session_id, language).await
+            logger
+                .log_conversation_start(session_id, language)
+                .await
                 .map_err(|e| crate::ServerError::Persistence(e.to_string()))?;
         }
         Ok(())
     }
 
     /// P2 FIX: Log conversation end
-    pub async fn log_conversation_end(&self, session_id: &str, reason: &str, duration_secs: u64) -> Result<(), crate::ServerError> {
+    pub async fn log_conversation_end(
+        &self,
+        session_id: &str,
+        reason: &str,
+        duration_secs: u64,
+    ) -> Result<(), crate::ServerError> {
         if let Some(ref logger) = self.audit_logger {
-            logger.log_conversation_end(session_id, reason, duration_secs).await
+            logger
+                .log_conversation_end(session_id, reason, duration_secs)
+                .await
                 .map_err(|e| crate::ServerError::Persistence(e.to_string()))?;
         }
         Ok(())
@@ -244,7 +264,10 @@ impl AppState {
     ///
     /// Call this after creating a session or when session state changes
     /// that should be persisted (e.g., stage transitions, turn completion).
-    pub async fn persist_session(&self, session: &crate::session::Session) -> Result<(), crate::ServerError> {
+    pub async fn persist_session(
+        &self,
+        session: &crate::session::Session,
+    ) -> Result<(), crate::ServerError> {
         self.session_store.store_metadata(session).await
     }
 
@@ -297,11 +320,11 @@ impl AppState {
                 }
 
                 Ok(active_sessions.len())
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "Failed to query active sessions for recovery");
                 Err(crate::ServerError::Persistence(e.to_string()))
-            }
+            },
         }
     }
 }

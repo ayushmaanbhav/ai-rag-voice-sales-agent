@@ -10,75 +10,107 @@
 
 // Existing modules
 pub mod audio;
-pub mod error;
-pub mod transcript;
 pub mod conversation;
 pub mod customer;
+pub mod error;
+pub mod transcript;
 
 // New modules (Phase 1)
-pub mod language;
-pub mod voice_config;
-pub mod pii;
 pub mod compliance;
 pub mod domain_context;
+pub mod language;
 pub mod llm_types;
+pub mod pii;
 pub mod traits;
+pub mod voice_config;
 
 // Phase 5: Personalization
 pub mod personalization;
 
 // Re-exports from existing modules
-pub use audio::{AudioFrame, AudioEncoding, Channels, SampleRate};
+pub use audio::{AudioEncoding, AudioFrame, Channels, SampleRate};
+pub use conversation::{ConversationStage, Turn, TurnRole};
+pub use customer::{CustomerProfile, CustomerSegment, SegmentDetector};
 pub use error::{Error, Result};
 pub use transcript::{TranscriptResult, WordTimestamp};
-pub use conversation::{Turn, TurnRole, ConversationStage};
-pub use customer::{CustomerProfile, CustomerSegment, SegmentDetector};
 
 // Re-exports from new modules
-pub use language::{Language, Script};
-pub use voice_config::{VoiceConfig, VoiceInfo, VoiceGender};
-pub use pii::{PIIType, PIIEntity, PIISeverity, RedactionStrategy, DetectionMethod};
 pub use compliance::{
-    ComplianceResult, ComplianceViolation, Severity,
-    ViolationCategory, RequiredAddition, AdditionType, AdditionPosition,
-    SuggestedRewrite,
+    AdditionPosition, AdditionType, ComplianceResult, ComplianceViolation, RequiredAddition,
+    Severity, SuggestedRewrite, ViolationCategory,
 };
-pub use domain_context::{DomainContext, Abbreviation};
+pub use domain_context::{Abbreviation, DomainContext};
+pub use language::{Language, Script};
 pub use llm_types::{
-    GenerateRequest, GenerateResponse, Message, Role,
-    StreamChunk, FinishReason, TokenUsage,
-    ToolDefinition, ToolCall,
+    FinishReason, GenerateRequest, GenerateResponse, Message, Role, StreamChunk, TokenUsage,
+    ToolCall, ToolDefinition,
 };
+pub use pii::{DetectionMethod, PIIEntity, PIISeverity, PIIType, RedactionStrategy};
+pub use voice_config::{VoiceConfig, VoiceGender, VoiceInfo};
 
 // Trait re-exports
 pub use traits::{
-    // Speech
-    SpeechToText, TextToSpeech,
-    // P1 FIX: VoiceActivityDetector trait
-    VoiceActivityDetector, VADConfig, VADEvent, VADState, AudioProcessor,
+    AudioProcessor,
+    ComplianceChecker,
+    ControlFrame,
+    ConversationContext,
+    ConversationEvent,
+    // P0 FIX: ConversationFSM trait and types
+    ConversationFSM,
+    ConversationOutcome,
+    ConversationTurn,
+    Document,
+    FSMAction,
+    FSMCheckpoint,
+    FSMError,
+    FSMMetrics,
+    FilterOp,
+    Frame,
+    // Pipeline
+    FrameProcessor,
+    // Text processing
+    GrammarCorrector,
     // LLM
     LanguageModel,
+    MetadataFilter,
+    MetricsEvent,
+    ObjectionType,
+    PIIRedactor,
+    ProcessorContext,
+    RetrieveOptions,
     // Retrieval
-    Retriever, RetrieveOptions, Document, ConversationContext, ConversationTurn,
-    MetadataFilter, FilterOp,
-    // Text processing
-    GrammarCorrector, Translator, PIIRedactor, ComplianceChecker,
-    // Pipeline
-    FrameProcessor, Frame, ProcessorContext, ControlFrame, MetricsEvent,
-    // P0 FIX: ConversationFSM trait and types
-    ConversationFSM, ConversationEvent, FSMAction, FSMError,
-    FSMCheckpoint, FSMMetrics, ConversationOutcome, ObjectionType,
+    Retriever,
+    // Speech
+    SpeechToText,
+    TextToSpeech,
     TransitionRecord,
+    Translator,
+    VADConfig,
+    VADEvent,
+    VADState,
+    // P1 FIX: VoiceActivityDetector trait
+    VoiceActivityDetector,
 };
 
 // Personalization re-exports
 pub use personalization::{
-    // Engine
-    PersonalizationEngine, PersonalizationContext,
+    BehaviorSignal,
+    Feature,
+    LanguageComplexity,
+    Objection,
+    ObjectionResponse,
     // Persona
-    Persona, PersonaTemplates, Tone, LanguageComplexity, ResponseUrgency,
+    Persona,
+    PersonaTemplates,
+    PersonalizationContext,
+    // Engine
+    PersonalizationEngine,
+    ResponseUrgency,
     // Adaptation
-    SegmentAdapter, Feature, Objection, ObjectionResponse,
+    SegmentAdapter,
+    SignalDetection,
     // Signals
-    SignalDetector, BehaviorSignal, SignalDetection, TrendAnalysis,
+    SignalDetector,
+    Tone,
+    TrendAnalysis,
 };

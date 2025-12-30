@@ -2,11 +2,13 @@
 //!
 //! P3 FIX: Integrated NER-based detection for names and addresses.
 
-use async_trait::async_trait;
-use voice_agent_core::{PIIRedactor, PIIEntity, PIIType, RedactionStrategy, DetectionMethod, Result};
-use super::patterns::INDIAN_PII_PATTERNS;
 use super::ner::NameAddressDetector;
+use super::patterns::INDIAN_PII_PATTERNS;
+use async_trait::async_trait;
 use std::collections::HashSet;
+use voice_agent_core::{
+    DetectionMethod, PIIEntity, PIIRedactor, PIIType, RedactionStrategy, Result,
+};
 
 /// Hybrid PII detector using regex and optional NER
 pub struct HybridPIIDetector {
@@ -77,7 +79,8 @@ impl HybridPIIDetector {
     fn merge_detections(&self, mut entities: Vec<PIIEntity>) -> Vec<PIIEntity> {
         // Sort by start position, then by length (shorter first for more specific matches)
         entities.sort_by(|a, b| {
-            a.start.cmp(&b.start)
+            a.start
+                .cmp(&b.start)
                 .then_with(|| (a.end - a.start).cmp(&(b.end - b.start)))
         });
 
@@ -129,7 +132,12 @@ impl HybridPIIDetector {
     }
 
     /// Apply redaction to a single entity
-    fn apply_redaction(&self, text: &str, entity: &PIIEntity, strategy: &RedactionStrategy) -> String {
+    fn apply_redaction(
+        &self,
+        text: &str,
+        entity: &PIIEntity,
+        strategy: &RedactionStrategy,
+    ) -> String {
         strategy.apply(text, entity.pii_type)
     }
 }
@@ -179,8 +187,8 @@ impl PIIRedactor for HybridPIIDetector {
             PIIType::UpiId,
             PIIType::CardNumber,
             PIIType::GSTIN,
-            PIIType::PersonName,  // P3 FIX: NER-based
-            PIIType::Address,     // P3 FIX: NER-based
+            PIIType::PersonName, // P3 FIX: NER-based
+            PIIType::Address,    // P3 FIX: NER-based
         ];
         TYPES
     }
@@ -228,7 +236,11 @@ mod tests {
     #[tokio::test]
     async fn test_detect_multiple() {
         let detector = HybridPIIDetector::new(
-            &["Aadhaar".to_string(), "PAN".to_string(), "PhoneNumber".to_string()],
+            &[
+                "Aadhaar".to_string(),
+                "PAN".to_string(),
+                "PhoneNumber".to_string(),
+            ],
             false,
         );
         let text = "Aadhaar: 2345 6789 0123, PAN: ABCPD1234E, Phone: 9876543210";
@@ -271,7 +283,11 @@ mod tests {
 
     #[test]
     fn test_parse_entity_names() {
-        let names = vec!["Aadhaar".to_string(), "pan".to_string(), "PHONE".to_string()];
+        let names = vec![
+            "Aadhaar".to_string(),
+            "pan".to_string(),
+            "PHONE".to_string(),
+        ];
         let types = parse_entity_names(&names);
         assert!(types.contains(&PIIType::Aadhaar));
         assert!(types.contains(&PIIType::PAN));
@@ -292,7 +308,7 @@ mod tests {
     async fn test_detect_name_with_ner() {
         let detector = HybridPIIDetector::new(
             &["PersonName".to_string()],
-            true,  // Enable NER
+            true, // Enable NER
         );
         let text = "Mr. Rahul Sharma applied for a gold loan";
 
@@ -305,7 +321,7 @@ mod tests {
     async fn test_detect_address_with_ner() {
         let detector = HybridPIIDetector::new(
             &["Address".to_string()],
-            true,  // Enable NER
+            true, // Enable NER
         );
         let text = "Customer resides at 123 MG Road, Bangalore 560001";
 
@@ -318,7 +334,7 @@ mod tests {
     async fn test_hybrid_detection() {
         let detector = HybridPIIDetector::new(
             &["PersonName".to_string(), "Address".to_string()],
-            true,  // Enable NER
+            true, // Enable NER
         );
         // Use names that are in the common names list
         // Ensure clear separation between name and address with punctuation
@@ -331,6 +347,10 @@ mod tests {
 
         // In complex text, NER should detect at least the name
         // Address detection may overlap with name in ambiguous text
-        assert!(has_name || has_address, "Should detect name or address: {:?}", entities);
+        assert!(
+            has_name || has_address,
+            "Should detect name or address: {:?}",
+            entities
+        );
     }
 }

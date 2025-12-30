@@ -9,10 +9,10 @@ use async_trait::async_trait;
 use tokio::sync::{broadcast, mpsc};
 use voice_agent_core::Language;
 
+use crate::agent::AgentEvent;
 use crate::conversation::EndReason;
 use crate::stage::ConversationStage;
 use crate::AgentError;
-use crate::agent::AgentEvent;
 
 /// Core agent trait for conversational AI agents
 ///

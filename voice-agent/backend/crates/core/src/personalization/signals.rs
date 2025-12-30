@@ -73,9 +73,7 @@ impl BehaviorSignal {
     pub fn is_negative(&self) -> bool {
         matches!(
             self,
-            BehaviorSignal::Frustration
-                | BehaviorSignal::ExitIntent
-                | BehaviorSignal::Skepticism
+            BehaviorSignal::Frustration | BehaviorSignal::ExitIntent | BehaviorSignal::Skepticism
         )
     }
 
@@ -452,8 +450,7 @@ impl SignalDetector {
 
         // Build result
         let (primary, primary_conf, primary_trigger) = detections.remove(0);
-        let mut result = SignalDetection::new(primary, primary_conf)
-            .with_trigger(primary_trigger);
+        let mut result = SignalDetection::new(primary, primary_conf).with_trigger(primary_trigger);
 
         // Add secondary signals
         for (signal, conf, trigger) in detections.into_iter().take(3) {
@@ -601,7 +598,9 @@ mod tests {
     #[test]
     fn test_detect_frustration() {
         let detector = SignalDetector::new();
-        let result = detector.detect("I'm frustrated, this is taking too long").unwrap();
+        let result = detector
+            .detect("I'm frustrated, this is taking too long")
+            .unwrap();
 
         assert_eq!(result.primary, BehaviorSignal::Frustration);
         assert!(result.primary.is_negative());
@@ -622,7 +621,9 @@ mod tests {
     #[test]
     fn test_detect_comparison() {
         let detector = SignalDetector::new();
-        let result = detector.detect("How does this compare to Muthoot?").unwrap();
+        let result = detector
+            .detect("How does this compare to Muthoot?")
+            .unwrap();
 
         assert_eq!(result.primary, BehaviorSignal::Comparison);
     }

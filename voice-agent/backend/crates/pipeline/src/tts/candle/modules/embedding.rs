@@ -81,8 +81,8 @@ impl InputEmbedding {
         let pos_embed = if use_conv_pos {
             Some(super::conv::ConvPositionEmbedding::new(
                 dim,
-                31,  // kernel_size
-                16,  // groups
+                31, // kernel_size
+                16, // groups
                 vb.pp("pos_embed"),
             )?)
         } else {
@@ -114,11 +114,7 @@ impl InputEmbedding {
     ///   text_tokens: [batch, text_len] - phoneme token IDs
     ///   mel_spec: [batch, mel_len, n_mels] - mel spectrogram (reference audio)
     ///   lens: Optional lengths for masking
-    pub fn forward(
-        &self,
-        text_tokens: &Tensor,
-        mel_spec: &Tensor,
-    ) -> Result<Tensor> {
+    pub fn forward(&self, text_tokens: &Tensor, mel_spec: &Tensor) -> Result<Tensor> {
         // Embed text
         let text_emb = self.text_embed.forward(text_tokens)?;
 

@@ -47,12 +47,17 @@ impl ComplianceResult {
 
     /// Check if there are any critical violations
     pub fn has_critical_violations(&self) -> bool {
-        self.violations.iter().any(|v| v.severity == Severity::Critical)
+        self.violations
+            .iter()
+            .any(|v| v.severity == Severity::Critical)
     }
 
     /// Get all violations of a specific severity
     pub fn violations_by_severity(&self, severity: Severity) -> Vec<&ComplianceViolation> {
-        self.violations.iter().filter(|v| v.severity == severity).collect()
+        self.violations
+            .iter()
+            .filter(|v| v.severity == severity)
+            .collect()
     }
 }
 

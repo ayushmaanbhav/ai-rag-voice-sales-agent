@@ -32,8 +32,7 @@ impl RuntimeEnvironment {
 }
 
 /// Main application settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Settings {
     /// P1 FIX: Runtime environment (development, staging, production)
     #[serde(default)]
@@ -189,21 +188,30 @@ impl Settings {
         if !(0.0..=1.0).contains(&rag.prefilter_threshold) {
             return Err(ConfigError::InvalidValue {
                 field: "rag.prefilter_threshold".to_string(),
-                message: format!("Must be between 0.0 and 1.0, got {}", rag.prefilter_threshold),
+                message: format!(
+                    "Must be between 0.0 and 1.0, got {}",
+                    rag.prefilter_threshold
+                ),
             });
         }
 
         if !(0.0..=1.0).contains(&rag.early_termination_threshold) {
             return Err(ConfigError::InvalidValue {
                 field: "rag.early_termination_threshold".to_string(),
-                message: format!("Must be between 0.0 and 1.0, got {}", rag.early_termination_threshold),
+                message: format!(
+                    "Must be between 0.0 and 1.0, got {}",
+                    rag.early_termination_threshold
+                ),
             });
         }
 
         if !(0.0..=1.0).contains(&rag.prefetch_confidence_threshold) {
             return Err(ConfigError::InvalidValue {
                 field: "rag.prefetch_confidence_threshold".to_string(),
-                message: format!("Must be between 0.0 and 1.0, got {}", rag.prefetch_confidence_threshold),
+                message: format!(
+                    "Must be between 0.0 and 1.0, got {}",
+                    rag.prefetch_confidence_threshold
+                ),
             });
         }
 
@@ -227,7 +235,9 @@ impl Settings {
             tracing::warn!(
                 "rag.final_top_k ({}) is larger than both dense_top_k ({}) and sparse_top_k ({}), \
                  results will be limited by retrieval",
-                rag.final_top_k, rag.dense_top_k, rag.sparse_top_k
+                rag.final_top_k,
+                rag.dense_top_k,
+                rag.sparse_top_k
             );
         }
 
@@ -292,17 +302,17 @@ impl Settings {
         }
 
         // Auth validation in production
-        if self.environment.is_production() && server.auth.enabled {
-            if server.auth.api_key.is_none() {
-                return Err(ConfigError::InvalidValue {
-                    field: "server.auth.api_key".to_string(),
-                    message: "API key must be set when auth is enabled in production".to_string(),
-                });
-            }
+        if self.environment.is_production() && server.auth.enabled && server.auth.api_key.is_none()
+        {
+            return Err(ConfigError::InvalidValue {
+                field: "server.auth.api_key".to_string(),
+                message: "API key must be set when auth is enabled in production".to_string(),
+            });
         }
 
         // CORS validation in production
-        if self.environment.is_production() && server.cors_enabled && server.cors_origins.is_empty() {
+        if self.environment.is_production() && server.cors_enabled && server.cors_origins.is_empty()
+        {
             tracing::warn!(
                 "CORS is enabled in production but no origins are configured. \
                  This may block legitimate requests."
@@ -326,8 +336,16 @@ impl Settings {
 
         // Optional models - warnings only
         let optional_models = [
-            ("models.turn_detection", &self.models.turn_detection, Some(".onnx")),
-            ("models.turn_detection_tokenizer", &self.models.turn_detection_tokenizer, Some(".json")),
+            (
+                "models.turn_detection",
+                &self.models.turn_detection,
+                Some(".onnx"),
+            ),
+            (
+                "models.turn_detection_tokenizer",
+                &self.models.turn_detection_tokenizer,
+                Some(".json"),
+            ),
             ("models.stt_tokens", &self.models.stt_tokens, Some(".txt")),
             ("models.reranker", &self.models.reranker, Some(".onnx")),
             ("models.embeddings", &self.models.embeddings, Some(".onnx")),
@@ -340,8 +358,15 @@ impl Settings {
         for (field, path, expected_ext) in required_models {
             if path.is_empty() {
                 if self.environment.is_strict() {
-                    errors.push(format!("{}: path is required in {} mode", field,
-                        if self.environment.is_production() { "production" } else { "staging" }));
+                    errors.push(format!(
+                        "{}: path is required in {} mode",
+                        field,
+                        if self.environment.is_production() {
+                            "production"
+                        } else {
+                            "staging"
+                        }
+                    ));
                 } else {
                     tracing::warn!("{}: path not configured (required for production)", field);
                 }
@@ -351,7 +376,10 @@ impl Settings {
             // Check file extension
             if let Some(ext) = expected_ext {
                 if !path.ends_with(ext) {
-                    warnings.push(format!("{}: expected {} extension, got '{}'", field, ext, path));
+                    warnings.push(format!(
+                        "{}: expected {} extension, got '{}'",
+                        field, ext, path
+                    ));
                 }
             }
 
@@ -364,7 +392,10 @@ impl Settings {
                     tracing::warn!("Model not found: {} = {}", field, path);
                 }
             } else if !path_obj.is_file() {
-                errors.push(format!("{}: path exists but is not a file: {}", field, path));
+                errors.push(format!(
+                    "{}: path exists but is not a file: {}",
+                    field, path
+                ));
             }
         }
 
@@ -376,7 +407,10 @@ impl Settings {
 
             if let Some(ext) = expected_ext {
                 if !path.ends_with(ext) {
-                    warnings.push(format!("{}: expected {} extension, got '{}'", field, ext, path));
+                    warnings.push(format!(
+                        "{}: expected {} extension, got '{}'",
+                        field, ext, path
+                    ));
                 }
             }
 
@@ -384,7 +418,10 @@ impl Settings {
             if !path_obj.exists() {
                 tracing::warn!("Optional model not found: {} = {}", field, path);
             } else if !path_obj.is_file() {
-                warnings.push(format!("{}: path exists but is not a file: {}", field, path));
+                warnings.push(format!(
+                    "{}: path exists but is not a file: {}",
+                    field, path
+                ));
             }
         }
 
@@ -404,7 +441,6 @@ impl Settings {
         Ok(())
     }
 }
-
 
 /// Server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -630,21 +666,51 @@ pub struct RagConfig {
 }
 
 // RAG default value functions
-fn default_qdrant_endpoint() -> String { "http://localhost:6333".to_string() }
-fn default_qdrant_collection() -> String { "gold_loan_knowledge".to_string() }
-fn default_vector_dim() -> usize { 384 } // e5-multilingual default
-fn default_dense_top_k() -> usize { 20 }
-fn default_sparse_top_k() -> usize { 20 }
-fn default_final_top_k() -> usize { 5 }
-fn default_dense_weight() -> f32 { 0.7 }  // P5: Increased for semantic queries
-fn default_rrf_k() -> f32 { 60.0 }
-fn default_min_score() -> f32 { 0.4 }  // P5: Increased for domain-specific queries
-fn default_prefilter_threshold() -> f32 { 0.15 }  // P5: Tuned for gold loan domain
-fn default_max_full_model_docs() -> usize { 10 }
-fn default_early_termination_threshold() -> f32 { 0.92 }  // P5: Slightly lower for faster exits
-fn default_early_termination_min_results() -> usize { 3 }
-fn default_prefetch_confidence() -> f32 { 0.6 }  // P5: Lower for more aggressive prefetch
-fn default_prefetch_top_k() -> usize { 3 }
+fn default_qdrant_endpoint() -> String {
+    "http://localhost:6333".to_string()
+}
+fn default_qdrant_collection() -> String {
+    "gold_loan_knowledge".to_string()
+}
+fn default_vector_dim() -> usize {
+    384
+} // e5-multilingual default
+fn default_dense_top_k() -> usize {
+    20
+}
+fn default_sparse_top_k() -> usize {
+    20
+}
+fn default_final_top_k() -> usize {
+    5
+}
+fn default_dense_weight() -> f32 {
+    0.7
+} // P5: Increased for semantic queries
+fn default_rrf_k() -> f32 {
+    60.0
+}
+fn default_min_score() -> f32 {
+    0.4
+} // P5: Increased for domain-specific queries
+fn default_prefilter_threshold() -> f32 {
+    0.15
+} // P5: Tuned for gold loan domain
+fn default_max_full_model_docs() -> usize {
+    10
+}
+fn default_early_termination_threshold() -> f32 {
+    0.92
+} // P5: Slightly lower for faster exits
+fn default_early_termination_min_results() -> usize {
+    3
+}
+fn default_prefetch_confidence() -> f32 {
+    0.6
+} // P5: Lower for more aggressive prefetch
+fn default_prefetch_top_k() -> usize {
+    3
+}
 
 impl Default for RagConfig {
     fn default() -> Self {
@@ -705,9 +771,9 @@ impl Default for ServerConfig {
             // Use ["http://localhost:3000"] for local dev, or specific domains for production
             cors_origins: Vec::new(),
             rate_limit: RateLimitConfig::default(),
-            auth: AuthConfig::default(),  // P1 FIX: Auth config
-            stun_servers: default_stun_servers(),  // P2 FIX: WebRTC STUN
-            turn_servers: Vec::new(),  // P2 FIX: WebRTC TURN (requires configuration)
+            auth: AuthConfig::default(),          // P1 FIX: Auth config
+            stun_servers: default_stun_servers(), // P2 FIX: WebRTC STUN
+            turn_servers: Vec::new(),             // P2 FIX: WebRTC TURN (requires configuration)
         }
     }
 }
@@ -887,24 +953,19 @@ pub fn load_settings(env: Option<&str>) -> Result<Settings, ConfigError> {
     let mut builder = Config::builder();
 
     // Load default config
-    builder = builder.add_source(
-        File::with_name("config/default")
-            .required(false)
-    );
+    builder = builder.add_source(File::with_name("config/default").required(false));
 
     // Load environment-specific config
     if let Some(env_name) = env {
-        builder = builder.add_source(
-            File::with_name(&format!("config/{}", env_name))
-                .required(false)
-        );
+        builder =
+            builder.add_source(File::with_name(&format!("config/{}", env_name)).required(false));
     }
 
     // Load from environment variables
     builder = builder.add_source(
         Environment::with_prefix("VOICE_AGENT")
             .separator("__")
-            .try_parsing(true)
+            .try_parsing(true),
     );
 
     let config = builder.build()?;

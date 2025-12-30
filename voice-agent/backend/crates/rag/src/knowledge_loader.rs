@@ -3,11 +3,11 @@
 //! P2 FIX: Loads knowledge documents from YAML/JSON files and indexes them
 //! in the vector store for RAG retrieval.
 
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
-use crate::{VectorStore, RagError};
 use crate::vector_store::Document;
+use crate::{RagError, VectorStore};
 
 /// Knowledge document format for YAML/JSON files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,7 +83,8 @@ impl KnowledgeLoader {
             .map_err(|e| RagError::Index(format!("Failed to read directory: {}", e)))?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| RagError::Index(format!("Failed to read entry: {}", e)))?;
+            let entry =
+                entry.map_err(|e| RagError::Index(format!("Failed to read entry: {}", e)))?;
             let path = entry.path();
 
             // Only process YAML and JSON files
@@ -100,14 +101,14 @@ impl KnowledgeLoader {
                         "Loaded knowledge file"
                     );
                     total_count += count;
-                }
+                },
                 Err(e) => {
                     tracing::error!(
                         file = %path.display(),
                         error = %e,
                         "Failed to load knowledge file"
                     );
-                }
+                },
             }
         }
 
@@ -139,7 +140,12 @@ impl KnowledgeLoader {
                 .map_err(|e| RagError::Index(format!("JSON parse error: {}", e)))?,
             "yaml" | "yml" => serde_yaml::from_str(&content)
                 .map_err(|e| RagError::Index(format!("YAML parse error: {}", e)))?,
-            _ => return Err(RagError::Index(format!("Unsupported file type: {}", extension))),
+            _ => {
+                return Err(RagError::Index(format!(
+                    "Unsupported file type: {}",
+                    extension
+                )))
+            },
         };
 
         let mut documents = Vec::new();
@@ -153,7 +159,9 @@ impl KnowledgeLoader {
                 title: Some(doc.title.clone()),
                 category: doc.category.clone(),
                 language: Some(doc.language.clone()),
-                metadata: doc.keywords.iter()
+                metadata: doc
+                    .keywords
+                    .iter()
                     .enumerate()
                     .map(|(i, k)| (format!("keyword_{}", i), k.clone()))
                     .collect(),
@@ -186,7 +194,8 @@ impl KnowledgeLoader {
                     title: "What is a Gold Loan?".to_string(),
                     content: "A gold loan is a secured loan where you pledge your gold ornaments \
                               or jewelry as collateral to borrow money. The loan amount is \
-                              typically 75-90% of the gold's market value.".to_string(),
+                              typically 75-90% of the gold's market value."
+                        .to_string(),
                     category: Some("faq".to_string()),
                     language: "en".to_string(),
                     keywords: vec![
@@ -200,7 +209,8 @@ impl KnowledgeLoader {
                     title: "Benefits of Gold Loan".to_string(),
                     content: "Gold loans offer several benefits: quick disbursal (often within \
                               30 minutes), lower interest rates compared to personal loans, \
-                              no credit score requirements, and flexible repayment options.".to_string(),
+                              no credit score requirements, and flexible repayment options."
+                        .to_string(),
                     category: Some("product".to_string()),
                     language: "en".to_string(),
                     keywords: vec![

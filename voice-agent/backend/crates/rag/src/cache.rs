@@ -3,10 +3,10 @@
 //! LRU cache for text embeddings to avoid redundant computation.
 //! Significantly speeds up repeated queries and document re-embedding.
 
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
-use parking_lot::RwLock;
 
 /// Cache statistics
 #[derive(Debug, Default)]

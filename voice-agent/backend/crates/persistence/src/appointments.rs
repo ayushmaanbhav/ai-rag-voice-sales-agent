@@ -1,10 +1,10 @@
 //! Appointment persistence using ScyllaDB
 
+use crate::{PersistenceError, ScyllaClient};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{ScyllaClient, PersistenceError};
 
 /// Appointment status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -92,10 +92,28 @@ impl Appointment {
 #[async_trait]
 pub trait AppointmentStore: Send + Sync {
     async fn create(&self, appointment: &Appointment) -> Result<(), PersistenceError>;
-    async fn get(&self, phone: &str, appointment_id: Uuid) -> Result<Option<Appointment>, PersistenceError>;
-    async fn update_status(&self, phone: &str, appointment_id: Uuid, status: AppointmentStatus) -> Result<(), PersistenceError>;
-    async fn set_confirmation_sms(&self, phone: &str, appointment_id: Uuid, sms_id: Uuid) -> Result<(), PersistenceError>;
-    async fn list_for_customer(&self, phone: &str, limit: i32) -> Result<Vec<Appointment>, PersistenceError>;
+    async fn get(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+    ) -> Result<Option<Appointment>, PersistenceError>;
+    async fn update_status(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+        status: AppointmentStatus,
+    ) -> Result<(), PersistenceError>;
+    async fn set_confirmation_sms(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+        sms_id: Uuid,
+    ) -> Result<(), PersistenceError>;
+    async fn list_for_customer(
+        &self,
+        phone: &str,
+        limit: i32,
+    ) -> Result<Vec<Appointment>, PersistenceError>;
     async fn list_for_date(&self, date: NaiveDate) -> Result<Vec<Appointment>, PersistenceError>;
 }
 
@@ -124,25 +142,28 @@ impl AppointmentStore for ScyllaAppointmentStore {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                &appointment.customer_phone,
-                appointment.appointment_id,
-                &appointment.session_id,
-                &appointment.customer_name,
-                &appointment.branch_id,
-                &appointment.branch_name,
-                &appointment.branch_address,
-                appointment.appointment_date.to_string(),
-                &appointment.appointment_time,
-                appointment.status.as_str(),
-                appointment.created_at.timestamp_millis(),
-                appointment.updated_at.timestamp_millis(),
-                appointment.confirmation_sms_id,
-                &appointment.notes,
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    &appointment.customer_phone,
+                    appointment.appointment_id,
+                    &appointment.session_id,
+                    &appointment.customer_name,
+                    &appointment.branch_id,
+                    &appointment.branch_name,
+                    &appointment.branch_address,
+                    appointment.appointment_date.to_string(),
+                    &appointment.appointment_time,
+                    appointment.status.as_str(),
+                    appointment.created_at.timestamp_millis(),
+                    appointment.updated_at.timestamp_millis(),
+                    appointment.confirmation_sms_id,
+                    &appointment.notes,
+                ),
+            )
+            .await?;
 
         tracing::info!(
             appointment_id = %appointment.appointment_id,
@@ -155,7 +176,11 @@ impl AppointmentStore for ScyllaAppointmentStore {
         Ok(())
     }
 
-    async fn get(&self, phone: &str, appointment_id: Uuid) -> Result<Option<Appointment>, PersistenceError> {
+    async fn get(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+    ) -> Result<Option<Appointment>, PersistenceError> {
         let query = format!(
             "SELECT customer_phone, appointment_id, session_id, customer_name,
                     branch_id, branch_name, branch_address,
@@ -165,7 +190,9 @@ impl AppointmentStore for ScyllaAppointmentStore {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (phone, appointment_id))
             .await?;
 
@@ -178,17 +205,30 @@ impl AppointmentStore for ScyllaAppointmentStore {
         Ok(None)
     }
 
-    async fn update_status(&self, phone: &str, appointment_id: Uuid, status: AppointmentStatus) -> Result<(), PersistenceError> {
+    async fn update_status(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+        status: AppointmentStatus,
+    ) -> Result<(), PersistenceError> {
         let query = format!(
             "UPDATE {}.appointments SET status = ?, updated_at = ?
              WHERE customer_phone = ? AND appointment_id = ?",
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (status.as_str(), Utc::now().timestamp_millis(), phone, appointment_id),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    status.as_str(),
+                    Utc::now().timestamp_millis(),
+                    phone,
+                    appointment_id,
+                ),
+            )
+            .await?;
 
         tracing::info!(
             appointment_id = %appointment_id,
@@ -199,22 +239,34 @@ impl AppointmentStore for ScyllaAppointmentStore {
         Ok(())
     }
 
-    async fn set_confirmation_sms(&self, phone: &str, appointment_id: Uuid, sms_id: Uuid) -> Result<(), PersistenceError> {
+    async fn set_confirmation_sms(
+        &self,
+        phone: &str,
+        appointment_id: Uuid,
+        sms_id: Uuid,
+    ) -> Result<(), PersistenceError> {
         let query = format!(
             "UPDATE {}.appointments SET confirmation_sms_id = ?, updated_at = ?
              WHERE customer_phone = ? AND appointment_id = ?",
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (sms_id, Utc::now().timestamp_millis(), phone, appointment_id),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (sms_id, Utc::now().timestamp_millis(), phone, appointment_id),
+            )
+            .await?;
 
         Ok(())
     }
 
-    async fn list_for_customer(&self, phone: &str, limit: i32) -> Result<Vec<Appointment>, PersistenceError> {
+    async fn list_for_customer(
+        &self,
+        phone: &str,
+        limit: i32,
+    ) -> Result<Vec<Appointment>, PersistenceError> {
         let query = format!(
             "SELECT customer_phone, appointment_id, session_id, customer_name,
                     branch_id, branch_name, branch_address,
@@ -224,7 +276,9 @@ impl AppointmentStore for ScyllaAppointmentStore {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (phone, limit))
             .await?;
 
@@ -247,7 +301,10 @@ impl AppointmentStore for ScyllaAppointmentStore {
 }
 
 impl ScyllaAppointmentStore {
-    fn row_to_appointment(&self, row: scylla::frame::response::result::Row) -> Result<Appointment, PersistenceError> {
+    fn row_to_appointment(
+        &self,
+        row: scylla::frame::response::result::Row,
+    ) -> Result<Appointment, PersistenceError> {
         let (
             customer_phone,
             appointment_id,
@@ -264,11 +321,23 @@ impl ScyllaAppointmentStore {
             confirmation_sms_id,
             notes,
         ): (
-            String, Uuid, Option<String>, Option<String>,
-            String, String, String,
-            String, String, String,
-            i64, i64, Option<Uuid>, Option<String>,
-        ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+            String,
+            Uuid,
+            Option<String>,
+            Option<String>,
+            String,
+            String,
+            String,
+            String,
+            String,
+            String,
+            i64,
+            i64,
+            Option<Uuid>,
+            Option<String>,
+        ) = row
+            .into_typed()
+            .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
         Ok(Appointment {
             appointment_id,
@@ -303,7 +372,7 @@ mod tests {
             "Kotak Andheri",
             "123 Link Road",
             date,
-            "10:00 AM"
+            "10:00 AM",
         );
 
         assert_eq!(apt.customer_phone, "+919876543210");
@@ -313,7 +382,10 @@ mod tests {
 
     #[test]
     fn test_status_conversion() {
-        assert_eq!(AppointmentStatus::from_str("confirmed"), AppointmentStatus::Confirmed);
+        assert_eq!(
+            AppointmentStatus::from_str("confirmed"),
+            AppointmentStatus::Confirmed
+        );
         assert_eq!(AppointmentStatus::Confirmed.as_str(), "confirmed");
     }
 }

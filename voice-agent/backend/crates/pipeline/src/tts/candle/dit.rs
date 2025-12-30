@@ -12,8 +12,8 @@ use candle_nn::{linear, Linear, VarBuilder};
 use super::config::IndicF5Config;
 #[cfg(feature = "candle")]
 use super::modules::{
-    AdaLayerNorm, AdaLayerNormOutput, FeedForward, SelfAttention,
-    ConvNeXtV2Block, ConvPositionEmbedding, TimeEmbedding, InputEmbedding,
+    AdaLayerNorm, AdaLayerNormOutput, ConvNeXtV2Block, ConvPositionEmbedding, FeedForward,
+    InputEmbedding, SelfAttention, TimeEmbedding,
 };
 
 /// Single DiT Block with adaptive normalization
@@ -46,11 +46,8 @@ impl DiTBlock {
             config.rope_base,
             vb.pp("attn"),
         )?;
-        let ff_norm = super::modules::LayerNorm::new(
-            config.dim,
-            config.layer_norm_eps,
-            vb.pp("ff_norm"),
-        )?;
+        let ff_norm =
+            super::modules::LayerNorm::new(config.dim, config.layer_norm_eps, vb.pp("ff_norm"))?;
         let ff = FeedForward::new(config.dim, config.ff_mult, config.dropout, vb.pp("ff"))?;
 
         Ok(Self {
@@ -72,11 +69,8 @@ impl DiTBlock {
             config.rope_base,
             vb.pp("attn"),
         )?;
-        let ff_norm = super::modules::LayerNorm::load(
-            config.dim,
-            config.layer_norm_eps,
-            vb.pp("ff_norm"),
-        )?;
+        let ff_norm =
+            super::modules::LayerNorm::load(config.dim, config.layer_norm_eps, vb.pp("ff_norm"))?;
         let ff = FeedForward::load(config.dim, config.ff_mult, config.dropout, vb.pp("ff"))?;
 
         Ok(Self {
@@ -94,12 +88,7 @@ impl DiTBlock {
     ///   x: [batch, seq_len, dim] - input features
     ///   time_cond: [batch, dim] - time conditioning
     ///   mask: Optional attention mask
-    pub fn forward(
-        &self,
-        x: &Tensor,
-        time_cond: &Tensor,
-        mask: Option<&Tensor>,
-    ) -> Result<Tensor> {
+    pub fn forward(&self, x: &Tensor, time_cond: &Tensor, mask: Option<&Tensor>) -> Result<Tensor> {
         // Get adaptive normalization outputs
         let AdaLayerNormOutput {
             x_norm,
@@ -371,12 +360,7 @@ impl SimpleDiT {
         })
     }
 
-    pub fn forward(
-        &self,
-        x: &Tensor,
-        time_cond: &Tensor,
-        mask: Option<&Tensor>,
-    ) -> Result<Tensor> {
+    pub fn forward(&self, x: &Tensor, time_cond: &Tensor, mask: Option<&Tensor>) -> Result<Tensor> {
         let mut x = x.clone();
         for block in &self.transformer_blocks {
             x = block.forward(&x, time_cond, mask)?;

@@ -2,16 +2,16 @@
 //!
 //! Dense vector storage and similarity search.
 
-use std::collections::HashMap;
 use qdrant_client::{
-    Qdrant,
     qdrant::{
-        CreateCollectionBuilder, Distance, VectorParamsBuilder,
-        PointStruct, SearchPointsBuilder, Filter, Condition, FieldCondition, Match,
-        value::Kind, PointId, DeletePointsBuilder, PointsIdsList, UpsertPointsBuilder,
+        value::Kind, Condition, CreateCollectionBuilder, DeletePointsBuilder, Distance,
+        FieldCondition, Filter, Match, PointId, PointStruct, PointsIdsList, SearchPointsBuilder,
+        UpsertPointsBuilder, VectorParamsBuilder,
     },
+    Qdrant,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::RagError;
 
@@ -119,7 +119,8 @@ impl VectorStore {
 
     /// Create collection if not exists
     pub async fn ensure_collection(&self) -> Result<(), RagError> {
-        let exists = self.client
+        let exists = self
+            .client
             .collection_exists(&self.config.collection)
             .await
             .map_err(|e| RagError::VectorStore(e.to_string()))?;
@@ -127,13 +128,12 @@ impl VectorStore {
         if !exists {
             self.client
                 .create_collection(
-                    CreateCollectionBuilder::new(&self.config.collection)
-                        .vectors_config(
-                            VectorParamsBuilder::new(
-                                self.config.vector_dim as u64,
-                                Distance::from(self.config.distance),
-                            )
-                        )
+                    CreateCollectionBuilder::new(&self.config.collection).vectors_config(
+                        VectorParamsBuilder::new(
+                            self.config.vector_dim as u64,
+                            Distance::from(self.config.distance),
+                        ),
+                    ),
                 )
                 .await
                 .map_err(|e| RagError::VectorStore(e.to_string()))?;
@@ -175,18 +175,12 @@ impl VectorStore {
                     payload.insert(k.clone(), v.clone().into());
                 }
 
-                PointStruct::new(
-                    doc.id.clone(),
-                    emb.clone(),
-                    payload,
-                )
+                PointStruct::new(doc.id.clone(), emb.clone(), payload)
             })
             .collect();
 
         self.client
-            .upsert_points(
-                UpsertPointsBuilder::new(&self.config.collection, points)
-            )
+            .upsert_points(UpsertPointsBuilder::new(&self.config.collection, points))
             .await
             .map_err(|e| RagError::VectorStore(e.to_string()))?;
 
@@ -206,18 +200,21 @@ impl VectorStore {
             &self.config.collection,
             query_embedding.to_vec(),
             top_k as u64,
-        ).with_payload(true);
+        )
+        .with_payload(true);
 
         if let Some(f) = qdrant_filter {
             search_builder = search_builder.filter(f);
         }
 
-        let results = self.client
+        let results = self
+            .client
             .search_points(search_builder)
             .await
             .map_err(|e| RagError::Search(e.to_string()))?;
 
-        let search_results: Vec<VectorSearchResult> = results.result
+        let search_results: Vec<VectorSearchResult> = results
+            .result
             .into_iter()
             .map(|point| {
                 let mut metadata = HashMap::new();
@@ -233,13 +230,16 @@ impl VectorStore {
                     }
                 }
 
-                let id = point.id.map(|pid| {
-                    match pid.point_id_options {
+                let id = point
+                    .id
+                    .map(|pid| match pid.point_id_options {
                         Some(qdrant_client::qdrant::point_id::PointIdOptions::Uuid(u)) => u,
-                        Some(qdrant_client::qdrant::point_id::PointIdOptions::Num(n)) => n.to_string(),
+                        Some(qdrant_client::qdrant::point_id::PointIdOptions::Num(n)) => {
+                            n.to_string()
+                        },
                         None => String::new(),
-                    }
-                }).unwrap_or_default();
+                    })
+                    .unwrap_or_default();
 
                 VectorSearchResult {
                     id,
@@ -255,15 +255,12 @@ impl VectorStore {
 
     /// Delete by IDs
     pub async fn delete(&self, ids: &[String]) -> Result<(), RagError> {
-        let points: Vec<PointId> = ids
-            .iter()
-            .map(|id| PointId::from(id.clone()))
-            .collect();
+        let points: Vec<PointId> = ids.iter().map(|id| PointId::from(id.clone())).collect();
 
         self.client
             .delete_points(
                 DeletePointsBuilder::new(&self.config.collection)
-                    .points(PointsIdsList { ids: points })
+                    .points(PointsIdsList { ids: points }),
             )
             .await
             .map_err(|e| RagError::VectorStore(e.to_string()))?;
@@ -273,12 +270,14 @@ impl VectorStore {
 
     /// Get collection info
     pub async fn collection_info(&self) -> Result<CollectionInfo, RagError> {
-        let info = self.client
+        let info = self
+            .client
             .collection_info(&self.config.collection)
             .await
             .map_err(|e| RagError::VectorStore(e.to_string()))?;
 
-        let points_count = info.result
+        let points_count = info
+            .result
             .map(|r| r.points_count.unwrap_or(0))
             .unwrap_or(0);
 
@@ -330,33 +329,33 @@ impl SearchFilter {
 
         if let Some(category) = self.category {
             conditions.push(Condition {
-                condition_one_of: Some(
-                    qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition {
+                condition_one_of: Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(
+                    FieldCondition {
                         key: "category".to_string(),
                         r#match: Some(Match {
-                            match_value: Some(
-                                qdrant_client::qdrant::r#match::MatchValue::Keyword(category),
-                            ),
+                            match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(
+                                category,
+                            )),
                         }),
                         ..Default::default()
-                    }),
-                ),
+                    },
+                )),
             });
         }
 
         if let Some(language) = self.language {
             conditions.push(Condition {
-                condition_one_of: Some(
-                    qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition {
+                condition_one_of: Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(
+                    FieldCondition {
                         key: "language".to_string(),
                         r#match: Some(Match {
-                            match_value: Some(
-                                qdrant_client::qdrant::r#match::MatchValue::Keyword(language),
-                            ),
+                            match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(
+                                language,
+                            )),
                         }),
                         ..Default::default()
-                    }),
-                ),
+                    },
+                )),
             });
         }
 
@@ -386,9 +385,7 @@ mod tests {
 
     #[test]
     fn test_search_filter() {
-        let filter = SearchFilter::new()
-            .category("product")
-            .language("hi");
+        let filter = SearchFilter::new().category("product").language("hi");
 
         assert_eq!(filter.category, Some("product".to_string()));
         assert_eq!(filter.language, Some("hi".to_string()));

@@ -1,9 +1,9 @@
 //! India-specific PII regex patterns
 
-use regex::Regex;
-use voice_agent_core::PIIType;
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use std::collections::HashMap;
+use voice_agent_core::PIIType;
 
 /// Compiled PII patterns for India
 pub static INDIAN_PII_PATTERNS: Lazy<HashMap<PIIType, CompiledPattern>> = Lazy::new(|| {
@@ -157,7 +157,8 @@ impl IndianPIIPatterns {
     /// Find all matches of a PII type in text
     pub fn find_matches(text: &str, pii_type: PIIType) -> Vec<PatternMatch> {
         if let Some(pattern) = INDIAN_PII_PATTERNS.get(&pii_type) {
-            pattern.regex
+            pattern
+                .regex
                 .find_iter(text)
                 .map(|m| PatternMatch {
                     pii_type,
@@ -410,7 +411,10 @@ mod tests {
         // Construct full number and verify
         let check = check_digit.unwrap();
         let full_number = format!("23456789012{}", check);
-        assert!(IndianPIIPatterns::validate_aadhaar(&full_number), "Generated number should be valid");
+        assert!(
+            IndianPIIPatterns::validate_aadhaar(&full_number),
+            "Generated number should be valid"
+        );
     }
 
     #[test]
@@ -435,7 +439,10 @@ mod tests {
 
         // Format with spaces: XXXX XXXX XXXX
         let with_spaces = format!("2345 6789 012{}", check_digit);
-        assert!(IndianPIIPatterns::validate_aadhaar(&with_spaces), "Number with spaces should be valid");
+        assert!(
+            IndianPIIPatterns::validate_aadhaar(&with_spaces),
+            "Number with spaces should be valid"
+        );
     }
 
     #[test]
@@ -452,8 +459,14 @@ mod tests {
         // Build full number and validate
         let mut full_digits = digits.clone();
         full_digits.push(check_digit);
-        let number_str: String = full_digits.iter().map(|d| char::from_digit(*d, 10).unwrap()).collect();
-        assert!(IndianPIIPatterns::validate_aadhaar(&number_str), "Number with generated checksum should be valid");
+        let number_str: String = full_digits
+            .iter()
+            .map(|d| char::from_digit(*d, 10).unwrap())
+            .collect();
+        assert!(
+            IndianPIIPatterns::validate_aadhaar(&number_str),
+            "Number with generated checksum should be valid"
+        );
     }
 
     #[test]
@@ -468,6 +481,9 @@ mod tests {
 
         // Change one digit (not the first or check digit)
         let invalid_number = format!("23456789022{}", check);
-        assert!(!IndianPIIPatterns::validate_aadhaar(&invalid_number), "Single digit change should invalidate");
+        assert!(
+            !IndianPIIPatterns::validate_aadhaar(&invalid_number),
+            "Single digit change should invalidate"
+        );
     }
 }

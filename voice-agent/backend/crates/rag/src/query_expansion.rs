@@ -5,8 +5,8 @@
 //! - Hindi/Hinglish transliterations
 //! - Related terms and concepts
 
-use std::collections::HashMap;
 use parking_lot::RwLock;
+use std::collections::HashMap;
 
 /// Query expansion configuration
 #[derive(Debug, Clone)]
@@ -159,7 +159,10 @@ impl QueryExpander {
 
         let mut syn_map = self.synonyms.write();
         for (term, syns) in synonyms {
-            syn_map.insert(term.to_string(), syns.iter().map(|s| s.to_string()).collect());
+            syn_map.insert(
+                term.to_string(),
+                syns.iter().map(|s| s.to_string()).collect(),
+            );
         }
 
         // Hindi-Roman transliterations
@@ -187,16 +190,28 @@ impl QueryExpander {
 
         let mut trans_map = self.transliterations.write();
         for (term, trans) in transliterations {
-            trans_map.insert(term.to_string(), trans.iter().map(|s| s.to_string()).collect());
+            trans_map.insert(
+                term.to_string(),
+                trans.iter().map(|s| s.to_string()).collect(),
+            );
         }
 
         // Domain-specific expansions
         let domain_terms = vec![
             // Gold loan specific
             ("gold loan", vec!["sona loan", "gold karza", "jewel loan"]),
-            ("interest rate", vec!["byaj dar", "rate of interest", "loan rate"]),
-            ("eligibility criteria", vec!["patrta", "who can apply", "requirements"]),
-            ("loan amount", vec!["kitna milega", "how much", "maximum loan"]),
+            (
+                "interest rate",
+                vec!["byaj dar", "rate of interest", "loan rate"],
+            ),
+            (
+                "eligibility criteria",
+                vec!["patrta", "who can apply", "requirements"],
+            ),
+            (
+                "loan amount",
+                vec!["kitna milega", "how much", "maximum loan"],
+            ),
             ("processing fee", vec!["charges", "fees", "cost"]),
             ("repayment", vec!["chukana", "pay back", "return loan"]),
             // Questions patterns
@@ -208,7 +223,10 @@ impl QueryExpander {
 
         let mut domain_map = self.domain_terms.write();
         for (term, expansions) in domain_terms {
-            domain_map.insert(term.to_string(), expansions.iter().map(|s| s.to_string()).collect());
+            domain_map.insert(
+                term.to_string(),
+                expansions.iter().map(|s| s.to_string()).collect(),
+            );
         }
     }
 
@@ -370,7 +388,10 @@ mod tests {
         let expanded = expander.expand("gold eligibility");
 
         // Should expand "gold" to include "sona"
-        assert!(expanded.terms.iter().any(|t| t.term == "sona" && t.source == TermSource::Synonym));
+        assert!(expanded
+            .terms
+            .iter()
+            .any(|t| t.term == "sona" && t.source == TermSource::Synonym));
     }
 
     #[test]
@@ -379,7 +400,10 @@ mod tests {
         let expanded = expander.expand("sona loan");
 
         // "sona" should be transliterated
-        assert!(expanded.terms.iter().any(|t| t.source == TermSource::Transliteration));
+        assert!(expanded
+            .terms
+            .iter()
+            .any(|t| t.source == TermSource::Transliteration));
     }
 
     #[test]
@@ -427,8 +451,14 @@ mod tests {
         let expanded = expander.expand("loan");
 
         // Original term should have higher weight than expansions
-        let original = expanded.terms.iter().find(|t| t.term == "loan" && t.source == TermSource::Original);
-        let expansion = expanded.terms.iter().find(|t| t.source == TermSource::Synonym);
+        let original = expanded
+            .terms
+            .iter()
+            .find(|t| t.term == "loan" && t.source == TermSource::Original);
+        let expansion = expanded
+            .terms
+            .iter()
+            .find(|t| t.source == TermSource::Synonym);
 
         if let (Some(orig), Some(exp)) = (original, expansion) {
             assert!(orig.weight > exp.weight);

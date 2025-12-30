@@ -10,8 +10,8 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::PipelineError;
 use super::SttEngine;
+use crate::PipelineError;
 
 /// Vocabulary for STT decoding
 #[derive(Debug, Clone)]
@@ -31,33 +31,39 @@ pub struct Vocabulary {
 impl Vocabulary {
     /// Create vocabulary from token list
     pub fn new(tokens: Vec<String>) -> Self {
-        let token_to_id: HashMap<String, u32> = tokens.iter()
+        let token_to_id: HashMap<String, u32> = tokens
+            .iter()
             .enumerate()
             .map(|(i, s)| (s.clone(), i as u32))
             .collect();
 
         // Find special tokens
-        let blank_id = token_to_id.get("<blank>")
+        let blank_id = token_to_id
+            .get("<blank>")
             .or_else(|| token_to_id.get("<pad>"))
             .or_else(|| token_to_id.get("[PAD]"))
             .copied()
             .unwrap_or(0);
 
-        let unk_id = token_to_id.get("<unk>")
+        let unk_id = token_to_id
+            .get("<unk>")
             .or_else(|| token_to_id.get("[UNK]"))
             .copied()
             .unwrap_or(1);
 
-        let pad_id = token_to_id.get("<pad>")
+        let pad_id = token_to_id
+            .get("<pad>")
             .or_else(|| token_to_id.get("[PAD]"))
             .copied();
 
-        let bos_id = token_to_id.get("<s>")
+        let bos_id = token_to_id
+            .get("<s>")
             .or_else(|| token_to_id.get("<bos>"))
             .or_else(|| token_to_id.get("[BOS]"))
             .copied();
 
-        let eos_id = token_to_id.get("</s>")
+        let eos_id = token_to_id
+            .get("</s>")
             .or_else(|| token_to_id.get("<eos>"))
             .or_else(|| token_to_id.get("[EOS]"))
             .copied();
@@ -120,7 +126,10 @@ impl Vocabulary {
 }
 
 /// Load vocabulary for specific engine
-pub fn load_vocabulary(engine: &SttEngine, model_dir: Option<&Path>) -> Result<Vocabulary, PipelineError> {
+pub fn load_vocabulary(
+    engine: &SttEngine,
+    model_dir: Option<&Path>,
+) -> Result<Vocabulary, PipelineError> {
     match engine {
         SttEngine::Whisper => load_whisper_vocab(model_dir),
         SttEngine::IndicConformer => load_indicconformer_vocab(model_dir),
@@ -146,21 +155,23 @@ fn load_whisper_vocab(model_dir: Option<&Path>) -> Result<Vocabulary, PipelineEr
 
     // Return default Whisper vocabulary (placeholder tokens)
     // Whisper has 51865 tokens
-    let tokens: Vec<String> = (0..51865).map(|i| {
-        match i {
-            0 => "<|endoftext|>".to_string(),
-            1 => "<|startoftranscript|>".to_string(),
-            2 => "<|en|>".to_string(),  // English
-            3 => "<|hi|>".to_string(),  // Hindi
-            50257 => "<|translate|>".to_string(),
-            50258 => "<|transcribe|>".to_string(),
-            50259 => "<|startoflm|>".to_string(),
-            50260 => "<|startofprev|>".to_string(),
-            50261 => "<|nospeech|>".to_string(),
-            50262 => "<|notimestamps|>".to_string(),
-            _ => format!("<tok_{}>", i),
-        }
-    }).collect();
+    let tokens: Vec<String> = (0..51865)
+        .map(|i| {
+            match i {
+                0 => "<|endoftext|>".to_string(),
+                1 => "<|startoftranscript|>".to_string(),
+                2 => "<|en|>".to_string(), // English
+                3 => "<|hi|>".to_string(), // Hindi
+                50257 => "<|translate|>".to_string(),
+                50258 => "<|transcribe|>".to_string(),
+                50259 => "<|startoflm|>".to_string(),
+                50260 => "<|startofprev|>".to_string(),
+                50261 => "<|nospeech|>".to_string(),
+                50262 => "<|notimestamps|>".to_string(),
+                _ => format!("<tok_{}>", i),
+            }
+        })
+        .collect();
 
     Ok(Vocabulary::new(tokens))
 }
@@ -238,10 +249,37 @@ fn load_indicconformer_vocab(model_dir: Option<&Path>) -> Result<Vocabulary, Pip
 
     // Common Hindi subwords (placeholder)
     let common_subwords = [
-        "▁", "▁क", "▁म", "▁ह", "▁स", "▁न", "▁प", "▁ब", "▁त", "▁र",
-        "▁गो", "▁लो", "▁का", "▁को", "▁की", "▁के", "▁है", "▁हैं",
-        "▁में", "▁से", "▁पर", "▁और", "▁या", "▁लोन", "▁गोल्ड",
-        "▁ब्याज", "▁दर", "▁राशि", "▁रुपये", "▁ब्रांच", "▁कोटक",
+        "▁",
+        "▁क",
+        "▁म",
+        "▁ह",
+        "▁स",
+        "▁न",
+        "▁प",
+        "▁ब",
+        "▁त",
+        "▁र",
+        "▁गो",
+        "▁लो",
+        "▁का",
+        "▁को",
+        "▁की",
+        "▁के",
+        "▁है",
+        "▁हैं",
+        "▁में",
+        "▁से",
+        "▁पर",
+        "▁और",
+        "▁या",
+        "▁लोन",
+        "▁गोल्ड",
+        "▁ब्याज",
+        "▁दर",
+        "▁राशि",
+        "▁रुपये",
+        "▁ब्रांच",
+        "▁कोटक",
     ];
     for subword in common_subwords {
         tokens.push(subword.to_string());
@@ -267,11 +305,11 @@ fn load_wav2vec2_vocab(model_dir: Option<&Path>) -> Result<Vocabulary, PipelineE
     // Character-based vocabulary for Wav2Vec2
     let mut tokens = Vec::with_capacity(100);
 
-    tokens.push("<pad>".to_string());    // 0: padding/blank
-    tokens.push("<s>".to_string());      // 1: start
-    tokens.push("</s>".to_string());     // 2: end
-    tokens.push("<unk>".to_string());    // 3: unknown
-    tokens.push("|".to_string());        // 4: word boundary
+    tokens.push("<pad>".to_string()); // 0: padding/blank
+    tokens.push("<s>".to_string()); // 1: start
+    tokens.push("</s>".to_string()); // 2: end
+    tokens.push("<unk>".to_string()); // 3: unknown
+    tokens.push("|".to_string()); // 4: word boundary
 
     // Lowercase letters
     for c in 'a'..='z' {
@@ -311,7 +349,8 @@ fn load_tokenizer_json(path: &Path) -> Result<Vocabulary, PipelineError> {
         .map_err(|e| PipelineError::Io(format!("Failed to parse tokenizer JSON: {}", e)))?;
 
     // Extract vocab from model.vocab
-    let vocab = tokenizer.get("model")
+    let vocab = tokenizer
+        .get("model")
         .and_then(|m| m.get("vocab"))
         .ok_or_else(|| PipelineError::Io("Invalid tokenizer.json format".to_string()))?;
 
@@ -332,7 +371,8 @@ fn load_text_vocab(path: &Path) -> Result<Vocabulary, PipelineError> {
         .map_err(|e| PipelineError::Io(format!("Failed to open vocab file: {}", e)))?;
 
     let reader = BufReader::new(file);
-    let tokens: Vec<String> = reader.lines()
+    let tokens: Vec<String> = reader
+        .lines()
         .filter_map(|line| line.ok())
         .filter(|line| !line.is_empty())
         .collect();
@@ -346,7 +386,8 @@ fn load_sentencepiece_vocab(path: &Path) -> Result<Vocabulary, PipelineError> {
         .map_err(|e| PipelineError::Io(format!("Failed to open SentencePiece vocab: {}", e)))?;
 
     let reader = BufReader::new(file);
-    let tokens: Vec<String> = reader.lines()
+    let tokens: Vec<String> = reader
+        .lines()
         .filter_map(|line| line.ok())
         .filter_map(|line| {
             // Format: token\tscore
@@ -363,7 +404,8 @@ pub fn load_domain_vocab(path: &Path) -> Result<Vec<String>, PipelineError> {
         .map_err(|e| PipelineError::Io(format!("Failed to open domain vocab: {}", e)))?;
 
     let reader = BufReader::new(file);
-    let terms: Vec<String> = reader.lines()
+    let terms: Vec<String> = reader
+        .lines()
         .filter_map(|line| line.ok())
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .collect();
@@ -377,7 +419,11 @@ mod tests {
 
     #[test]
     fn test_vocabulary_creation() {
-        let tokens = vec!["<blank>".to_string(), "<unk>".to_string(), "hello".to_string()];
+        let tokens = vec![
+            "<blank>".to_string(),
+            "<unk>".to_string(),
+            "hello".to_string(),
+        ];
         let vocab = Vocabulary::new(tokens);
 
         assert_eq!(vocab.size(), 3);

@@ -4,7 +4,7 @@
 //!
 //! Run with: cargo bench -p voice-agent-agent --bench voice_pipeline_bench
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::collections::HashMap;
 
 // =============================================================================
@@ -12,26 +12,20 @@ use std::collections::HashMap;
 // =============================================================================
 
 fn bench_audio_resampling(c: &mut Criterion) {
-    use voice_agent_core::audio::{AudioFrame, SampleRate, Channels};
+    use voice_agent_core::audio::{AudioFrame, Channels, SampleRate};
 
     let mut group = c.benchmark_group("audio_resampling");
 
     // Test different frame sizes
     for frame_size in [160, 320, 480, 960, 1920].iter() {
-        let samples: Vec<f32> = (0..*frame_size)
-            .map(|i| (i as f32 * 0.01).sin())
-            .collect();
+        let samples: Vec<f32> = (0..*frame_size).map(|i| (i as f32 * 0.01).sin()).collect();
         let frame = AudioFrame::new(samples, SampleRate::Hz16000, Channels::Mono, 0);
 
         group.throughput(Throughput::Elements(*frame_size as u64));
         group.bench_with_input(
             BenchmarkId::new("rubato_16k_to_22k", frame_size),
             &frame,
-            |b, frame| {
-                b.iter(|| {
-                    frame.resample(SampleRate::Hz22050)
-                })
-            },
+            |b, frame| b.iter(|| frame.resample(SampleRate::Hz22050)),
         );
     }
 
@@ -103,11 +97,13 @@ fn bench_intent_detection(c: &mut Criterion) {
 
     // Long English query
     group.bench_function("long_english", |b| {
-        b.iter(|| detector.detect(
-            "I am currently paying 18% interest on my gold loan from Muthoot Finance \
+        b.iter(|| {
+            detector.detect(
+                "I am currently paying 18% interest on my gold loan from Muthoot Finance \
              and I heard Kotak offers better rates. Can you tell me how much I could save \
-             if I transfer my loan of 5 lakh rupees?"
-        ))
+             if I transfer my loan of 5 lakh rupees?",
+            )
+        })
     });
 
     // Hindi query
@@ -117,7 +113,9 @@ fn bench_intent_detection(c: &mut Criterion) {
 
     // Mixed Hindi-English (code-switching)
     group.bench_function("hinglish_query", |b| {
-        b.iter(|| detector.detect("Mujhe 5 lakh ka gold loan chahiye, Muthoot se transfer karna hai"))
+        b.iter(|| {
+            detector.detect("Mujhe 5 lakh ka gold loan chahiye, Muthoot se transfer karna hai")
+        })
     });
 
     group.finish();
@@ -128,7 +126,7 @@ fn bench_intent_detection(c: &mut Criterion) {
 // =============================================================================
 
 fn bench_rag(c: &mut Criterion) {
-    use voice_agent_rag::{RetrieverConfig, RerankerConfig};
+    use voice_agent_rag::{RerankerConfig, RetrieverConfig};
 
     let mut group = c.benchmark_group("rag");
 
@@ -165,8 +163,8 @@ fn bench_rag(c: &mut Criterion) {
 // =============================================================================
 
 fn bench_tools(c: &mut Criterion) {
-    use voice_agent_tools::{EligibilityCheckTool, SavingsCalculatorTool, Tool};
     use serde_json::json;
+    use voice_agent_tools::{EligibilityCheckTool, SavingsCalculatorTool, Tool};
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let mut group = c.benchmark_group("tools");
@@ -179,9 +177,8 @@ fn bench_tools(c: &mut Criterion) {
     });
 
     group.bench_function("eligibility_check", |b| {
-        b.to_async(&rt).iter(|| async {
-            eligibility_tool.execute(eligibility_input.clone()).await
-        })
+        b.to_async(&rt)
+            .iter(|| async { eligibility_tool.execute(eligibility_input.clone()).await })
     });
 
     // Savings calculator tool
@@ -194,9 +191,8 @@ fn bench_tools(c: &mut Criterion) {
     });
 
     group.bench_function("savings_calculator", |b| {
-        b.to_async(&rt).iter(|| async {
-            savings_tool.execute(savings_input.clone()).await
-        })
+        b.to_async(&rt)
+            .iter(|| async { savings_tool.execute(savings_input.clone()).await })
     });
 
     // Tool timeout retrieval (new P5 feature)
@@ -254,9 +250,7 @@ fn bench_memory(c: &mut Criterion) {
         b.iter(|| memory2.get_context())
     });
 
-    group.bench_function("get_stats", |b| {
-        b.iter(|| memory2.get_stats())
-    });
+    group.bench_function("get_stats", |b| b.iter(|| memory2.get_stats()));
 
     // P1 FIX: Cleanup benchmark
     group.bench_function("needs_cleanup_check", |b| {
@@ -271,7 +265,7 @@ fn bench_memory(c: &mut Criterion) {
 // =============================================================================
 
 fn bench_stage_manager(c: &mut Criterion) {
-    use voice_agent_agent::{StageManager, ConversationStage, TransitionReason};
+    use voice_agent_agent::{ConversationStage, StageManager, TransitionReason};
 
     let mut group = c.benchmark_group("stage_manager");
 
@@ -306,9 +300,7 @@ fn bench_stage_manager(c: &mut Criterion) {
 
     group.bench_function("rag_timing_should_prefetch", |b| {
         let strategy = RagTimingStrategy::StageAware;
-        b.iter(|| {
-            strategy.should_prefetch(0.8, ConversationStage::Presentation)
-        })
+        b.iter(|| strategy.should_prefetch(0.8, ConversationStage::Presentation))
     });
 
     // Context budget calculation
@@ -358,9 +350,8 @@ fn bench_voice_session(c: &mut Criterion) {
         let audio_chunk: Vec<f32> = (0..320).map(|i| (i as f32 * 0.1).sin() * 0.3).collect();
 
         group.bench_function("process_audio_320", |b| {
-            b.to_async(&rt).iter(|| async {
-                session.process_audio(&audio_chunk).await
-            })
+            b.to_async(&rt)
+                .iter(|| async { session.process_audio(&audio_chunk).await })
         });
     }
 

@@ -6,10 +6,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::embeddings::{EmbeddingConfig, SimpleEmbedder};
-use crate::vector_store::{VectorStore, SearchFilter};
-use crate::sparse_search::SparseIndex;
-use crate::reranker::{RerankerConfig, SimpleScorer, EarlyExitReranker};
 use crate::query_expansion::QueryExpander;
+use crate::reranker::{EarlyExitReranker, RerankerConfig, SimpleScorer};
+use crate::sparse_search::SparseIndex;
+use crate::vector_store::{SearchFilter, VectorStore};
 use crate::RagError;
 
 /// Retriever configuration
@@ -180,18 +180,19 @@ impl HybridRetriever {
         vector_store: &VectorStore,
         filter: Option<SearchFilter>,
     ) -> Result<Vec<SearchResult>, RagError> {
-        let embedder = self.embedder.as_ref()
+        let embedder = self
+            .embedder
+            .as_ref()
             .ok_or_else(|| RagError::Embedding("No embedder configured".to_string()))?;
 
         // P1 FIX: Run embedding in spawn_blocking to avoid blocking the async runtime
         // ONNX inference is CPU-intensive and should not block the tokio worker threads
         let embedder_clone = Arc::clone(embedder);
         let query_owned = query.to_string();
-        let query_embedding = tokio::task::spawn_blocking(move || {
-            embedder_clone.embed(&query_owned)
-        })
-        .await
-        .map_err(|e| RagError::Embedding(format!("Embedding task failed: {}", e)))?;
+        let query_embedding =
+            tokio::task::spawn_blocking(move || embedder_clone.embed(&query_owned))
+                .await
+                .map_err(|e| RagError::Embedding(format!("Embedding task failed: {}", e)))?;
 
         let results = vector_store
             .search(&query_embedding, self.config.dense_top_k, filter)
@@ -212,7 +213,9 @@ impl HybridRetriever {
 
     /// Search with sparse retrieval only
     pub fn search_sparse(&self, query: &str) -> Result<Vec<SearchResult>, RagError> {
-        let sparse = self.sparse_index.as_ref()
+        let sparse = self
+            .sparse_index
+            .as_ref()
             .ok_or_else(|| RagError::Search("No sparse index configured".to_string()))?;
 
         let results = sparse.search(query, Some(self.config.sparse_top_k))?;
@@ -271,7 +274,7 @@ impl HybridRetriever {
                             source: SearchSource::Sparse,
                             exit_layer: None,
                         })
-                        .collect()
+                        .collect(),
                 )
             } else {
                 Ok(Vec::new())
@@ -303,11 +306,7 @@ impl HybridRetriever {
     }
 
     /// Reciprocal Rank Fusion
-    fn rrf_fusion(
-        &self,
-        dense: &[SearchResult],
-        sparse: &[SearchResult],
-    ) -> Vec<SearchResult> {
+    fn rrf_fusion(&self, dense: &[SearchResult], sparse: &[SearchResult]) -> Vec<SearchResult> {
         let mut scores: HashMap<String, (f32, SearchResult)> = HashMap::new();
 
         // Add dense results with RRF scores
@@ -315,7 +314,8 @@ impl HybridRetriever {
             let rrf_score = 1.0 / (self.config.rrf_k + rank as f32 + 1.0);
             let weighted = rrf_score * self.config.dense_weight;
 
-            scores.entry(result.id.clone())
+            scores
+                .entry(result.id.clone())
                 .and_modify(|(s, _)| *s += weighted)
                 .or_insert((weighted, result.clone()));
         }
@@ -326,7 +326,8 @@ impl HybridRetriever {
             let rrf_score = 1.0 / (self.config.rrf_k + rank as f32 + 1.0);
             let weighted = rrf_score * sparse_weight;
 
-            scores.entry(result.id.clone())
+            scores
+                .entry(result.id.clone())
                 .and_modify(|(s, r)| {
                     *s += weighted;
                     r.source = SearchSource::Hybrid;
@@ -355,7 +356,11 @@ impl HybridRetriever {
     ///
     /// P0 FIX: Now properly uses EarlyExitReranker when available,
     /// with SimpleScorer as fallback when model is not loaded.
-    fn rerank(&self, query: &str, results: Vec<SearchResult>) -> Result<Vec<SearchResult>, RagError> {
+    fn rerank(
+        &self,
+        query: &str,
+        results: Vec<SearchResult>,
+    ) -> Result<Vec<SearchResult>, RagError> {
         // Try to use EarlyExitReranker if available
         if let Some(ref reranker) = self.reranker {
             // Prepare documents for reranker
@@ -368,10 +373,8 @@ impl HybridRetriever {
             let rerank_results = reranker.rerank(query, &docs)?;
 
             // Map back to SearchResults with updated scores and exit layers
-            let id_to_result: HashMap<String, SearchResult> = results
-                .into_iter()
-                .map(|r| (r.id.clone(), r))
-                .collect();
+            let id_to_result: HashMap<String, SearchResult> =
+                results.into_iter().map(|r| (r.id.clone(), r)).collect();
 
             let mut final_results: Vec<SearchResult> = rerank_results
                 .into_iter()
@@ -437,18 +440,18 @@ impl HybridRetriever {
         }
 
         // Do a quick search with fewer results
-        let embedder = self.embedder.as_ref()
+        let embedder = self
+            .embedder
+            .as_ref()
             .ok_or_else(|| RagError::Embedding("No embedder configured".to_string()))?;
 
         let query = keywords.join(" ");
 
         // P1 FIX: Run embedding in spawn_blocking to avoid blocking the async runtime
         let embedder_clone = Arc::clone(embedder);
-        let embedding = tokio::task::spawn_blocking(move || {
-            embedder_clone.embed(&query)
-        })
-        .await
-        .map_err(|e| RagError::Embedding(format!("Embedding task failed: {}", e)))?;
+        let embedding = tokio::task::spawn_blocking(move || embedder_clone.embed(&query))
+            .await
+            .map_err(|e| RagError::Embedding(format!("Embedding task failed: {}", e)))?;
 
         // P2 FIX: Use configurable prefetch_top_k
         let results = vector_store
@@ -472,13 +475,13 @@ impl HybridRetriever {
     fn extract_keywords(text: &str) -> Vec<String> {
         // Simple keyword extraction - filter stopwords
         let stopwords: std::collections::HashSet<&str> = [
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "i", "you", "we", "they", "it", "this", "that",
-            "what", "which", "who", "whom", "whose",
-            "to", "for", "in", "on", "at", "by", "with", "from",
-            "and", "or", "but", "if", "then", "else",
-            "main", "mujhe", "hai", "hain", "ka", "ki", "ke", "ko",
-        ].into_iter().collect();
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "i", "you", "we", "they",
+            "it", "this", "that", "what", "which", "who", "whom", "whose", "to", "for", "in", "on",
+            "at", "by", "with", "from", "and", "or", "but", "if", "then", "else", "main", "mujhe",
+            "hai", "hain", "ka", "ki", "ke", "ko",
+        ]
+        .into_iter()
+        .collect();
 
         text.to_lowercase()
             .split_whitespace()
@@ -502,10 +505,7 @@ mod tests {
 
     #[test]
     fn test_rrf_fusion() {
-        let retriever = HybridRetriever::new(
-            RetrieverConfig::default(),
-            RerankerConfig::default(),
-        );
+        let retriever = HybridRetriever::new(RetrieverConfig::default(), RerankerConfig::default());
 
         let dense = vec![
             SearchResult {

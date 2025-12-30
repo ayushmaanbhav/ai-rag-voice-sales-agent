@@ -245,9 +245,11 @@ mod candle_impl {
             let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
             let attn_output = attn_weights.matmul(&v)?;
 
-            let attn_output = attn_output
-                .transpose(1, 2)?
-                .reshape((batch_size, tgt_len, self.num_heads * self.head_dim))?;
+            let attn_output = attn_output.transpose(1, 2)?.reshape((
+                batch_size,
+                tgt_len,
+                self.num_heads * self.head_dim,
+            ))?;
 
             self.out_proj.forward(&attn_output)
         }
@@ -285,7 +287,11 @@ mod candle_impl {
             })
         }
 
-        fn forward(&self, hidden_states: &Tensor, attention_mask: Option<&Tensor>) -> CandleResult<Tensor> {
+        fn forward(
+            &self,
+            hidden_states: &Tensor,
+            attention_mask: Option<&Tensor>,
+        ) -> CandleResult<Tensor> {
             let residual = hidden_states.clone();
 
             let hidden_states = if self.normalize_before {
@@ -294,9 +300,12 @@ mod candle_impl {
                 hidden_states.clone()
             };
 
-            let hidden_states =
-                self.self_attn
-                    .forward(&hidden_states, &hidden_states, &hidden_states, attention_mask)?;
+            let hidden_states = self.self_attn.forward(
+                &hidden_states,
+                &hidden_states,
+                &hidden_states,
+                attention_mask,
+            )?;
             let hidden_states = (residual + hidden_states)?;
 
             let hidden_states = if !self.normalize_before {
@@ -499,7 +508,11 @@ mod candle_impl {
             })
         }
 
-        fn forward(&self, input_ids: &Tensor, attention_mask: Option<&Tensor>) -> CandleResult<Tensor> {
+        fn forward(
+            &self,
+            input_ids: &Tensor,
+            attention_mask: Option<&Tensor>,
+        ) -> CandleResult<Tensor> {
             let (batch_size, seq_len) = input_ids.dims2()?;
 
             let inputs_embeds = self.embed_tokens.forward(input_ids)?;
@@ -512,7 +525,9 @@ mod candle_impl {
             let position_ids = Tensor::new(position_ids.as_slice(), input_ids.device())?;
             let positions = self.embed_positions.index_select(&position_ids, 0)?;
             let embed_dim = positions.dim(1)?;
-            let positions = positions.unsqueeze(0)?.broadcast_as((batch_size, seq_len, embed_dim))?;
+            let positions = positions
+                .unsqueeze(0)?
+                .broadcast_as((batch_size, seq_len, embed_dim))?;
 
             let mut hidden_states = inputs_embeds.add(&positions)?;
 
@@ -546,7 +561,7 @@ mod candle_impl {
                     let neg_inf = Tensor::new(&[f32::NEG_INFINITY], mask.device())?;
                     let mask = inverted.broadcast_mul(&neg_inf)?;
                     Ok(Some(mask))
-                }
+                },
                 None => Ok(None),
             }
         }
@@ -627,7 +642,9 @@ mod candle_impl {
             let position_ids = Tensor::new(positions.as_slice(), input_ids.device())?;
             let positions = self.embed_positions.index_select(&position_ids, 0)?;
             let embed_dim = positions.dim(1)?;
-            let positions = positions.unsqueeze(0)?.broadcast_as((batch_size, seq_len, embed_dim))?;
+            let positions = positions
+                .unsqueeze(0)?
+                .broadcast_as((batch_size, seq_len, embed_dim))?;
 
             let mut hidden_states = inputs_embeds.add(&positions)?;
 
@@ -636,7 +653,8 @@ mod candle_impl {
             }
 
             let causal_mask = self.create_causal_mask(seq_len, input_ids.device())?;
-            let encoder_attention_mask = self.prepare_encoder_attention_mask(encoder_attention_mask)?;
+            let encoder_attention_mask =
+                self.prepare_encoder_attention_mask(encoder_attention_mask)?;
 
             for layer in &self.layers {
                 hidden_states = layer.forward(
@@ -682,7 +700,7 @@ mod candle_impl {
                     let neg_inf = Tensor::new(&[f32::NEG_INFINITY], mask.device())?;
                     let mask = inverted.broadcast_mul(&neg_inf)?;
                     Ok(Some(mask))
-                }
+                },
                 None => Ok(None),
             }
         }
@@ -727,12 +745,9 @@ mod candle_impl {
             for _ in 0..max_length {
                 let decoder_input = Tensor::new(output_ids.as_slice(), device)?.unsqueeze(0)?;
 
-                let hidden_states = self.decoder.forward(
-                    &decoder_input,
-                    &encoder_output,
-                    attention_mask,
-                    0,
-                )?;
+                let hidden_states =
+                    self.decoder
+                        .forward(&decoder_input, &encoder_output, attention_mask, 0)?;
 
                 let logits = self.lm_head.forward(&hidden_states)?;
                 let last_logits = logits.i((0, output_ids.len() - 1))?;
@@ -773,14 +788,16 @@ mod candle_impl {
                 .map_err(|e| translation_error(format!("Failed to load target SPM: {}", e)))?;
 
             let src_vocab: HashMap<String, u32> = serde_json::from_str(
-                &std::fs::read_to_string(model_path.join("dict.SRC.json"))
-                    .map_err(|e| translation_error(format!("Failed to read source vocab: {}", e)))?,
+                &std::fs::read_to_string(model_path.join("dict.SRC.json")).map_err(|e| {
+                    translation_error(format!("Failed to read source vocab: {}", e))
+                })?,
             )
             .map_err(|e| translation_error(format!("Failed to parse source vocab: {}", e)))?;
 
             let tgt_vocab: HashMap<String, u32> = serde_json::from_str(
-                &std::fs::read_to_string(model_path.join("dict.TGT.json"))
-                    .map_err(|e| translation_error(format!("Failed to read target vocab: {}", e)))?,
+                &std::fs::read_to_string(model_path.join("dict.TGT.json")).map_err(|e| {
+                    translation_error(format!("Failed to read target vocab: {}", e))
+                })?,
             )
             .map_err(|e| translation_error(format!("Failed to parse target vocab: {}", e)))?;
 
@@ -806,7 +823,9 @@ mod candle_impl {
         }
 
         fn encode_source(&self, text: &str, src_lang: &str, tgt_lang: &str) -> Result<Vec<u32>> {
-            let pieces = self.src_spm.encode(text)
+            let pieces = self
+                .src_spm
+                .encode(text)
                 .map_err(|e| translation_error(format!("SPM encode failed: {}", e)))?;
 
             let mut ids = Vec::with_capacity(pieces.len() + 3);
@@ -873,8 +892,12 @@ mod candle_impl {
 
         fn insert(&mut self, text: &str, from: Language, to: Language, translation: String) {
             if self.entries.len() >= self.max_size {
-                let keys_to_remove: Vec<_> =
-                    self.entries.keys().take(self.max_size / 2).cloned().collect();
+                let keys_to_remove: Vec<_> = self
+                    .entries
+                    .keys()
+                    .take(self.max_size / 2)
+                    .cloned()
+                    .collect();
                 for key in keys_to_remove {
                     self.entries.remove(&key);
                 }
@@ -935,22 +958,35 @@ mod candle_impl {
             let model_config = IndicTrans2Config {
                 encoder_layers: config_json["encoder_layers"].as_u64().unwrap_or(18) as usize,
                 decoder_layers: config_json["decoder_layers"].as_u64().unwrap_or(18) as usize,
-                encoder_embed_dim: config_json["encoder_embed_dim"].as_u64().unwrap_or(512) as usize,
-                decoder_embed_dim: config_json["decoder_embed_dim"].as_u64().unwrap_or(512) as usize,
+                encoder_embed_dim: config_json["encoder_embed_dim"].as_u64().unwrap_or(512)
+                    as usize,
+                decoder_embed_dim: config_json["decoder_embed_dim"].as_u64().unwrap_or(512)
+                    as usize,
                 encoder_ffn_dim: config_json["encoder_ffn_dim"].as_u64().unwrap_or(2048) as usize,
                 decoder_ffn_dim: config_json["decoder_ffn_dim"].as_u64().unwrap_or(2048) as usize,
-                encoder_attention_heads: config_json["encoder_attention_heads"].as_u64().unwrap_or(8) as usize,
-                decoder_attention_heads: config_json["decoder_attention_heads"].as_u64().unwrap_or(8) as usize,
-                encoder_vocab_size: config_json["encoder_vocab_size"].as_u64().unwrap_or(32322) as usize,
-                decoder_vocab_size: config_json["decoder_vocab_size"].as_u64().unwrap_or(122672) as usize,
-                max_source_positions: config_json["max_source_positions"].as_u64().unwrap_or(256) as usize,
-                max_target_positions: config_json["max_target_positions"].as_u64().unwrap_or(256) as usize,
+                encoder_attention_heads: config_json["encoder_attention_heads"]
+                    .as_u64()
+                    .unwrap_or(8) as usize,
+                decoder_attention_heads: config_json["decoder_attention_heads"]
+                    .as_u64()
+                    .unwrap_or(8) as usize,
+                encoder_vocab_size: config_json["encoder_vocab_size"].as_u64().unwrap_or(32322)
+                    as usize,
+                decoder_vocab_size: config_json["decoder_vocab_size"].as_u64().unwrap_or(122672)
+                    as usize,
+                max_source_positions: config_json["max_source_positions"].as_u64().unwrap_or(256)
+                    as usize,
+                max_target_positions: config_json["max_target_positions"].as_u64().unwrap_or(256)
+                    as usize,
                 pad_token_id: config_json["pad_token_id"].as_u64().unwrap_or(1) as usize,
                 bos_token_id: config_json["bos_token_id"].as_u64().unwrap_or(0) as usize,
                 eos_token_id: config_json["eos_token_id"].as_u64().unwrap_or(2) as usize,
-                decoder_start_token_id: config_json["decoder_start_token_id"].as_u64().unwrap_or(2) as usize,
+                decoder_start_token_id: config_json["decoder_start_token_id"].as_u64().unwrap_or(2)
+                    as usize,
                 scale_embedding: config_json["scale_embedding"].as_bool().unwrap_or(true),
-                normalize_before: config_json["encoder_normalize_before"].as_bool().unwrap_or(true),
+                normalize_before: config_json["encoder_normalize_before"]
+                    .as_bool()
+                    .unwrap_or(true),
                 layernorm_embedding: config_json["layernorm_embedding"].as_bool().unwrap_or(true),
                 dropout: 0.0,
                 activation: Activation::Gelu,
@@ -992,7 +1028,8 @@ mod candle_impl {
                 .unsqueeze(0)
                 .map_err(to_translation_error)?;
 
-            let output_ids = model.generate(&input_tensor, None, self.config.max_length)
+            let output_ids = model
+                .generate(&input_tensor, None, self.config.max_length)
                 .map_err(to_translation_error)?;
 
             Ok(tokenizer.decode_target(&output_ids))
@@ -1029,7 +1066,12 @@ mod candle_impl {
 
     #[async_trait]
     impl Translator for CandleIndicTrans2Translator {
-        async fn translate(&self, text: &str, from: Language, to: Language) -> voice_agent_core::Result<String> {
+        async fn translate(
+            &self,
+            text: &str,
+            from: Language,
+            to: Language,
+        ) -> voice_agent_core::Result<String> {
             if from == to {
                 return Ok(text.to_string());
             }
@@ -1062,9 +1104,9 @@ mod candle_impl {
             to: Language,
         ) -> Pin<Box<dyn Stream<Item = voice_agent_core::Result<String>> + Send + 'a>> {
             use futures::StreamExt;
-            Box::pin(text_stream.then(move |text| async move {
-                self.translate(&text, from, to).await
-            }))
+            Box::pin(
+                text_stream.then(move |text| async move { self.translate(&text, from, to).await }),
+            )
         }
 
         fn supports_pair(&self, from: Language, to: Language) -> bool {
@@ -1108,7 +1150,12 @@ pub mod stub {
 
     #[async_trait]
     impl Translator for CandleIndicTrans2Translator {
-        async fn translate(&self, text: &str, _from: Language, _to: Language) -> voice_agent_core::Result<String> {
+        async fn translate(
+            &self,
+            text: &str,
+            _from: Language,
+            _to: Language,
+        ) -> voice_agent_core::Result<String> {
             Ok(text.to_string())
         }
 

@@ -2,18 +2,18 @@
 //!
 //! Supports chunked audio processing with partial results.
 
-use std::path::Path;
 use parking_lot::Mutex;
+use std::path::Path;
 
 #[cfg(feature = "onnx")]
 use ndarray::Array2;
 #[cfg(feature = "onnx")]
 use ort::{GraphOptimizationLevel, Session};
 
-use super::decoder::{EnhancedDecoder, DecoderConfig};
+use super::decoder::{DecoderConfig, EnhancedDecoder};
 use super::SttBackend;
 use crate::PipelineError;
-use voice_agent_core::{TranscriptResult, WordTimestamp, SampleRate};
+use voice_agent_core::{SampleRate, TranscriptResult, WordTimestamp};
 
 /// STT engine selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,15 +141,16 @@ impl StreamingStt {
     #[allow(dead_code)]
     fn load_vocab(engine: &SttEngine) -> Result<Vec<String>, PipelineError> {
         // Use the proper vocabulary loader
-        super::vocab::load_vocabulary(engine, None)
-            .map(|v| v.into_tokens())
+        super::vocab::load_vocabulary(engine, None).map(|v| v.into_tokens())
     }
 
     /// Load vocabulary from model directory
     #[allow(dead_code)]
-    fn load_vocab_from_dir(engine: &SttEngine, model_dir: &std::path::Path) -> Result<Vec<String>, PipelineError> {
-        super::vocab::load_vocabulary(engine, Some(model_dir))
-            .map(|v| v.into_tokens())
+    fn load_vocab_from_dir(
+        engine: &SttEngine,
+        model_dir: &std::path::Path,
+    ) -> Result<Vec<String>, PipelineError> {
+        super::vocab::load_vocabulary(engine, Some(model_dir)).map(|v| v.into_tokens())
     }
 
     /// Get chunk size in samples
@@ -186,15 +187,18 @@ impl StreamingStt {
     /// Process a single chunk
     #[cfg(feature = "onnx")]
     fn process_chunk_internal(&self, chunk: &[f32]) -> Result<(), PipelineError> {
-        let input = Array2::from_shape_vec(
-            (1, chunk.len()),
-            chunk.to_vec(),
-        ).map_err(|e| PipelineError::Stt(e.to_string()))?;
+        let input = Array2::from_shape_vec((1, chunk.len()), chunk.to_vec())
+            .map_err(|e| PipelineError::Stt(e.to_string()))?;
 
-        let outputs = self.session.run(ort::inputs![
-            "audio" => input.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "audio" => input.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         let logits = outputs
             .get("logits")
@@ -326,7 +330,10 @@ impl StreamingStt {
 
 #[async_trait::async_trait]
 impl SttBackend for StreamingStt {
-    async fn process_chunk(&mut self, audio: &[f32]) -> Result<Option<TranscriptResult>, PipelineError> {
+    async fn process_chunk(
+        &mut self,
+        audio: &[f32],
+    ) -> Result<Option<TranscriptResult>, PipelineError> {
         self.process(audio)
     }
 

@@ -1,17 +1,17 @@
 //! Unified text processing pipeline
 
-use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use voice_agent_core::{
-    GrammarCorrector, Translator, PIIRedactor, ComplianceChecker,
-    DomainContext, Language, RedactionStrategy, LanguageModel,
-};
 use crate::{
-    grammar::{self, GrammarConfig},
-    translation::{self, TranslationConfig, ScriptDetector},
-    pii::{self, PIIConfig},
     compliance::{self, ComplianceConfig},
+    grammar::{self, GrammarConfig},
+    pii::{self, PIIConfig},
+    translation::{self, ScriptDetector, TranslationConfig},
     Result, TextProcessingError,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use voice_agent_core::{
+    ComplianceChecker, DomainContext, GrammarCorrector, Language, LanguageModel, PIIRedactor,
+    RedactionStrategy, Translator,
 };
 
 /// Unified text processing pipeline
@@ -74,7 +74,8 @@ impl TextProcessingPipeline {
 
         // Step 2: Grammar correction
         if self.grammar_corrector.is_enabled() {
-            let corrected = self.grammar_corrector
+            let corrected = self
+                .grammar_corrector
                 .correct(&result.processed, &self.domain_context)
                 .await
                 .map_err(|e| TextProcessingError::GrammarError(e.to_string()))?;
@@ -94,10 +95,17 @@ impl TextProcessingPipeline {
         // Translate-Think-Translate pattern: translate to English for processing
         if self.config.translate_for_processing
             && result.detected_language != Language::English
-            && self.translator.supports_pair(result.detected_language, Language::English)
+            && self
+                .translator
+                .supports_pair(result.detected_language, Language::English)
         {
-            let translated = self.translator
-                .translate(&result.processed, result.detected_language, Language::English)
+            let translated = self
+                .translator
+                .translate(
+                    &result.processed,
+                    result.detected_language,
+                    Language::English,
+                )
                 .await
                 .map_err(|e| TextProcessingError::TranslationError(e.to_string()))?;
 
@@ -112,7 +120,8 @@ impl TextProcessingPipeline {
         }
 
         // Step 4: PII detection and redaction
-        let pii_entities = self.pii_detector
+        let pii_entities = self
+            .pii_detector
             .detect(&result.processed)
             .await
             .map_err(|e| TextProcessingError::PIIError(e.to_string()))?;
@@ -120,7 +129,8 @@ impl TextProcessingPipeline {
         if !pii_entities.is_empty() {
             result.pii_detected = true;
             let strategy: RedactionStrategy = self.config.pii.strategy.clone().into();
-            let redacted = self.pii_detector
+            let redacted = self
+                .pii_detector
                 .redact(&result.processed, &strategy)
                 .await
                 .map_err(|e| TextProcessingError::PIIError(e.to_string()))?;
@@ -135,7 +145,8 @@ impl TextProcessingPipeline {
         }
 
         // Step 5: Compliance check
-        let compliance_result = self.compliance_checker
+        let compliance_result = self
+            .compliance_checker
             .check(&result.processed)
             .await
             .map_err(|e| TextProcessingError::ComplianceError(e.to_string()))?;
@@ -143,7 +154,8 @@ impl TextProcessingPipeline {
         result.is_compliant = compliance_result.is_compliant;
 
         if !compliance_result.is_compliant || !compliance_result.required_additions.is_empty() {
-            let compliant_text = self.compliance_checker
+            let compliant_text = self
+                .compliance_checker
                 .make_compliant(&result.processed)
                 .await
                 .map_err(|e| TextProcessingError::ComplianceError(e.to_string()))?;
@@ -299,10 +311,17 @@ mod tests {
         let config = TextProcessingConfig::default();
         let pipeline = TextProcessingPipeline::new(config, None);
 
-        let result = pipeline.check_compliance("We offer competitive rates").await.unwrap();
+        let result = pipeline
+            .check_compliance("We offer competitive rates")
+            .await
+            .unwrap();
         // Should be compliant (no forbidden phrases)
-        assert!(result.is_compliant || !result.violations.iter().any(|v|
-            v.severity == voice_agent_core::Severity::Critical
-        ));
+        assert!(
+            result.is_compliant
+                || !result
+                    .violations
+                    .iter()
+                    .any(|v| v.severity == voice_agent_core::Severity::Critical)
+        );
     }
 }

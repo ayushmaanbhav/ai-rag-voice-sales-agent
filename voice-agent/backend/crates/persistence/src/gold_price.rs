@@ -5,11 +5,11 @@
 //! - Price caching in ScyllaDB
 //! - Historical price tracking
 
+use crate::{PersistenceError, ScyllaClient};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc, Datelike, Timelike, NaiveDate};
+use chrono::{DateTime, NaiveDate, Timelike, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use crate::{ScyllaClient, PersistenceError};
 
 /// Gold price data
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +30,12 @@ pub struct GoldPrice {
 
 impl GoldPrice {
     /// Calculate maximum loan amount based on gold weight and LTV ratio
-    pub fn calculate_max_loan(&self, gold_weight_grams: f64, purity: GoldPurity, ltv_ratio: f64) -> f64 {
+    pub fn calculate_max_loan(
+        &self,
+        gold_weight_grams: f64,
+        purity: GoldPurity,
+        ltv_ratio: f64,
+    ) -> f64 {
         let price = match purity {
             GoldPurity::K24 => self.price_24k,
             GoldPurity::K22 => self.price_22k,
@@ -55,7 +60,10 @@ pub trait GoldPriceService: Send + Sync {
     async fn get_current_price(&self) -> Result<GoldPrice, PersistenceError>;
 
     /// Get historical price for a specific date
-    async fn get_historical_price(&self, date: NaiveDate) -> Result<Option<GoldPrice>, PersistenceError>;
+    async fn get_historical_price(
+        &self,
+        date: NaiveDate,
+    ) -> Result<Option<GoldPrice>, PersistenceError>;
 
     /// Force refresh the price (even if cache is valid)
     async fn refresh_price(&self) -> Result<GoldPrice, PersistenceError>;
@@ -113,7 +121,7 @@ fn generate_price_with_params(base_price_24k: f64, fluctuation_percent: f64) -> 
 
     // Calculate other purities based on 24k
     let price_22k = price_24k * 0.916; // 22k = 91.6% pure
-    let price_18k = price_24k * 0.75;  // 18k = 75% pure
+    let price_18k = price_24k * 0.75; // 18k = 75% pure
 
     GoldPrice {
         price_per_gram: price_22k, // Default to 22k (most common for jewelry)
@@ -134,20 +142,19 @@ impl SimulatedGoldPriceService {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
-            .query_unpaged(query, &[])
-            .await?;
+        let result = self.client.session().query_unpaged(query, &[]).await?;
 
         if let Some(rows) = result.rows {
             if let Some(row) = rows.into_iter().next() {
-                let (
-                    price_per_gram,
-                    price_24k,
-                    price_22k,
-                    price_18k,
-                    updated_at,
-                    source,
-                ): (f64, f64, f64, f64, i64, String) = row.into_typed()
+                let (price_per_gram, price_24k, price_22k, price_18k, updated_at, source): (
+                    f64,
+                    f64,
+                    f64,
+                    f64,
+                    i64,
+                    String,
+                ) = row
+                    .into_typed()
                     .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 return Ok(Some(GoldPrice {
@@ -156,7 +163,8 @@ impl SimulatedGoldPriceService {
                     price_22k,
                     price_18k,
                     source,
-                    updated_at: DateTime::from_timestamp_millis(updated_at).unwrap_or_else(Utc::now),
+                    updated_at: DateTime::from_timestamp_millis(updated_at)
+                        .unwrap_or_else(Utc::now),
                 }));
             }
         }
@@ -173,17 +181,20 @@ impl SimulatedGoldPriceService {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                price.price_per_gram,
-                price.price_24k,
-                price.price_22k,
-                price.price_18k,
-                price.updated_at.timestamp_millis(),
-                &price.source,
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    price.price_per_gram,
+                    price.price_24k,
+                    price.price_22k,
+                    price.price_18k,
+                    price.updated_at.timestamp_millis(),
+                    &price.source,
+                ),
+            )
+            .await?;
 
         Ok(())
     }
@@ -201,19 +212,22 @@ impl SimulatedGoldPriceService {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                date.to_string(),
-                hour,
-                price.price_per_gram,
-                price.price_24k,
-                price.price_22k,
-                price.price_18k,
-                &price.source,
-                now.timestamp_millis(),
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    date.to_string(),
+                    hour,
+                    price.price_per_gram,
+                    price.price_24k,
+                    price.price_22k,
+                    price.price_18k,
+                    &price.source,
+                    now.timestamp_millis(),
+                ),
+            )
+            .await?;
 
         Ok(())
     }
@@ -250,27 +264,33 @@ impl GoldPriceService for SimulatedGoldPriceService {
         Ok(price)
     }
 
-    async fn get_historical_price(&self, date: NaiveDate) -> Result<Option<GoldPrice>, PersistenceError> {
+    async fn get_historical_price(
+        &self,
+        date: NaiveDate,
+    ) -> Result<Option<GoldPrice>, PersistenceError> {
         let query = format!(
             "SELECT price_per_gram, price_24k, price_22k, price_18k, source, created_at
              FROM {}.gold_prices WHERE date = ? LIMIT 1",
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (date.to_string(),))
             .await?;
 
         if let Some(rows) = result.rows {
             if let Some(row) = rows.into_iter().next() {
-                let (
-                    price_per_gram,
-                    price_24k,
-                    price_22k,
-                    price_18k,
-                    source,
-                    created_at,
-                ): (f64, f64, f64, f64, String, i64) = row.into_typed()
+                let (price_per_gram, price_24k, price_22k, price_18k, source, created_at): (
+                    f64,
+                    f64,
+                    f64,
+                    f64,
+                    String,
+                    i64,
+                ) = row
+                    .into_typed()
                     .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 return Ok(Some(GoldPrice {
@@ -279,7 +299,8 @@ impl GoldPriceService for SimulatedGoldPriceService {
                     price_22k,
                     price_18k,
                     source,
-                    updated_at: DateTime::from_timestamp_millis(created_at).unwrap_or_else(Utc::now),
+                    updated_at: DateTime::from_timestamp_millis(created_at)
+                        .unwrap_or_else(Utc::now),
                 }));
             }
         }

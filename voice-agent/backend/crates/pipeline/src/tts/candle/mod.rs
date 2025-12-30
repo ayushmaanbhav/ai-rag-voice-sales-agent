@@ -23,15 +23,15 @@
 //! ```
 
 pub mod config;
-pub mod modules;
 pub mod dit;
 pub mod flow_matching;
-pub mod vocos;
-pub mod mel;
 pub mod indicf5;
+pub mod mel;
+pub mod modules;
+pub mod vocos;
 
 // Re-export main types
-pub use config::{IndicF5Config, VocosConfig, FlowMatchingConfig, TtsQuantization};
+pub use config::{FlowMatchingConfig, IndicF5Config, TtsQuantization, VocosConfig};
 pub use modules::*;
 
 #[cfg(feature = "candle")]
@@ -39,9 +39,9 @@ pub use dit::DiTBackbone;
 #[cfg(feature = "candle")]
 pub use flow_matching::FlowMatcher;
 #[cfg(feature = "candle")]
-pub use vocos::VocosVocoder;
-#[cfg(feature = "candle")]
 pub use indicf5::IndicF5Model;
+#[cfg(feature = "candle")]
+pub use vocos::VocosVocoder;
 
 // Non-Candle stubs
 #[cfg(not(feature = "candle"))]

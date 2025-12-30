@@ -67,8 +67,8 @@ impl Embedder {
             .commit_from_file(model_path)
             .map_err(|e| RagError::Model(e.to_string()))?;
 
-        let tokenizer = Tokenizer::from_file(tokenizer_path)
-            .map_err(|e| RagError::Model(e.to_string()))?;
+        let tokenizer =
+            Tokenizer::from_file(tokenizer_path).map_err(|e| RagError::Model(e.to_string()))?;
 
         Ok(Self {
             session,
@@ -125,7 +125,8 @@ impl Embedder {
     fn embed_batch_internal(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, RagError> {
         let batch_size = texts.len();
 
-        let encodings = self.tokenizer
+        let encodings = self
+            .tokenizer
             .encode_batch(texts.to_vec(), true)
             .map_err(|e| RagError::Embedding(e.to_string()))?;
 
@@ -148,32 +149,38 @@ impl Embedder {
             }
         }
 
-        let input_ids = Array2::from_shape_vec(
-            (batch_size, self.config.max_seq_len),
-            input_ids,
-        ).map_err(|e| RagError::Embedding(e.to_string()))?;
+        let input_ids = Array2::from_shape_vec((batch_size, self.config.max_seq_len), input_ids)
+            .map_err(|e| RagError::Embedding(e.to_string()))?;
 
-        let attention_mask = Array2::from_shape_vec(
-            (batch_size, self.config.max_seq_len),
-            attention_mask,
-        ).map_err(|e| RagError::Embedding(e.to_string()))?;
+        let attention_mask =
+            Array2::from_shape_vec((batch_size, self.config.max_seq_len), attention_mask)
+                .map_err(|e| RagError::Embedding(e.to_string()))?;
 
-        let token_type_ids = Array2::from_shape_vec(
-            (batch_size, self.config.max_seq_len),
-            token_type_ids,
-        ).map_err(|e| RagError::Embedding(e.to_string()))?;
+        let token_type_ids =
+            Array2::from_shape_vec((batch_size, self.config.max_seq_len), token_type_ids)
+                .map_err(|e| RagError::Embedding(e.to_string()))?;
 
-        let outputs = self.session.run(ort::inputs![
-            "input_ids" => input_ids.view(),
-            "attention_mask" => attention_mask.view(),
-            "token_type_ids" => token_type_ids.view(),
-        ].map_err(|e| RagError::Model(e.to_string()))?)
-        .map_err(|e| RagError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "input_ids" => input_ids.view(),
+                    "attention_mask" => attention_mask.view(),
+                    "token_type_ids" => token_type_ids.view(),
+                ]
+                .map_err(|e| RagError::Model(e.to_string()))?,
+            )
+            .map_err(|e| RagError::Model(e.to_string()))?;
 
         // P2 FIX: Use configurable output name instead of hardcoded "last_hidden_state"
         let last_hidden = outputs
             .get(&self.config.output_name)
-            .ok_or_else(|| RagError::Model(format!("Missing output tensor: {}", self.config.output_name)))?
+            .ok_or_else(|| {
+                RagError::Model(format!(
+                    "Missing output tensor: {}",
+                    self.config.output_name
+                ))
+            })?
             .try_extract_tensor::<f32>()
             .map_err(|e| RagError::Model(e.to_string()))?;
 

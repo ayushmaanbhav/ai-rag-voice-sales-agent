@@ -8,21 +8,20 @@
 //! - **conv**: ConvNeXt V2 blocks and convolutional position embedding
 //! - **embedding**: Text, mel, and time embeddings
 
-pub mod norm;
 pub mod attention;
-pub mod feedforward;
 pub mod conv;
 pub mod embedding;
+pub mod feedforward;
+pub mod norm;
 
 // Re-export commonly used types
-pub use norm::{LayerNorm, RMSNorm, AdaLayerNorm, AdaLayerNormOutput};
-pub use attention::{SelfAttention, RotaryEmbedding, QKVProjection};
-pub use feedforward::{FeedForward, GatedFeedForward, Dropout};
-pub use conv::{ConvNeXtV2Block, ConvPositionEmbedding, GRN, CausalConv1d};
+pub use attention::{QKVProjection, RotaryEmbedding, SelfAttention};
+pub use conv::{CausalConv1d, ConvNeXtV2Block, ConvPositionEmbedding, GRN};
 pub use embedding::{
-    TextEmbedding, InputEmbedding, SinusoidalPositionalEmbedding,
-    TimeEmbedding, DurationEmbedding,
+    DurationEmbedding, InputEmbedding, SinusoidalPositionalEmbedding, TextEmbedding, TimeEmbedding,
 };
+pub use feedforward::{Dropout, FeedForward, GatedFeedForward};
+pub use norm::{AdaLayerNorm, AdaLayerNormOutput, LayerNorm, RMSNorm};
 
 #[cfg(test)]
 mod tests {

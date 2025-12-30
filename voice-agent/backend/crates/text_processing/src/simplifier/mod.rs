@@ -14,14 +14,14 @@
 //! // "Your E M I is fifteen thousand rupees for twelve months"
 //! ```
 
-mod numbers;
 mod abbreviations;
+mod numbers;
 
-pub use numbers::{NumberToWords, IndianNumberSystem};
 pub use abbreviations::AbbreviationExpander;
+pub use numbers::{IndianNumberSystem, NumberToWords};
 
-use voice_agent_core::Language;
 use serde::{Deserialize, Serialize};
+use voice_agent_core::Language;
 
 /// Configuration for text simplifier
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,9 +147,24 @@ impl TextSimplifier {
     /// Check if word is a natural break point
     fn is_break_point(&self, word: &str) -> bool {
         let break_words = [
-            "and", "but", "or", "so", "then", "also", "however", "therefore",
-            "aur", "lekin", "ya", "phir", "toh", // Hindi
-            "मतलब", "और", "लेकिन", "या", "फिर", // Hindi Devanagari
+            "and",
+            "but",
+            "or",
+            "so",
+            "then",
+            "also",
+            "however",
+            "therefore",
+            "aur",
+            "lekin",
+            "ya",
+            "phir",
+            "toh", // Hindi
+            "मतलब",
+            "और",
+            "लेकिन",
+            "या",
+            "फिर", // Hindi Devanagari
         ];
         let lower = word.to_lowercase();
         break_words.iter().any(|w| lower == *w)

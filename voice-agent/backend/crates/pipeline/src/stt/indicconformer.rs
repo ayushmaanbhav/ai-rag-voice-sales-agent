@@ -9,10 +9,10 @@
 //! - CTC decoder (ctc_decoder.onnx)
 //! - Language-specific post-net (joint_post_net_hi.onnx for Hindi)
 
+use ndarray::Array2;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
-use parking_lot::Mutex;
-use ndarray::Array2;
 
 #[cfg(feature = "onnx")]
 use ndarray::Array3;
@@ -20,11 +20,11 @@ use ndarray::Array3;
 #[cfg(feature = "onnx")]
 use ort::{GraphOptimizationLevel, Session};
 
-use super::decoder::{EnhancedDecoder, DecoderConfig};
+use super::decoder::{DecoderConfig, EnhancedDecoder};
 use super::vocab::Vocabulary;
 use super::SttBackend;
 use crate::PipelineError;
-use voice_agent_core::{TranscriptResult, WordTimestamp, SampleRate};
+use voice_agent_core::{SampleRate, TranscriptResult, WordTimestamp};
 
 /// IndicConformer configuration
 #[derive(Debug, Clone)]
@@ -58,8 +58,8 @@ impl Default for IndicConformerConfig {
             sample_rate: SampleRate::Hz16000,
             n_mels: 80,
             n_fft: 512,
-            hop_length: 160,  // 10ms at 16kHz
-            win_length: 400,  // 25ms at 16kHz
+            hop_length: 160, // 10ms at 16kHz
+            win_length: 400, // 25ms at 16kHz
             chunk_ms: 100,
             enable_partials: true,
             partial_interval: 10,
@@ -117,7 +117,10 @@ impl IndicConformerStt {
     /// - assets/joint_post_net_{lang}.onnx
     /// - assets/vocab.json
     #[cfg(feature = "onnx")]
-    pub fn new(model_dir: impl AsRef<Path>, config: IndicConformerConfig) -> Result<Self, PipelineError> {
+    pub fn new(
+        model_dir: impl AsRef<Path>,
+        config: IndicConformerConfig,
+    ) -> Result<Self, PipelineError> {
         let model_dir = model_dir.as_ref();
         let assets_dir = model_dir.join("assets");
 
@@ -142,7 +145,8 @@ impl IndicConformerStt {
         let vocabulary = Self::load_vocab(&vocab_path, &config.language)?;
 
         // Create decoder with vocabulary
-        let decoder = EnhancedDecoder::new(vocabulary.clone().into_tokens(), config.decoder.clone());
+        let decoder =
+            EnhancedDecoder::new(vocabulary.clone().into_tokens(), config.decoder.clone());
 
         // Create mel filterbank
         let mel_filterbank = MelFilterbank::new(
@@ -176,7 +180,10 @@ impl IndicConformerStt {
 
     /// Create IndicConformer without ONNX (stub for testing)
     #[cfg(not(feature = "onnx"))]
-    pub fn new(_model_dir: impl AsRef<Path>, config: IndicConformerConfig) -> Result<Self, PipelineError> {
+    pub fn new(
+        _model_dir: impl AsRef<Path>,
+        config: IndicConformerConfig,
+    ) -> Result<Self, PipelineError> {
         Self::simple(config)
     }
 
@@ -230,8 +237,11 @@ impl IndicConformerStt {
         let vocab_map: HashMap<String, Vec<String>> = serde_json::from_str(&content)
             .map_err(|e| PipelineError::Stt(format!("Failed to parse vocab: {}", e)))?;
 
-        let tokens = vocab_map.get(language)
-            .ok_or_else(|| PipelineError::Stt(format!("Language '{}' not found in vocab", language)))?
+        let tokens = vocab_map
+            .get(language)
+            .ok_or_else(|| {
+                PipelineError::Stt(format!("Language '{}' not found in vocab", language))
+            })?
             .clone();
 
         Ok(Vocabulary::from_tokens(tokens))
@@ -276,7 +286,9 @@ impl IndicConformerStt {
         end_frame: usize,
     ) -> (u64, u64) {
         // Each frame represents hop_length samples at sample_rate Hz
-        let frame_duration_ms = (self.config.hop_length as f64 / self.config.sample_rate.as_u32() as f64 * 1000.0) as u64;
+        let frame_duration_ms = (self.config.hop_length as f64
+            / self.config.sample_rate.as_u32() as f64
+            * 1000.0) as u64;
 
         let start_ms = start_frame as u64 * frame_duration_ms;
         let end_ms = end_frame as u64 * frame_duration_ms;
@@ -313,12 +325,10 @@ impl IndicConformerStt {
             state = self.state.lock();
         }
 
-        if self.config.enable_partials {
-            if state.frame_count >= self.config.partial_interval {
-                state.frame_count = 0;
-                drop(state);
-                return Ok(self.get_partial());
-            }
+        if self.config.enable_partials && state.frame_count >= self.config.partial_interval {
+            state.frame_count = 0;
+            drop(state);
+            return Ok(self.get_partial());
         }
 
         Ok(None)
@@ -331,16 +341,20 @@ impl IndicConformerStt {
         let mel = self.mel_filterbank.extract(audio);
 
         // Prepare input tensor [batch, time, n_mels]
-        let mel_input = Array3::from_shape_vec(
-            (1, mel.len() / self.config.n_mels, self.config.n_mels),
-            mel,
-        ).map_err(|e| PipelineError::Stt(format!("Failed to reshape mel: {}", e)))?;
+        let mel_input =
+            Array3::from_shape_vec((1, mel.len() / self.config.n_mels, self.config.n_mels), mel)
+                .map_err(|e| PipelineError::Stt(format!("Failed to reshape mel: {}", e)))?;
 
         // Run encoder
-        let encoder_outputs = self.encoder_session.run(ort::inputs![
-            "audio_signal" => mel_input.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(format!("Encoder failed: {}", e)))?;
+        let encoder_outputs = self
+            .encoder_session
+            .run(
+                ort::inputs![
+                    "audio_signal" => mel_input.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(format!("Encoder failed: {}", e)))?;
 
         // Get encoder output
         let encoded = encoder_outputs
@@ -350,10 +364,15 @@ impl IndicConformerStt {
             .map_err(|e| PipelineError::Model(e.to_string()))?;
 
         // Run CTC decoder
-        let decoder_outputs = self.decoder_session.run(ort::inputs![
-            "encoder_output" => encoded.view(),
-        ].map_err(|e| PipelineError::Model(e.to_string()))?)
-        .map_err(|e| PipelineError::Model(format!("Decoder failed: {}", e)))?;
+        let decoder_outputs = self
+            .decoder_session
+            .run(
+                ort::inputs![
+                    "encoder_output" => encoded.view(),
+                ]
+                .map_err(|e| PipelineError::Model(e.to_string()))?,
+            )
+            .map_err(|e| PipelineError::Model(format!("Decoder failed: {}", e)))?;
 
         // Get logits
         let logits = decoder_outputs
@@ -373,9 +392,13 @@ impl IndicConformerStt {
 
             for frame_idx in 0..n_frames {
                 let frame_logits: Vec<f32> = if shape.len() > 2 {
-                    (0..vocab_size).map(|v| logits_view[[0, frame_idx, v]]).collect()
+                    (0..vocab_size)
+                        .map(|v| logits_view[[0, frame_idx, v]])
+                        .collect()
                 } else {
-                    (0..vocab_size).map(|v| logits_view[[frame_idx, v]]).collect()
+                    (0..vocab_size)
+                        .map(|v| logits_view[[frame_idx, v]])
+                        .collect()
                 };
 
                 // P0 FIX: Extract actual confidence from logits
@@ -422,7 +445,9 @@ impl IndicConformerStt {
         };
 
         // P0 FIX: Calculate timestamps based on actual frame positions
-        let frame_duration_ms = (self.config.hop_length as f64 / self.config.sample_rate.as_u32() as f64 * 1000.0) as u64;
+        let frame_duration_ms = (self.config.hop_length as f64
+            / self.config.sample_rate.as_u32() as f64
+            * 1000.0) as u64;
 
         // Calculate word boundaries based on frames processed
         let word_end_frame = state.total_audio_frames;
@@ -567,35 +592,38 @@ impl IndicConformerStt {
     /// Get supported languages
     pub fn supported_languages() -> Vec<&'static str> {
         vec![
-            "as",   // Assamese
-            "bn",   // Bengali
-            "brx",  // Bodo
-            "doi",  // Dogri
-            "gu",   // Gujarati
-            "hi",   // Hindi
-            "kn",   // Kannada
-            "kok",  // Konkani
-            "ks",   // Kashmiri
-            "mai",  // Maithili
-            "ml",   // Malayalam
-            "mni",  // Manipuri
-            "mr",   // Marathi
-            "ne",   // Nepali
-            "or",   // Odia
-            "pa",   // Punjabi
-            "sa",   // Sanskrit
-            "sat",  // Santali
-            "sd",   // Sindhi
-            "ta",   // Tamil
-            "te",   // Telugu
-            "ur",   // Urdu
+            "as",  // Assamese
+            "bn",  // Bengali
+            "brx", // Bodo
+            "doi", // Dogri
+            "gu",  // Gujarati
+            "hi",  // Hindi
+            "kn",  // Kannada
+            "kok", // Konkani
+            "ks",  // Kashmiri
+            "mai", // Maithili
+            "ml",  // Malayalam
+            "mni", // Manipuri
+            "mr",  // Marathi
+            "ne",  // Nepali
+            "or",  // Odia
+            "pa",  // Punjabi
+            "sa",  // Sanskrit
+            "sat", // Santali
+            "sd",  // Sindhi
+            "ta",  // Tamil
+            "te",  // Telugu
+            "ur",  // Urdu
         ]
     }
 }
 
 #[async_trait::async_trait]
 impl SttBackend for IndicConformerStt {
-    async fn process_chunk(&mut self, audio: &[f32]) -> Result<Option<TranscriptResult>, PipelineError> {
+    async fn process_chunk(
+        &mut self,
+        audio: &[f32],
+    ) -> Result<Option<TranscriptResult>, PipelineError> {
         self.process(audio)
     }
 
@@ -840,9 +868,7 @@ mod tests {
         let mel = MelFilterbank::new(16000, 512, 80);
 
         // Generate 100ms of audio (1600 samples at 16kHz)
-        let audio: Vec<f32> = (0..1600)
-            .map(|i| (i as f32 * 0.01).sin() * 0.5)
-            .collect();
+        let audio: Vec<f32> = (0..1600).map(|i| (i as f32 * 0.01).sin() * 0.5).collect();
 
         let features = mel.extract(&audio);
 

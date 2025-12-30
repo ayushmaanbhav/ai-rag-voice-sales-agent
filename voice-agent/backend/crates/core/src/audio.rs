@@ -1,12 +1,11 @@
 //! Audio frame types and utilities
 
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 
 /// Supported audio sample rates
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum SampleRate {
     /// 8kHz - Telephony
     Hz8000,
@@ -49,10 +48,8 @@ impl SampleRate {
     }
 }
 
-
 /// Audio encoding formats
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AudioEncoding {
     /// 16-bit signed PCM (little-endian)
     Pcm16,
@@ -67,16 +64,13 @@ pub enum AudioEncoding {
     Alaw,
 }
 
-
 /// Audio channel configuration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Channels {
     #[default]
     Mono,
     Stereo,
 }
-
 
 impl Channels {
     pub fn count(&self) -> usize {
@@ -136,7 +130,7 @@ impl AudioFrame {
         sequence: u64,
     ) -> Self {
         let duration = Duration::from_secs_f64(
-            samples.len() as f64 / (sample_rate.as_u32() as f64 * channels.count() as f64)
+            samples.len() as f64 / (sample_rate.as_u32() as f64 * channels.count() as f64),
         );
         let energy_db = Self::calculate_energy_db(&samples);
 
@@ -246,23 +240,21 @@ impl AudioFrame {
                 match resampler.process(&input_frames, None) {
                     Ok(output_frames) => {
                         // Convert back to f32
-                        let resampled: Vec<f32> = output_frames[0]
-                            .iter()
-                            .map(|&s| s as f32)
-                            .collect();
+                        let resampled: Vec<f32> =
+                            output_frames[0].iter().map(|&s| s as f32).collect();
 
                         Self::new(resampled, target_rate, self.channels, self.sequence)
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!("Rubato processing failed, using linear fallback: {}", e);
                         self.resample_linear(target_rate)
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!("Rubato init failed, using linear fallback: {}", e);
                 self.resample_linear(target_rate)
-            }
+            },
         }
     }
 
@@ -292,12 +284,18 @@ impl AudioFrame {
             return self.clone();
         }
 
-        let mono_samples: Vec<f32> = self.samples
+        let mono_samples: Vec<f32> = self
+            .samples
             .chunks_exact(2)
             .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
             .collect();
 
-        Self::new(mono_samples, self.sample_rate, Channels::Mono, self.sequence)
+        Self::new(
+            mono_samples,
+            self.sample_rate,
+            Channels::Mono,
+            self.sequence,
+        )
     }
 
     /// Get duration in milliseconds
@@ -390,7 +388,7 @@ impl AudioBuffer {
     pub fn duration(&self) -> Duration {
         Duration::from_secs_f64(
             self.samples.len() as f64
-            / (self.sample_rate.as_u32() as f64 * self.channels.count() as f64)
+                / (self.sample_rate.as_u32() as f64 * self.channels.count() as f64),
         )
     }
 
@@ -454,11 +452,8 @@ mod tests {
 
     #[test]
     fn test_audio_buffer() {
-        let mut buffer = AudioBuffer::new(
-            SampleRate::Hz16000,
-            Channels::Mono,
-            Duration::from_secs(1),
-        );
+        let mut buffer =
+            AudioBuffer::new(SampleRate::Hz16000, Channels::Mono, Duration::from_secs(1));
 
         let frame = AudioFrame::new(vec![0.1; 160], SampleRate::Hz16000, Channels::Mono, 0);
         buffer.push(&frame);

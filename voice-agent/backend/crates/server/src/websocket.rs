@@ -2,49 +2,67 @@
 //!
 //! Real-time audio streaming and conversation.
 
-use std::sync::Arc;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        State, Path,
+        Path, State,
     },
     response::Response,
 };
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use voice_agent_core::{AudioFrame, SampleRate, Channels, Frame};
-use voice_agent_pipeline::{VoicePipeline, PipelineConfig, PipelineEvent};
+use voice_agent_core::{AudioFrame, Channels, Frame, SampleRate};
+use voice_agent_pipeline::{PipelineConfig, PipelineEvent, VoicePipeline};
 
-use crate::state::AppState;
-use crate::session::Session;
 use crate::rate_limit::RateLimiter;
+use crate::session::Session;
+use crate::state::AppState;
 
 /// WebSocket message types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsMessage {
     /// Audio data (base64 encoded)
-    Audio { data: String },
+    Audio {
+        data: String,
+    },
     /// Text input
-    Text { content: String },
+    Text {
+        content: String,
+    },
     /// Transcript update
-    Transcript { text: String, is_final: bool },
+    Transcript {
+        text: String,
+        is_final: bool,
+    },
     /// Agent response
-    Response { text: String },
+    Response {
+        text: String,
+    },
     /// Agent audio response
-    ResponseAudio { data: String },
+    ResponseAudio {
+        data: String,
+    },
     /// Status update
-    Status { state: String, stage: String },
+    Status {
+        state: String,
+        stage: String,
+    },
     /// Error
-    Error { message: String },
+    Error {
+        message: String,
+    },
     /// Ping/Pong
     Ping,
     Pong,
     /// Session info
-    SessionInfo { session_id: String },
+    SessionInfo {
+        session_id: String,
+    },
     /// End session
     EndSession,
 }
@@ -60,7 +78,9 @@ impl WebSocketHandler {
         Path(session_id): Path<String>,
     ) -> Result<Response, axum::http::StatusCode> {
         // Get or create session
-        let session = state.sessions.get(&session_id)
+        let session = state
+            .sessions
+            .get(&session_id)
             .ok_or(axum::http::StatusCode::NOT_FOUND)?;
 
         // Create rate limiter for this connection
@@ -95,14 +115,18 @@ impl WebSocketHandler {
                 session_id: session.id.clone(),
             };
             let mut s = sender.lock().await;
-            let _ = s.send(Message::Text(serde_json::to_string(&info).unwrap())).await;
+            let _ = s
+                .send(Message::Text(serde_json::to_string(&info).unwrap()))
+                .await;
 
             // Send initial status
             let status = WsMessage::Status {
                 state: "active".to_string(),
                 stage: session.agent.stage().display_name().to_string(),
             };
-            let _ = s.send(Message::Text(serde_json::to_string(&status).unwrap())).await;
+            let _ = s
+                .send(Message::Text(serde_json::to_string(&status).unwrap()))
+                .await;
         }
 
         // Subscribe to agent events
@@ -115,9 +139,12 @@ impl WebSocketHandler {
         let pipeline = match VoicePipeline::simple(PipelineConfig::default()) {
             Ok(p) => Some(Arc::new(tokio::sync::Mutex::new(p))),
             Err(e) => {
-                tracing::warn!("Failed to create voice pipeline: {}, using text-only mode", e);
+                tracing::warn!(
+                    "Failed to create voice pipeline: {}, using text-only mode",
+                    e
+                );
                 None
-            }
+            },
         };
 
         // Spawn audio processor task - receives audio and feeds to pipeline
@@ -144,12 +171,8 @@ impl WebSocketHandler {
                 }
 
                 // Create audio frame
-                let frame = AudioFrame::new(
-                    samples,
-                    SampleRate::Hz16000,
-                    Channels::Mono,
-                    frame_count,
-                );
+                let frame =
+                    AudioFrame::new(samples, SampleRate::Hz16000, Channels::Mono, frame_count);
                 frame_count += 1;
 
                 // Process through pipeline if available
@@ -167,7 +190,7 @@ impl WebSocketHandler {
         let session_for_pipeline = session.clone();
         let sender_for_pipeline = sender.clone();
         let pipeline_for_tts = pipeline.clone(); // P0 FIX: Clone for TTS synthesis
-        // P2 FIX: Clone text processing for pipeline event handler
+                                                 // P2 FIX: Clone text processing for pipeline event handler
         let text_processing_for_pipeline = text_processing.clone();
         let text_simplifier_for_pipeline = text_simplifier.clone();
 
@@ -186,7 +209,7 @@ impl WebSocketHandler {
                             let json = serde_json::to_string(&msg).unwrap();
                             let mut s = sender_for_pipeline.lock().await;
                             let _ = s.send(Message::Text(json)).await;
-                        }
+                        },
                         PipelineEvent::FinalTranscript(transcript) => {
                             let text = transcript.text.clone();
 
@@ -204,17 +227,23 @@ impl WebSocketHandler {
                             if !text.trim().is_empty() {
                                 // P2 FIX: Process user input through text processing pipeline
                                 // (grammar correction, PII detection)
-                                let processed_input = match text_processing_for_pipeline.process(&text).await {
+                                let processed_input = match text_processing_for_pipeline
+                                    .process(&text)
+                                    .await
+                                {
                                     Ok(result) => {
                                         if result.pii_detected {
                                             tracing::info!("PII detected in user input, redacted");
                                         }
                                         result.processed
-                                    }
+                                    },
                                     Err(e) => {
-                                        tracing::warn!("Text processing failed: {}, using raw input", e);
+                                        tracing::warn!(
+                                            "Text processing failed: {}, using raw input",
+                                            e
+                                        );
                                         text.clone()
-                                    }
+                                    },
                                 };
 
                                 // P0-2 FIX: Use streaming agent response with streaming TTS
@@ -238,30 +267,58 @@ impl WebSocketHandler {
                                                 let (tts_tx, tts_rx) = mpsc::channel::<String>(32);
 
                                                 // Start streaming TTS first
-                                                match p.speak_streaming(tts_rx, user_language).await {
+                                                match p.speak_streaming(tts_rx, user_language).await
+                                                {
                                                     Ok(mut audio_rx) => {
                                                         drop(p); // Release pipeline lock
 
                                                         // Spawn task to handle audio output frames
                                                         let sender_for_audio = sender.clone();
                                                         tokio::spawn(async move {
-                                                            while let Some(frame) = audio_rx.recv().await {
-                                                                if let Frame::AudioOutput(audio_frame) = frame {
+                                                            while let Some(frame) =
+                                                                audio_rx.recv().await
+                                                            {
+                                                                if let Frame::AudioOutput(
+                                                                    audio_frame,
+                                                                ) = frame
+                                                                {
                                                                     // Convert f32 samples to i16 PCM bytes
-                                                                    let pcm_bytes: Vec<u8> = audio_frame.samples.iter()
-                                                                        .flat_map(|&sample| {
-                                                                            let clamped = sample.max(-1.0).min(1.0);
-                                                                            let i16_sample = (clamped * 32767.0) as i16;
-                                                                            i16_sample.to_le_bytes().to_vec()
-                                                                        })
-                                                                        .collect();
+                                                                    let pcm_bytes: Vec<u8> =
+                                                                        audio_frame
+                                                                            .samples
+                                                                            .iter()
+                                                                            .flat_map(|&sample| {
+                                                                                let clamped =
+                                                                                    sample.clamp(
+                                                                                        -1.0, 1.0,
+                                                                                    );
+                                                                                let i16_sample =
+                                                                                    (clamped
+                                                                                        * 32767.0)
+                                                                                        as i16;
+                                                                                i16_sample
+                                                                                    .to_le_bytes()
+                                                                                    .to_vec()
+                                                                            })
+                                                                            .collect();
 
                                                                     // Base64 encode and send
-                                                                    let audio_data = BASE64.encode(&pcm_bytes);
-                                                                    let msg = WsMessage::ResponseAudio { data: audio_data };
-                                                                    let json = serde_json::to_string(&msg).unwrap();
-                                                                    let mut s = sender_for_audio.lock().await;
-                                                                    if let Err(e) = s.send(Message::Text(json)).await {
+                                                                    let audio_data =
+                                                                        BASE64.encode(&pcm_bytes);
+                                                                    let msg =
+                                                                        WsMessage::ResponseAudio {
+                                                                            data: audio_data,
+                                                                        };
+                                                                    let json =
+                                                                        serde_json::to_string(&msg)
+                                                                            .unwrap();
+                                                                    let mut s = sender_for_audio
+                                                                        .lock()
+                                                                        .await;
+                                                                    if let Err(e) = s
+                                                                        .send(Message::Text(json))
+                                                                        .await
+                                                                    {
                                                                         tracing::debug!("Failed to send streaming TTS audio: {}", e);
                                                                         break;
                                                                     }
@@ -270,51 +327,66 @@ impl WebSocketHandler {
                                                         });
 
                                                         // Forward chunks to client and TTS
-                                                        while let Some(chunk) = chunk_rx.recv().await {
+                                                        while let Some(chunk) =
+                                                            chunk_rx.recv().await
+                                                        {
                                                             // Send to client
-                                                            let resp = WsMessage::Response { text: chunk.clone() };
-                                                            let json = serde_json::to_string(&resp).unwrap();
+                                                            let resp = WsMessage::Response {
+                                                                text: chunk.clone(),
+                                                            };
+                                                            let json = serde_json::to_string(&resp)
+                                                                .unwrap();
                                                             let mut s = sender.lock().await;
-                                                            let _ = s.send(Message::Text(json)).await;
+                                                            let _ =
+                                                                s.send(Message::Text(json)).await;
                                                             drop(s);
 
                                                             // Simplify and send to TTS
-                                                            let simplified = text_simplifier.simplify(&chunk);
+                                                            let simplified =
+                                                                text_simplifier.simplify(&chunk);
                                                             let _ = tts_tx.send(simplified).await;
                                                         }
 
-                                                        tracing::debug!("Streaming response complete");
-                                                    }
+                                                        tracing::debug!(
+                                                            "Streaming response complete"
+                                                        );
+                                                    },
                                                     Err(e) => {
                                                         drop(p);
                                                         tracing::warn!("speak_streaming failed: {}, using text-only", e);
 
                                                         // Fallback: just stream text
-                                                        while let Some(chunk) = chunk_rx.recv().await {
-                                                            let resp = WsMessage::Response { text: chunk };
-                                                            let json = serde_json::to_string(&resp).unwrap();
+                                                        while let Some(chunk) =
+                                                            chunk_rx.recv().await
+                                                        {
+                                                            let resp =
+                                                                WsMessage::Response { text: chunk };
+                                                            let json = serde_json::to_string(&resp)
+                                                                .unwrap();
                                                             let mut s = sender.lock().await;
-                                                            let _ = s.send(Message::Text(json)).await;
+                                                            let _ =
+                                                                s.send(Message::Text(json)).await;
                                                         }
-                                                    }
+                                                    },
                                                 }
                                             } else {
                                                 // No pipeline - just stream text responses
                                                 while let Some(chunk) = chunk_rx.recv().await {
                                                     let resp = WsMessage::Response { text: chunk };
-                                                    let json = serde_json::to_string(&resp).unwrap();
+                                                    let json =
+                                                        serde_json::to_string(&resp).unwrap();
                                                     let mut s = sender.lock().await;
                                                     let _ = s.send(Message::Text(json)).await;
                                                 }
                                             }
-                                        }
+                                        },
                                         Err(e) => {
                                             tracing::error!("Agent streaming error: {}", e);
-                                        }
+                                        },
                                     }
                                 });
                             }
-                        }
+                        },
                         PipelineEvent::VadStateChanged(state) => {
                             use voice_agent_pipeline::VadState;
                             let (ws_state, stage) = match state {
@@ -330,17 +402,22 @@ impl WebSocketHandler {
                             let json = serde_json::to_string(&msg).unwrap();
                             let mut s = sender_for_pipeline.lock().await;
                             let _ = s.send(Message::Text(json)).await;
-                        }
+                        },
                         PipelineEvent::Error(e) => {
                             tracing::error!("Pipeline error: {}", e);
-                        }
-                        PipelineEvent::TtsAudio { samples, text: _, is_final: _ } => {
+                        },
+                        PipelineEvent::TtsAudio {
+                            samples,
+                            text: _,
+                            is_final: _,
+                        } => {
                             // P0 FIX: Send TTS audio to client
                             // Convert f32 samples to i16 PCM bytes
-                            let pcm_bytes: Vec<u8> = samples.iter()
+                            let pcm_bytes: Vec<u8> = samples
+                                .iter()
                                 .flat_map(|&sample| {
                                     // Clamp to [-1.0, 1.0] and convert to i16
-                                    let clamped = sample.max(-1.0).min(1.0);
+                                    let clamped = sample.clamp(-1.0, 1.0);
                                     let i16_sample = (clamped * 32767.0) as i16;
                                     i16_sample.to_le_bytes().to_vec()
                                 })
@@ -354,8 +431,8 @@ impl WebSocketHandler {
                             if let Err(e) = s.send(Message::Text(json)).await {
                                 tracing::debug!("Failed to send TTS audio: {}", e);
                             }
-                        }
-                        _ => {}
+                        },
+                        _ => {},
                     }
                 }
             }))
@@ -371,16 +448,14 @@ impl WebSocketHandler {
                 let msg = match event {
                     voice_agent_agent::AgentEvent::Response(text) => {
                         Some(WsMessage::Response { text })
-                    }
-                    voice_agent_agent::AgentEvent::Thinking => {
-                        Some(WsMessage::Status {
-                            state: "thinking".to_string(),
-                            stage: "processing".to_string(),
-                        })
-                    }
+                    },
+                    voice_agent_agent::AgentEvent::Thinking => Some(WsMessage::Status {
+                        state: "thinking".to_string(),
+                        stage: "processing".to_string(),
+                    }),
                     voice_agent_agent::AgentEvent::Error(e) => {
                         Some(WsMessage::Error { message: e })
-                    }
+                    },
                     _ => None,
                 };
 
@@ -408,7 +483,9 @@ impl WebSocketHandler {
                                 message: format!("Rate limit exceeded: {}", e),
                             };
                             let mut s = sender.lock().await;
-                            let _ = s.send(Message::Text(serde_json::to_string(&err).unwrap())).await;
+                            let _ = s
+                                .send(Message::Text(serde_json::to_string(&err).unwrap()))
+                                .await;
                             continue;
                         }
                     }
@@ -419,17 +496,23 @@ impl WebSocketHandler {
                         match ws_msg {
                             WsMessage::Text { content } => {
                                 // P2 FIX: Process user input through text processing pipeline
-                                let processed_input = match text_processing.process(&content).await {
+                                let processed_input = match text_processing.process(&content).await
+                                {
                                     Ok(result) => {
                                         if result.pii_detected {
-                                            tracing::info!("PII detected in direct text input, redacted");
+                                            tracing::info!(
+                                                "PII detected in direct text input, redacted"
+                                            );
                                         }
                                         result.processed
-                                    }
+                                    },
                                     Err(e) => {
-                                        tracing::warn!("Text processing failed: {}, using raw input", e);
+                                        tracing::warn!(
+                                            "Text processing failed: {}, using raw input",
+                                            e
+                                        );
                                         content.clone()
-                                    }
+                                    },
                                 };
 
                                 // Process text input
@@ -445,22 +528,32 @@ impl WebSocketHandler {
                                             state: "active".to_string(),
                                             stage: session.agent.stage().display_name().to_string(),
                                         };
-                                        let _ = s.send(Message::Text(serde_json::to_string(&status).unwrap())).await;
-                                    }
+                                        let _ = s
+                                            .send(Message::Text(
+                                                serde_json::to_string(&status).unwrap(),
+                                            ))
+                                            .await;
+                                    },
                                     Err(e) => {
                                         let err = WsMessage::Error {
                                             message: e.to_string(),
                                         };
                                         let mut s = sender.lock().await;
-                                        let _ = s.send(Message::Text(serde_json::to_string(&err).unwrap())).await;
-                                    }
+                                        let _ = s
+                                            .send(Message::Text(
+                                                serde_json::to_string(&err).unwrap(),
+                                            ))
+                                            .await;
+                                    },
                                 }
-                            }
+                            },
                             WsMessage::Ping => {
                                 let pong = WsMessage::Pong;
                                 let mut s = sender.lock().await;
-                                let _ = s.send(Message::Text(serde_json::to_string(&pong).unwrap())).await;
-                            }
+                                let _ = s
+                                    .send(Message::Text(serde_json::to_string(&pong).unwrap()))
+                                    .await;
+                            },
                             WsMessage::Audio { data } => {
                                 // Decode base64 audio data and send to processor
                                 match BASE64.decode(&data) {
@@ -468,30 +561,37 @@ impl WebSocketHandler {
                                         // Check rate limit for audio data
                                         let mut limiter = rate_limiter_main.lock().await;
                                         if let Err(e) = limiter.check_audio(audio_bytes.len()) {
-                                            tracing::warn!("Audio rate limit exceeded: {} bytes", audio_bytes.len());
+                                            tracing::warn!(
+                                                "Audio rate limit exceeded: {} bytes",
+                                                audio_bytes.len()
+                                            );
                                             let err = WsMessage::Error {
                                                 message: format!("Rate limit exceeded: {}", e),
                                             };
                                             let mut s = sender.lock().await;
-                                            let _ = s.send(Message::Text(serde_json::to_string(&err).unwrap())).await;
+                                            let _ = s
+                                                .send(Message::Text(
+                                                    serde_json::to_string(&err).unwrap(),
+                                                ))
+                                                .await;
                                             continue;
                                         }
                                         drop(limiter); // Release lock before sending
                                         let _ = audio_tx.send(audio_bytes).await;
-                                    }
+                                    },
                                     Err(e) => {
                                         tracing::warn!("Failed to decode audio data: {}", e);
-                                    }
+                                    },
                                 }
-                            }
+                            },
                             WsMessage::EndSession => {
                                 session.close();
                                 break;
-                            }
-                            _ => {}
+                            },
+                            _ => {},
                         }
                     }
-                }
+                },
                 Ok(Message::Binary(data)) => {
                     // Check rate limit for audio data
                     {
@@ -502,24 +602,26 @@ impl WebSocketHandler {
                                 message: format!("Rate limit exceeded: {}", e),
                             };
                             let mut s = sender.lock().await;
-                            let _ = s.send(Message::Text(serde_json::to_string(&err).unwrap())).await;
+                            let _ = s
+                                .send(Message::Text(serde_json::to_string(&err).unwrap()))
+                                .await;
                             continue;
                         }
                     }
 
                     // Raw binary audio data (PCM)
                     let _ = audio_tx.send(data).await;
-                }
+                },
                 Ok(Message::Ping(data)) => {
                     let mut s = sender.lock().await;
                     let _ = s.send(Message::Pong(data)).await;
-                }
+                },
                 Ok(Message::Close(_)) => break,
                 Err(e) => {
                     tracing::error!("WebSocket error: {}", e);
                     break;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -540,8 +642,14 @@ pub async fn create_session(
 ) -> Result<axum::Json<serde_json::Value>, axum::http::StatusCode> {
     let config = voice_agent_agent::AgentConfig::default();
 
-    // P0 FIX: Pass vector store to enable RAG in agent
-    match state.sessions.create_with_vector_store(config, state.vector_store.clone()) {
+    // P0 FIX: Pass vector store AND tools to enable full integration in agent
+    // This ensures the agent uses the persistence-wired tool registry from AppState
+    // instead of creating its own default registry without persistence.
+    match state.sessions.create_with_full_integration(
+        config,
+        state.vector_store.clone(),
+        Some(state.tools.clone()),
+    ) {
         Ok(session) => {
             // P2-3 FIX: Persist session metadata to configured store
             if let Err(e) = state.persist_session(&session).await {
@@ -552,7 +660,8 @@ pub async fn create_session(
                     session_id = %session.id,
                     distributed = state.is_distributed_sessions(),
                     rag_enabled = state.vector_store.is_some(),
-                    "Session persisted"
+                    tools_wired = true,
+                    "Session persisted with full integration"
                 );
             }
 
@@ -560,8 +669,9 @@ pub async fn create_session(
                 "session_id": session.id,
                 "websocket_url": format!("/ws/{}", session.id),
                 "rag_enabled": state.vector_store.is_some(),
+                "tools_wired": true,
             })))
-        }
+        },
         Err(_) => Err(axum::http::StatusCode::SERVICE_UNAVAILABLE),
     }
 }

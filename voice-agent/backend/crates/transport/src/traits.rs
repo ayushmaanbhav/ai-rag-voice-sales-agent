@@ -28,9 +28,7 @@ pub enum TransportEvent {
         timestamp_ms: u64,
     },
     /// DTMF tone received
-    DtmfReceived {
-        digit: char,
-    },
+    DtmfReceived { digit: char },
     /// Connection quality changed
     QualityChanged {
         /// Packet loss percentage (0-100)
@@ -50,13 +48,9 @@ pub enum TransportEvent {
         sdp_m_line_index: Option<u16>,
     },
     /// Connection closed
-    Disconnected {
-        reason: String,
-    },
+    Disconnected { reason: String },
     /// Error occurred
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// Audio sink for sending audio to remote peer

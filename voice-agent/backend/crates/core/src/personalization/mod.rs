@@ -40,19 +40,13 @@
 //! let instructions = engine.generate_instructions(&ctx);
 //! ```
 
-pub mod persona;
 pub mod adaptation;
+pub mod persona;
 pub mod signals;
 
-pub use persona::{
-    Persona, PersonaTemplates, Tone, LanguageComplexity, ResponseUrgency,
-};
-pub use adaptation::{
-    SegmentAdapter, Feature, Objection, ObjectionResponse,
-};
-pub use signals::{
-    SignalDetector, BehaviorSignal, SignalDetection, TrendAnalysis,
-};
+pub use adaptation::{Feature, Objection, ObjectionResponse, SegmentAdapter};
+pub use persona::{LanguageComplexity, Persona, PersonaTemplates, ResponseUrgency, Tone};
+pub use signals::{BehaviorSignal, SignalDetection, SignalDetector, TrendAnalysis};
 
 use crate::{CustomerProfile, CustomerSegment};
 use serde::{Deserialize, Serialize};
@@ -84,9 +78,7 @@ impl PersonalizationContext {
     /// Create context for a customer profile
     pub fn for_profile(profile: &CustomerProfile) -> Self {
         let segment = profile.infer_segment();
-        let persona = segment
-            .map(Persona::for_segment)
-            .unwrap_or_default();
+        let persona = segment.map(Persona::for_segment).unwrap_or_default();
 
         Self {
             segment,
@@ -240,7 +232,8 @@ impl PersonalizationEngine {
         pause_ms: Option<u64>,
         speech_rate: Option<f32>,
     ) -> Option<SignalDetection> {
-        self.signal_detector.detect_with_timing(text, pause_ms, speech_rate)
+        self.signal_detector
+            .detect_with_timing(text, pause_ms, speech_rate)
     }
 
     /// Detect objection from user input
@@ -255,11 +248,8 @@ impl PersonalizationEngine {
         objection: Objection,
     ) -> Option<String> {
         let segment = ctx.segment.unwrap_or(CustomerSegment::FirstTime);
-        self.segment_adapter.handle_objection(
-            segment,
-            objection,
-            ctx.customer_name.as_deref(),
-        )
+        self.segment_adapter
+            .handle_objection(segment, objection, ctx.customer_name.as_deref())
     }
 
     /// Get priority features for segment
@@ -289,23 +279,39 @@ impl PersonalizationEngine {
         let recent = ctx.recent_signals(3);
 
         // Increase empathy if frustration or confusion detected
-        if recent.iter().any(|s| matches!(s, BehaviorSignal::Frustration | BehaviorSignal::Confusion)) {
+        if recent
+            .iter()
+            .any(|s| matches!(s, BehaviorSignal::Frustration | BehaviorSignal::Confusion))
+        {
             persona.empathy = (persona.empathy + 0.2).min(1.0);
             persona.warmth = (persona.warmth + 0.1).min(1.0);
         }
 
         // Increase urgency if interest detected
-        if recent.iter().any(|s| matches!(s, BehaviorSignal::StrongInterest | BehaviorSignal::Commitment)) {
+        if recent.iter().any(|s| {
+            matches!(
+                s,
+                BehaviorSignal::StrongInterest | BehaviorSignal::Commitment
+            )
+        }) {
             persona.urgency = ResponseUrgency::Efficient;
         }
 
         // Slow down if hesitation detected
-        if recent.iter().filter(|s| matches!(s, BehaviorSignal::Hesitation)).count() >= 2 {
+        if recent
+            .iter()
+            .filter(|s| matches!(s, BehaviorSignal::Hesitation))
+            .count()
+            >= 2
+        {
             persona.urgency = ResponseUrgency::Relaxed;
         }
 
         // If exit intent, maximize empathy
-        if recent.iter().any(|s| matches!(s, BehaviorSignal::ExitIntent)) {
+        if recent
+            .iter()
+            .any(|s| matches!(s, BehaviorSignal::ExitIntent))
+        {
             persona.empathy = 0.95;
             persona.warmth = 0.9;
             persona.acknowledge_emotions = true;
@@ -336,7 +342,10 @@ impl PersonalizationEngine {
 
         // Add signal-based guidance
         let trend = self.analyze_trend(ctx);
-        instructions.push_str(&format!(" Current strategy: {}", trend.recommended_action()));
+        instructions.push_str(&format!(
+            " Current strategy: {}",
+            trend.recommended_action()
+        ));
 
         // Add customer name guidance
         if let Some(ref name) = ctx.customer_name {
@@ -353,7 +362,9 @@ impl PersonalizationEngine {
 
         // Add objection guidance
         if ctx.has_objection {
-            instructions.push_str(" Customer has raised an objection. Address it empathetically before proceeding.");
+            instructions.push_str(
+                " Customer has raised an objection. Address it empathetically before proceeding.",
+            );
         }
 
         instructions
@@ -414,8 +425,7 @@ mod tests {
 
     #[test]
     fn test_context_signals() {
-        let mut ctx = PersonalizationContext::new()
-            .with_signal(BehaviorSignal::Interest);
+        let mut ctx = PersonalizationContext::new().with_signal(BehaviorSignal::Interest);
 
         ctx.update_from_detection(&SignalDetection::new(BehaviorSignal::StrongInterest, 0.9));
 
@@ -435,7 +445,9 @@ mod tests {
     fn test_engine_detect_objection() {
         let engine = PersonalizationEngine::new();
 
-        let objection = engine.detect_objection("Is my gold safe with you?").unwrap();
+        let objection = engine
+            .detect_objection("Is my gold safe with you?")
+            .unwrap();
         assert_eq!(objection, Objection::GoldSafety);
     }
 

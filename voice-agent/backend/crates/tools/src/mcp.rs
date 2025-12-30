@@ -14,8 +14,8 @@ use serde_json::Value;
 
 // Re-export all tool types from core crate
 pub use voice_agent_core::traits::{
-    Tool, ToolError, ErrorCode, ToolInput, ToolOutput, ContentBlock,
-    ToolSchema, InputSchema, PropertySchema, validate_property,
+    validate_property, ContentBlock, ErrorCode, InputSchema, PropertySchema, Tool, ToolError,
+    ToolInput, ToolOutput, ToolSchema,
 };
 
 // ============================================================================
@@ -458,7 +458,8 @@ mod tests {
 
     #[test]
     fn test_validate_enum() {
-        let enum_schema = PropertySchema::enum_type("Status", vec!["active".into(), "inactive".into()]);
+        let enum_schema =
+            PropertySchema::enum_type("Status", vec!["active".into(), "inactive".into()]);
 
         // Valid enum value
         assert!(validate_property("status", &serde_json::json!("active"), &enum_schema).is_ok());

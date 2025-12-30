@@ -3,9 +3,9 @@
 //! Converts numeric values to spoken words using Indian numbering system.
 //! Supports: integers, decimals, currency, percentages, dates, phone numbers.
 
+use once_cell::sync::Lazy;
 use regex::Regex;
 use voice_agent_core::Language;
-use once_cell::sync::Lazy;
 
 /// Indian numbering system converter
 pub struct IndianNumberSystem;
@@ -112,9 +112,26 @@ impl IndianNumberSystem {
     /// Convert small number (0-99) to English words
     fn small_number_to_words_en(n: u64) -> String {
         const ONES: &[&str] = &[
-            "", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-            "seventeen", "eighteen", "nineteen",
+            "",
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "six",
+            "seven",
+            "eight",
+            "nine",
+            "ten",
+            "eleven",
+            "twelve",
+            "thirteen",
+            "fourteen",
+            "fifteen",
+            "sixteen",
+            "seventeen",
+            "eighteen",
+            "nineteen",
         ];
         const TENS: &[&str] = &[
             "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
@@ -136,9 +153,9 @@ impl IndianNumberSystem {
     /// Convert small number (0-99) to Hindi transliteration
     fn small_number_to_words_hi(n: u64) -> String {
         const HINDI_ONES: &[&str] = &[
-            "", "ek", "do", "teen", "chaar", "paanch", "chheh", "saat", "aath", "nau",
-            "das", "gyaarah", "baarah", "terah", "chaudah", "pandrah", "solah",
-            "satrah", "athaarah", "unees",
+            "", "ek", "do", "teen", "chaar", "paanch", "chheh", "saat", "aath", "nau", "das",
+            "gyaarah", "baarah", "terah", "chaudah", "pandrah", "solah", "satrah", "athaarah",
+            "unees",
         ];
         const HINDI_TENS: &[&str] = &[
             "", "", "bees", "tees", "chaalis", "pachaas", "saath", "sattar", "assi", "nabbe",
@@ -165,25 +182,18 @@ pub struct NumberToWords {
 }
 
 // Regex patterns for number detection
-static CURRENCY_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"₹\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)").unwrap()
-});
+static CURRENCY_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"₹\s*(\d+(?:,\d+)*(?:\.\d{1,2})?)").unwrap());
 
-static PERCENTAGE_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(\d+(?:\.\d+)?)\s*%").unwrap()
-});
+static PERCENTAGE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\d+(?:\.\d+)?)\s*%").unwrap());
 
-static PHONE_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(\d{10})\b").unwrap()
-});
+static PHONE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\b(\d{10})\b").unwrap());
 
-static PLAIN_NUMBER_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(\d+(?:,\d+)*(?:\.\d+)?)\b").unwrap()
-});
+static PLAIN_NUMBER_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b(\d+(?:,\d+)*(?:\.\d+)?)\b").unwrap());
 
-static DATE_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b").unwrap()
-});
+static DATE_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})\b").unwrap());
 
 impl NumberToWords {
     /// Create new converter for given language
@@ -207,77 +217,88 @@ impl NumberToWords {
 
     /// Convert currency (₹15000 → "fifteen thousand rupees")
     fn convert_currency(&self, text: &str) -> String {
-        CURRENCY_PATTERN.replace_all(text, |caps: &regex::Captures| {
-            let num_str = caps.get(1).unwrap().as_str().replace(',', "");
-            if let Ok(amount) = num_str.parse::<f64>() {
-                let whole = amount.trunc() as u64;
-                let paise = ((amount.fract() * 100.0).round()) as u64;
+        CURRENCY_PATTERN
+            .replace_all(text, |caps: &regex::Captures| {
+                let num_str = caps.get(1).unwrap().as_str().replace(',', "");
+                if let Ok(amount) = num_str.parse::<f64>() {
+                    let whole = amount.trunc() as u64;
+                    let paise = ((amount.fract() * 100.0).round()) as u64;
 
-                let mut words = self.integer_to_words(whole);
-                words.push_str(" rupees");
+                    let mut words = self.integer_to_words(whole);
+                    words.push_str(" rupees");
 
-                if paise > 0 {
-                    words.push_str(" and ");
-                    words.push_str(&self.integer_to_words(paise));
-                    words.push_str(" paise");
+                    if paise > 0 {
+                        words.push_str(" and ");
+                        words.push_str(&self.integer_to_words(paise));
+                        words.push_str(" paise");
+                    }
+
+                    words
+                } else {
+                    caps.get(0).unwrap().as_str().to_string()
                 }
-
-                words
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        }).to_string()
+            })
+            .to_string()
     }
 
     /// Convert percentages (8.5% → "eight point five percent")
     fn convert_percentages(&self, text: &str) -> String {
-        PERCENTAGE_PATTERN.replace_all(text, |caps: &regex::Captures| {
-            let num_str = caps.get(1).unwrap().as_str();
-            if let Ok(num) = num_str.parse::<f64>() {
-                let words = self.decimal_to_words(num);
-                format!("{} percent", words)
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        }).to_string()
+        PERCENTAGE_PATTERN
+            .replace_all(text, |caps: &regex::Captures| {
+                let num_str = caps.get(1).unwrap().as_str();
+                if let Ok(num) = num_str.parse::<f64>() {
+                    let words = self.decimal_to_words(num);
+                    format!("{} percent", words)
+                } else {
+                    caps.get(0).unwrap().as_str().to_string()
+                }
+            })
+            .to_string()
     }
 
     /// Convert phone numbers (expand each digit for clarity)
     fn convert_phones(&self, text: &str) -> String {
-        PHONE_PATTERN.replace_all(text, |caps: &regex::Captures| {
-            let phone = caps.get(1).unwrap().as_str();
-            phone.chars()
-                .map(|c| self.digit_to_word(c))
-                .collect::<Vec<_>>()
-                .join(" ")
-        }).to_string()
+        PHONE_PATTERN
+            .replace_all(text, |caps: &regex::Captures| {
+                let phone = caps.get(1).unwrap().as_str();
+                phone
+                    .chars()
+                    .map(|c| self.digit_to_word(c))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .to_string()
     }
 
     /// Convert dates (15/01/2024 → "fifteenth January twenty twenty four")
     fn convert_dates(&self, text: &str) -> String {
-        DATE_PATTERN.replace_all(text, |caps: &regex::Captures| {
-            let day: u64 = caps.get(1).unwrap().as_str().parse().unwrap_or(1);
-            let month: u64 = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
-            let year: u64 = caps.get(3).unwrap().as_str().parse().unwrap_or(2024);
+        DATE_PATTERN
+            .replace_all(text, |caps: &regex::Captures| {
+                let day: u64 = caps.get(1).unwrap().as_str().parse().unwrap_or(1);
+                let month: u64 = caps.get(2).unwrap().as_str().parse().unwrap_or(1);
+                let year: u64 = caps.get(3).unwrap().as_str().parse().unwrap_or(2024);
 
-            let day_word = self.ordinal(day);
-            let month_word = self.month_name(month);
-            let year_word = self.year_to_words(year);
+                let day_word = self.ordinal(day);
+                let month_word = self.month_name(month);
+                let year_word = self.year_to_words(year);
 
-            format!("{} {} {}", day_word, month_word, year_word)
-        }).to_string()
+                format!("{} {} {}", day_word, month_word, year_word)
+            })
+            .to_string()
     }
 
     /// Convert plain numbers
     fn convert_plain_numbers(&self, text: &str) -> String {
-        PLAIN_NUMBER_PATTERN.replace_all(text, |caps: &regex::Captures| {
-            let num_str = caps.get(1).unwrap().as_str().replace(',', "");
-            if let Ok(num) = num_str.parse::<f64>() {
-                self.decimal_to_words(num)
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        }).to_string()
+        PLAIN_NUMBER_PATTERN
+            .replace_all(text, |caps: &regex::Captures| {
+                let num_str = caps.get(1).unwrap().as_str().replace(',', "");
+                if let Ok(num) = num_str.parse::<f64>() {
+                    self.decimal_to_words(num)
+                } else {
+                    caps.get(0).unwrap().as_str().to_string()
+                }
+            })
+            .to_string()
     }
 
     /// Convert integer to words
@@ -394,14 +415,18 @@ impl NumberToWords {
             // Two digit year: assume 2000s
             let full_year = 2000 + year;
             self.integer_to_words(full_year)
-        } else if year >= 2000 && year < 2100 {
+        } else if (2000..2100).contains(&year) {
             // 2024 → "twenty twenty four"
             let century = year / 100;
             let remainder = year % 100;
             if remainder == 0 {
                 format!("{} hundred", self.integer_to_words(century))
             } else {
-                format!("{} {}", self.integer_to_words(century), self.integer_to_words(remainder))
+                format!(
+                    "{} {}",
+                    self.integer_to_words(century),
+                    self.integer_to_words(remainder)
+                )
             }
         } else {
             self.integer_to_words(year)
@@ -422,7 +447,10 @@ mod tests {
         assert_eq!(IndianNumberSystem::to_words_en(100000), "one lakh");
         assert_eq!(IndianNumberSystem::to_words_en(10000000), "one crore");
         assert_eq!(IndianNumberSystem::to_words_en(15000), "fifteen thousand");
-        assert_eq!(IndianNumberSystem::to_words_en(150000), "one lakh fifty thousand");
+        assert_eq!(
+            IndianNumberSystem::to_words_en(150000),
+            "one lakh fifty thousand"
+        );
     }
 
     #[test]

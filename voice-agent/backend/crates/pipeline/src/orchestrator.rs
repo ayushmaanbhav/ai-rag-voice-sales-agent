@@ -2,23 +2,24 @@
 //!
 //! Coordinates VAD, STT, TTS, and turn detection for real-time conversation.
 
+use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
-use parking_lot::Mutex;
-use tokio::sync::{mpsc, broadcast};
+use tokio::sync::{broadcast, mpsc};
 
-use crate::vad::{VoiceActivityDetector, VadState, VadConfig};
-use crate::turn_detection::{HybridTurnDetector, TurnDetectionConfig, TurnDetectionResult};
 use crate::stt::{StreamingStt, SttConfig};
 use crate::tts::{StreamingTts, TtsConfig, TtsEvent};
+use crate::turn_detection::{HybridTurnDetector, TurnDetectionConfig, TurnDetectionResult};
+use crate::vad::{VadConfig, VadState, VoiceActivityDetector};
 use crate::PipelineError;
-use voice_agent_core::{AudioFrame, TranscriptResult, Frame, ProcessorContext, ControlFrame, Language};
+use voice_agent_core::{
+    AudioFrame, ControlFrame, Frame, Language, ProcessorContext, TranscriptResult,
+};
 
 // P1 FIX: Import processors for streaming LLM → TTS pipeline
 use crate::processors::{
-    ProcessorChain, SentenceDetector, SentenceDetectorConfig,
-    TtsProcessor, TtsProcessorConfig,
-    InterruptHandler, InterruptHandlerConfig,
+    InterruptHandler, InterruptHandlerConfig, ProcessorChain, SentenceDetector,
+    SentenceDetectorConfig, TtsProcessor, TtsProcessorConfig,
 };
 
 /// Pipeline events
@@ -253,13 +254,16 @@ impl VoicePipeline {
         let (vad_state, _vad_prob, _vad_result) = self.vad.process_frame(&mut frame)?;
 
         // Emit VAD event on state change
-        let _ = self.event_tx.send(PipelineEvent::VadStateChanged(vad_state));
+        let _ = self
+            .event_tx
+            .send(PipelineEvent::VadStateChanged(vad_state));
 
         // 2. Check for barge-in if speaking
         if *self.state.lock() == PipelineState::Speaking
-            && self.check_barge_in(&frame, vad_state).await? {
-                return Ok(());
-            }
+            && self.check_barge_in(&frame, vad_state).await?
+        {
+            return Ok(());
+        }
 
         // 3. Process based on state
         match *self.state.lock() {
@@ -268,7 +272,7 @@ impl VoicePipeline {
                     *self.state.lock() = PipelineState::Listening;
                     self.stt.lock().reset();
                 }
-            }
+            },
 
             PipelineState::Listening => {
                 // Feed audio to STT
@@ -276,48 +280,57 @@ impl VoicePipeline {
                 // ort::Session contains raw pointers that aren't Send. The ONNX runtime
                 // handles threading internally, so this is acceptable for now.
                 if let Some(partial) = self.stt.lock().process(&frame.samples)? {
-                    let _ = self.event_tx.send(PipelineEvent::PartialTranscript(partial.clone()));
+                    let _ = self
+                        .event_tx
+                        .send(PipelineEvent::PartialTranscript(partial.clone()));
 
                     // Update turn detector with transcript
-                    let turn_result = self.turn_detector.process(
-                        vad_state,
-                        Some(&partial.text),
-                    )?;
+                    let turn_result = self.turn_detector.process(vad_state, Some(&partial.text))?;
 
-                    let _ = self.event_tx.send(PipelineEvent::TurnStateChanged(turn_result.clone()));
+                    let _ = self
+                        .event_tx
+                        .send(PipelineEvent::TurnStateChanged(turn_result.clone()));
 
                     // Check for turn completion
                     if turn_result.is_turn_complete {
                         let final_transcript = self.stt.lock().finalize();
-                        let _ = self.event_tx.send(PipelineEvent::FinalTranscript(final_transcript));
+                        let _ = self
+                            .event_tx
+                            .send(PipelineEvent::FinalTranscript(final_transcript));
                         *self.state.lock() = PipelineState::Processing;
                     }
                 } else {
                     // No transcript yet, just update turn detector with VAD
                     let turn_result = self.turn_detector.process(vad_state, None)?;
-                    let _ = self.event_tx.send(PipelineEvent::TurnStateChanged(turn_result));
+                    let _ = self
+                        .event_tx
+                        .send(PipelineEvent::TurnStateChanged(turn_result));
                 }
-            }
+            },
 
             PipelineState::Processing => {
                 // Waiting for agent response
                 // Audio is still monitored for barge-in
-            }
+            },
 
             PipelineState::Speaking => {
                 // Handled above in barge-in check
-            }
+            },
 
             PipelineState::Paused => {
                 // Do nothing
-            }
+            },
         }
 
         Ok(())
     }
 
     /// Check for barge-in during TTS
-    async fn check_barge_in(&self, frame: &AudioFrame, vad_state: VadState) -> Result<bool, PipelineError> {
+    async fn check_barge_in(
+        &self,
+        frame: &AudioFrame,
+        vad_state: VadState,
+    ) -> Result<bool, PipelineError> {
         if !self.config.barge_in.enabled {
             return Ok(false);
         }
@@ -342,7 +355,9 @@ impl VoicePipeline {
                 self.tts.barge_in();
 
                 // Emit event
-                let _ = self.event_tx.send(PipelineEvent::BargeIn { at_word: word_index });
+                let _ = self.event_tx.send(PipelineEvent::BargeIn {
+                    at_word: word_index,
+                });
 
                 // Switch to listening
                 *self.state.lock() = PipelineState::Listening;
@@ -377,28 +392,35 @@ impl VoicePipeline {
         // Process TTS events
         while let Some(event) = rx.recv().await {
             match event {
-                TtsEvent::Audio { samples, text, is_final, .. } => {
+                TtsEvent::Audio {
+                    samples,
+                    text,
+                    is_final,
+                    ..
+                } => {
                     let _ = self.event_tx.send(PipelineEvent::TtsAudio {
                         samples,
                         text,
                         is_final,
                     });
-                }
+                },
                 TtsEvent::Complete => {
                     *self.state.lock() = PipelineState::Idle;
                     self.turn_detector.reset();
                     break;
-                }
+                },
                 TtsEvent::BargedIn { word_index } => {
-                    let _ = self.event_tx.send(PipelineEvent::BargeIn { at_word: word_index });
+                    let _ = self.event_tx.send(PipelineEvent::BargeIn {
+                        at_word: word_index,
+                    });
                     break;
-                }
+                },
                 TtsEvent::Error(e) => {
                     let _ = self.event_tx.send(PipelineEvent::Error(e));
                     *self.state.lock() = PipelineState::Idle;
                     break;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -427,8 +449,10 @@ impl VoicePipeline {
         language: Language,
     ) -> Result<mpsc::Receiver<Frame>, PipelineError> {
         // Check if processor chain is available
-        let chain = self.processor_chain.as_ref()
-            .ok_or_else(|| PipelineError::NotInitialized)?;
+        let chain = self
+            .processor_chain
+            .as_ref()
+            .ok_or(PipelineError::NotInitialized)?;
 
         // Set state
         *self.state.lock() = PipelineState::Speaking;
@@ -436,8 +460,7 @@ impl VoicePipeline {
         *self.barge_in_speech_ms.lock() = 0;
 
         // Start the processor chain with session context
-        let context = ProcessorContext::new("streaming-session")
-            .with_language(language);
+        let context = ProcessorContext::new("streaming-session").with_language(language);
 
         let (input_tx, output_rx) = chain.run(context);
 
@@ -457,10 +480,12 @@ impl VoicePipeline {
             }
 
             // Send final LLM chunk to signal completion
-            let _ = input_tx.send(Frame::LLMChunk {
-                text: String::new(),
-                is_final: true,
-            }).await;
+            let _ = input_tx
+                .send(Frame::LLMChunk {
+                    text: String::new(),
+                    is_final: true,
+                })
+                .await;
 
             // Send flush control frame
             let _ = input_tx.send(Frame::Control(ControlFrame::Flush)).await;
@@ -520,12 +545,7 @@ mod tests {
 
     #[allow(dead_code)]
     fn create_test_frame(samples: Vec<f32>) -> AudioFrame {
-        AudioFrame::new(
-            samples,
-            SampleRate::Hz16000,
-            Channels::Mono,
-            0,
-        )
+        AudioFrame::new(samples, SampleRate::Hz16000, Channels::Mono, 0)
     }
 
     #[tokio::test]

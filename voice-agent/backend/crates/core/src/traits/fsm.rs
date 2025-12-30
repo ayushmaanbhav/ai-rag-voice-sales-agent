@@ -61,9 +61,16 @@ pub enum ConversationEvent {
 
     // Tool events
     /// Tool execution requested
-    ToolCallRequested { tool: String, params: serde_json::Value },
+    ToolCallRequested {
+        tool: String,
+        params: serde_json::Value,
+    },
     /// Tool execution completed
-    ToolResultReady { tool: String, result: serde_json::Value, success: bool },
+    ToolResultReady {
+        tool: String,
+        result: serde_json::Value,
+        success: bool,
+    },
 
     // Error events
     /// Error occurred
@@ -149,13 +156,19 @@ pub enum FSMAction {
     /// Load customer profile
     LoadCustomerProfile { customer_id: String },
     /// Update context value
-    UpdateContext { key: String, value: serde_json::Value },
+    UpdateContext {
+        key: String,
+        value: serde_json::Value,
+    },
     /// Clear context value
     ClearContext { key: String },
 
     // Tool actions
     /// Execute a tool
-    ExecuteTool { name: String, params: serde_json::Value },
+    ExecuteTool {
+        name: String,
+        params: serde_json::Value,
+    },
     /// Prefetch data for anticipated tool use
     PrefetchTool { name: String, hint: Option<String> },
 
@@ -167,11 +180,18 @@ pub enum FSMAction {
     /// Escalate to human agent
     Escalate { to: String, reason: String },
     /// Schedule follow-up
-    ScheduleFollowUp { reason: String, delay_hours: Option<u32> },
+    ScheduleFollowUp {
+        reason: String,
+        delay_hours: Option<u32>,
+    },
 
     // Metrics actions
     /// Record metric
-    RecordMetric { name: String, value: f64, tags: HashMap<String, String> },
+    RecordMetric {
+        name: String,
+        value: f64,
+        tags: HashMap<String, String>,
+    },
     /// Log event
     LogEvent { level: String, message: String },
 }
@@ -241,7 +261,10 @@ pub struct FSMCheckpoint {
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum FSMError {
     #[error("Invalid transition from {from:?} with event {event}")]
-    InvalidTransition { from: ConversationStage, event: String },
+    InvalidTransition {
+        from: ConversationStage,
+        event: String,
+    },
 
     #[error("No checkpoint at index {0}")]
     NoCheckpoint(usize),
@@ -387,7 +410,7 @@ mod tests {
             ConversationEvent::UserIntent { intent, confidence } => {
                 assert_eq!(intent, "interested");
                 assert!((confidence - 0.95).abs() < 0.001);
-            }
+            },
             _ => panic!("Wrong event type"),
         }
     }
@@ -398,7 +421,7 @@ mod tests {
         match action {
             FSMAction::StartSpeaking { text } => {
                 assert_eq!(text, "Hello!");
-            }
+            },
             _ => panic!("Wrong action type"),
         }
     }
@@ -407,7 +430,10 @@ mod tests {
     fn test_objection_type_as_str() {
         assert_eq!(ObjectionType::Rate.as_str(), "rate");
         assert_eq!(ObjectionType::Trust.as_str(), "trust");
-        assert_eq!(ObjectionType::Other("custom".to_string()).as_str(), "custom");
+        assert_eq!(
+            ObjectionType::Other("custom".to_string()).as_str(),
+            "custom"
+        );
     }
 
     #[test]

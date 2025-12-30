@@ -23,10 +23,10 @@
 //! }
 //! ```
 
-use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// Tool error with MCP error codes
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,7 +178,9 @@ impl ToolOutput {
     /// Create an error output
     pub fn error(message: impl Into<String>) -> Self {
         Self {
-            content: vec![ContentBlock::Text { text: message.into() }],
+            content: vec![ContentBlock::Text {
+                text: message.into(),
+            }],
             is_error: true,
         }
     }
@@ -233,7 +235,10 @@ pub enum ContentBlock {
     /// Base64-encoded image
     Image { data: String, mime_type: String },
     /// Resource reference by URI
-    Resource { uri: String, mime_type: Option<String> },
+    Resource {
+        uri: String,
+        mime_type: Option<String>,
+    },
     /// Base64-encoded audio
     Audio {
         /// Base64-encoded audio data
@@ -451,7 +456,11 @@ pub trait Tool: Send + Sync {
 }
 
 /// Validate a property value against its schema
-pub fn validate_property(name: &str, value: &Value, schema: &PropertySchema) -> Result<(), ToolError> {
+pub fn validate_property(
+    name: &str,
+    value: &Value,
+    schema: &PropertySchema,
+) -> Result<(), ToolError> {
     // Check type
     let type_valid = match schema.prop_type.as_str() {
         "string" => value.is_string(),

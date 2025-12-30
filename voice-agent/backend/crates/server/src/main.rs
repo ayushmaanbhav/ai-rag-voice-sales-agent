@@ -5,8 +5,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-use voice_agent_config::{Settings, DomainConfigManager};
-use voice_agent_server::{create_router, AppState, init_metrics, session::ScyllaSessionStore};
+use voice_agent_config::{DomainConfigManager, Settings};
+use voice_agent_server::{create_router, init_metrics, session::ScyllaSessionStore, AppState};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -39,10 +39,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 let scylla_store = ScyllaSessionStore::new(persistence.sessions);
                 // P2 FIX: Wire audit logging for RBI compliance
-                let audit_log: Arc<dyn voice_agent_persistence::AuditLog> = Arc::new(persistence.audit);
+                let audit_log: Arc<dyn voice_agent_persistence::AuditLog> =
+                    Arc::new(persistence.audit);
                 // P1-4 FIX: Wire SMS and GoldPrice services into tools
-                let sms_service: Arc<dyn voice_agent_persistence::SmsService> = Arc::new(persistence.sms);
-                let gold_price_service: Arc<dyn voice_agent_persistence::GoldPriceService> = Arc::new(persistence.gold_price);
+                let sms_service: Arc<dyn voice_agent_persistence::SmsService> =
+                    Arc::new(persistence.sms);
+                let gold_price_service: Arc<dyn voice_agent_persistence::GoldPriceService> =
+                    Arc::new(persistence.gold_price);
                 tracing::info!("SMS and GoldPrice services wired into tools");
                 AppState::with_full_persistence(
                     config.clone(),
@@ -50,12 +53,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     domain_config,
                     sms_service,
                     gold_price_service,
-                ).with_audit_logger(audit_log)
-            }
+                )
+                .with_audit_logger(audit_log)
+            },
             Err(e) => {
-                tracing::error!("Failed to initialize ScyllaDB: {}. Falling back to in-memory.", e);
+                tracing::error!(
+                    "Failed to initialize ScyllaDB: {}. Falling back to in-memory.",
+                    e
+                );
                 AppState::with_domain_config(config.clone(), domain_config)
-            }
+            },
         }
     } else {
         tracing::info!("Persistence disabled, using in-memory session store");
@@ -73,10 +80,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "VectorStore initialized for RAG"
                 );
                 state = state.with_vector_store(Arc::new(vs));
-            }
+            },
             Err(e) => {
-                tracing::warn!("Failed to initialize VectorStore: {}. RAG will be disabled.", e);
-            }
+                tracing::warn!(
+                    "Failed to initialize VectorStore: {}. RAG will be disabled.",
+                    e
+                );
+            },
         }
     }
 
@@ -93,10 +103,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if count > 0 {
                     tracing::info!(recovered = count, "Session recovery complete");
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "Session recovery failed (non-fatal)");
-            }
+            },
         }
     }
 
@@ -155,23 +165,19 @@ async fn shutdown_signal() {
 fn init_tracing(config: &Settings) {
     use opentelemetry_otlp::WithExportConfig;
 
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| {
-            let level = &config.observability.log_level;
-            format!("voice_agent={},tower_http=debug", level).into()
-        });
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        let level = &config.observability.log_level;
+        format!("voice_agent={},tower_http=debug", level).into()
+    });
 
     // Build the base subscriber
     let subscriber = tracing_subscriber::registry().with(env_filter);
 
     // Add format layer (JSON or pretty)
     let fmt_layer = if config.observability.log_json {
-        tracing_subscriber::fmt::layer()
-            .json()
-            .boxed()
+        tracing_subscriber::fmt::layer().json().boxed()
     } else {
-        tracing_subscriber::fmt::layer()
-            .boxed()
+        tracing_subscriber::fmt::layer().boxed()
     };
 
     // Check if OpenTelemetry should be enabled
@@ -185,33 +191,32 @@ fn init_tracing(config: &Settings) {
                         .tonic()
                         .with_endpoint(otlp_endpoint),
                 )
-                .with_trace_config(
-                    opentelemetry_sdk::trace::Config::default()
-                        .with_resource(opentelemetry_sdk::Resource::new(vec![
-                            opentelemetry::KeyValue::new("service.name", "voice-agent"),
-                            opentelemetry::KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
-                        ])),
-                )
+                .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(
+                    opentelemetry_sdk::Resource::new(vec![
+                        opentelemetry::KeyValue::new("service.name", "voice-agent"),
+                        opentelemetry::KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+                    ]),
+                ))
                 .install_batch(opentelemetry_sdk::runtime::Tokio)
             {
                 Ok(tracer) => {
                     // install_batch returns a Tracer directly
                     let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
-                    subscriber
-                        .with(fmt_layer)
-                        .with(otel_layer)
-                        .init();
+                    subscriber.with(fmt_layer).with(otel_layer).init();
 
                     tracing::info!(
                         endpoint = %otlp_endpoint,
                         "OpenTelemetry tracing enabled, exporting to OTLP endpoint"
                     );
                     return;
-                }
+                },
                 Err(e) => {
-                    eprintln!("Failed to initialize OpenTelemetry: {}. Falling back to console logging.", e);
-                }
+                    eprintln!(
+                        "Failed to initialize OpenTelemetry: {}. Falling back to console logging.",
+                        e
+                    );
+                },
             }
         }
     }
@@ -221,7 +226,9 @@ fn init_tracing(config: &Settings) {
 }
 
 /// P0 FIX: Initialize ScyllaDB persistence layer
-async fn init_persistence(config: &Settings) -> Result<voice_agent_persistence::PersistenceLayer, voice_agent_persistence::PersistenceError> {
+async fn init_persistence(
+    config: &Settings,
+) -> Result<voice_agent_persistence::PersistenceLayer, voice_agent_persistence::PersistenceError> {
     let scylla_config = voice_agent_persistence::ScyllaConfig {
         hosts: config.persistence.scylla_hosts.clone(),
         keyspace: config.persistence.keyspace.clone(),
@@ -231,7 +238,9 @@ async fn init_persistence(config: &Settings) -> Result<voice_agent_persistence::
 }
 
 /// P0 FIX: Initialize VectorStore for RAG retrieval
-async fn init_vector_store(config: &Settings) -> Result<voice_agent_rag::VectorStore, voice_agent_rag::RagError> {
+async fn init_vector_store(
+    config: &Settings,
+) -> Result<voice_agent_rag::VectorStore, voice_agent_rag::RagError> {
     let vs_config = voice_agent_rag::VectorStoreConfig {
         endpoint: config.rag.qdrant_endpoint.clone(),
         collection: config.rag.qdrant_collection.clone(),
@@ -262,14 +271,21 @@ fn load_domain_config(path: &str) -> DomainConfigManager {
                 }
 
                 manager
-            }
+            },
             Err(e) => {
-                tracing::warn!("Failed to load domain config from {}: {}. Using defaults.", path.display(), e);
+                tracing::warn!(
+                    "Failed to load domain config from {}: {}. Using defaults.",
+                    path.display(),
+                    e
+                );
                 DomainConfigManager::new()
-            }
+            },
         }
     } else {
-        tracing::info!("Domain config not found at {}. Using defaults.", path.display());
+        tracing::info!(
+            "Domain config not found at {}. Using defaults.",
+            path.display()
+        );
         DomainConfigManager::new()
     }
 }

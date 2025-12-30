@@ -6,20 +6,20 @@
 //! - indictrans2-en-indic-dist-200M: English → Indic languages
 //! - indictrans2-indic-en-dist-200M: Indic languages → English
 
-mod detect;
-mod noop;
-mod indictrans2;
 mod candle_indictrans2;
+mod detect;
+mod indictrans2;
+mod noop;
 
+pub use candle_indictrans2::{CandleIndicTrans2Config, CandleIndicTrans2Translator};
 pub use detect::ScriptDetector;
+pub use indictrans2::{IndicTrans2Config, IndicTrans2Translator};
 pub use noop::NoopTranslator;
-pub use indictrans2::{IndicTrans2Translator, IndicTrans2Config};
-pub use candle_indictrans2::{CandleIndicTrans2Translator, CandleIndicTrans2Config};
 
-use voice_agent_core::{Translator, Language};
-use std::sync::Arc;
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::Arc;
+use voice_agent_core::{Language, Translator};
 
 /// Translation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,16 +86,16 @@ pub fn create_translator(config: &TranslationConfig) -> Arc<dyn Translator> {
                 Ok(translator) => {
                     tracing::info!("Using Candle IndicTrans2 translator");
                     Arc::new(translator)
-                }
+                },
                 Err(e) => {
                     tracing::warn!(
                         error = %e,
                         "Failed to load Candle IndicTrans2, using noop translator"
                     );
                     Arc::new(NoopTranslator::new())
-                }
+                },
             }
-        }
+        },
         TranslationProvider::IndicTrans2 => {
             // Legacy ONNX-based IndicTrans2 translator
             let indictrans2_config = if let Some(ref model_path) = config.indictrans2_model_path {
@@ -113,16 +113,16 @@ pub fn create_translator(config: &TranslationConfig) -> Arc<dyn Translator> {
                 Ok(translator) => {
                     tracing::info!("Using ONNX IndicTrans2 translator");
                     Arc::new(translator)
-                }
+                },
                 Err(e) => {
                     tracing::warn!(
                         error = %e,
                         "Failed to load ONNX IndicTrans2, using noop translator"
                     );
                     Arc::new(NoopTranslator::new())
-                }
+                },
             }
-        }
+        },
         TranslationProvider::Disabled => Arc::new(NoopTranslator::new()),
     }
 }
@@ -158,7 +158,6 @@ pub fn supported_pairs() -> Vec<(Language, Language)> {
         (Language::Nepali, Language::English),
         (Language::Manipuri, Language::English),
         (Language::Sanskrit, Language::English),
-
         // === English to Indic (22 languages) ===
         // Major languages (existing)
         (Language::English, Language::Hindi),

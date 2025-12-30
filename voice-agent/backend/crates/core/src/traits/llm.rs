@@ -1,9 +1,9 @@
 //! Language Model traits
 
+use crate::{GenerateRequest, GenerateResponse, Result, StreamChunk, ToolDefinition};
 use async_trait::async_trait;
-use std::pin::Pin;
 use futures::Stream;
-use crate::{Result, GenerateRequest, GenerateResponse, StreamChunk, ToolDefinition};
+use std::pin::Pin;
 
 /// Language Model interface
 ///
@@ -126,8 +126,7 @@ mod tests {
         assert!(llm.is_available().await);
         assert_eq!(llm.model_name(), "mock-llm");
 
-        let request = GenerateRequest::new("Test")
-            .with_user_message("Hello");
+        let request = GenerateRequest::new("Test").with_user_message("Hello");
         let response = llm.generate(request).await.unwrap();
         assert_eq!(response.text, "Mock response");
     }

@@ -14,17 +14,16 @@
 //! - https://github.com/AI4Bharat/IndicTrans2
 //! - https://huggingface.co/ai4bharat/indictrans2-en-indic-1B
 
-use std::path::PathBuf;
-use std::sync::Arc;
 use async_trait::async_trait;
 use futures::Stream;
-use std::pin::Pin;
 use parking_lot::RwLock;
+use std::path::PathBuf;
+use std::pin::Pin;
 
-use voice_agent_core::{Translator, Language, Result, Error};
+use voice_agent_core::{Language, Result, Translator};
 
-use super::ScriptDetector;
 use super::supported_pairs;
+use super::ScriptDetector;
 
 /// IndicTrans2 configuration
 #[derive(Debug, Clone)]
@@ -123,7 +122,9 @@ impl TranslationCache {
     fn insert(&mut self, text: &str, from: Language, to: Language, translation: String) {
         // Simple eviction: clear half when full
         if self.entries.len() >= self.max_size {
-            let keys_to_remove: Vec<_> = self.entries.keys()
+            let keys_to_remove: Vec<_> = self
+                .entries
+                .keys()
                 .take(self.max_size / 2)
                 .cloned()
                 .collect();
@@ -133,10 +134,13 @@ impl TranslationCache {
         }
 
         let key = Self::make_key(text, from, to);
-        self.entries.insert(key, CacheEntry {
-            translation,
-            timestamp: std::time::Instant::now(),
-        });
+        self.entries.insert(
+            key,
+            CacheEntry {
+                translation,
+                timestamp: std::time::Instant::now(),
+            },
+        );
     }
 }
 
@@ -202,31 +206,34 @@ mod onnx_impl {
             let input_text = format!("__{}__ {} __{}__", src_code, text, tgt_code);
 
             // Tokenize
-            let encoding = self.tokenizer.encode(input_text, true)
+            let encoding = self
+                .tokenizer
+                .encode(input_text, true)
                 .map_err(|e| Error::Translation(format!("Tokenization failed: {}", e)))?;
 
-            let input_ids: Vec<i64> = encoding.get_ids()
-                .iter()
-                .map(|&id| id as i64)
-                .collect();
+            let input_ids: Vec<i64> = encoding.get_ids().iter().map(|&id| id as i64).collect();
 
             // Create input tensor
             let seq_len = input_ids.len();
-            let input_array = ndarray::Array2::from_shape_vec(
-                (1, seq_len),
-                input_ids,
-            ).map_err(|e| Error::Translation(format!("Array creation failed: {}", e)))?;
+            let input_array = ndarray::Array2::from_shape_vec((1, seq_len), input_ids)
+                .map_err(|e| Error::Translation(format!("Array creation failed: {}", e)))?;
 
             // Run encoder
-            let encoder_outputs = self.encoder.run(ort::inputs![
-                "input_ids" => input_array.view(),
-            ]).map_err(|e| Error::Translation(format!("Encoder inference failed: {}", e)))?;
+            let encoder_outputs = self
+                .encoder
+                .run(ort::inputs![
+                    "input_ids" => input_array.view(),
+                ])
+                .map_err(|e| Error::Translation(format!("Encoder inference failed: {}", e)))?;
 
             // Get encoder hidden states
-            let encoder_hidden = encoder_outputs.get("last_hidden_state")
+            let encoder_hidden = encoder_outputs
+                .get("last_hidden_state")
                 .ok_or_else(|| Error::Translation("Missing encoder output".to_string()))?
                 .try_extract_tensor::<f32>()
-                .map_err(|e| Error::Translation(format!("Failed to extract encoder output: {}", e)))?;
+                .map_err(|e| {
+                    Error::Translation(format!("Failed to extract encoder output: {}", e))
+                })?;
 
             // Run decoder (simplified - actual implementation would use beam search)
             // For now, use greedy decoding
@@ -237,14 +244,19 @@ mod onnx_impl {
                 let decoder_input = ndarray::Array2::from_shape_vec(
                     (1, output_ids.len()),
                     output_ids.iter().map(|&id| id as i64).collect(),
-                ).map_err(|e| Error::Translation(format!("Decoder input creation failed: {}", e)))?;
+                )
+                .map_err(|e| Error::Translation(format!("Decoder input creation failed: {}", e)))?;
 
-                let decoder_outputs = self.decoder.run(ort::inputs![
-                    "input_ids" => decoder_input.view(),
-                    "encoder_hidden_states" => encoder_hidden.view(),
-                ]).map_err(|e| Error::Translation(format!("Decoder inference failed: {}", e)))?;
+                let decoder_outputs = self
+                    .decoder
+                    .run(ort::inputs![
+                        "input_ids" => decoder_input.view(),
+                        "encoder_hidden_states" => encoder_hidden.view(),
+                    ])
+                    .map_err(|e| Error::Translation(format!("Decoder inference failed: {}", e)))?;
 
-                let logits = decoder_outputs.get("logits")
+                let logits = decoder_outputs
+                    .get("logits")
                     .ok_or_else(|| Error::Translation("Missing decoder logits".to_string()))?
                     .try_extract_tensor::<f32>()
                     .map_err(|e| Error::Translation(format!("Failed to extract logits: {}", e)))?;
@@ -267,7 +279,9 @@ mod onnx_impl {
 
             // Decode output tokens
             let output_tokens: Vec<u32> = output_ids.iter().map(|&id| id as u32).collect();
-            let translation = self.tokenizer.decode(&output_tokens, true)
+            let translation = self
+                .tokenizer
+                .decode(&output_tokens, true)
                 .map_err(|e| Error::Translation(format!("Decoding failed: {}", e)))?;
 
             // Clean up language tokens from output
@@ -294,12 +308,7 @@ mod onnx_impl {
 
     #[async_trait]
     impl Translator for IndicTrans2Translator {
-        async fn translate(
-            &self,
-            text: &str,
-            from: Language,
-            to: Language,
-        ) -> Result<String> {
+        async fn translate(&self, text: &str, from: Language, to: Language) -> Result<String> {
             // Short-circuit if same language
             if from == to {
                 return Ok(text.to_string());
@@ -349,9 +358,9 @@ mod onnx_impl {
             use futures::StreamExt;
 
             // For streaming, translate each chunk as it arrives
-            Box::pin(text_stream.then(move |text| async move {
-                self.translate(&text, from, to).await
-            }))
+            Box::pin(
+                text_stream.then(move |text| async move { self.translate(&text, from, to).await }),
+            )
         }
 
         fn supports_pair(&self, from: Language, to: Language) -> bool {
@@ -384,9 +393,7 @@ mod stub_impl {
     impl IndicTrans2Translator {
         /// Create a new stub translator
         pub fn new(config: IndicTrans2Config) -> Result<Self> {
-            tracing::warn!(
-                "IndicTrans2 ONNX feature not enabled - translation will pass through"
-            );
+            tracing::warn!("IndicTrans2 ONNX feature not enabled - translation will pass through");
 
             Ok(Self {
                 detector: ScriptDetector::new(),
@@ -398,12 +405,7 @@ mod stub_impl {
 
     #[async_trait]
     impl Translator for IndicTrans2Translator {
-        async fn translate(
-            &self,
-            text: &str,
-            from: Language,
-            to: Language,
-        ) -> Result<String> {
+        async fn translate(&self, text: &str, from: Language, to: Language) -> Result<String> {
             if from == to {
                 return Ok(text.to_string());
             }
@@ -429,9 +431,9 @@ mod stub_impl {
         ) -> Pin<Box<dyn Stream<Item = Result<String>> + Send + 'a>> {
             use futures::StreamExt;
 
-            Box::pin(text_stream.then(move |text| async move {
-                self.translate(&text, from, to).await
-            }))
+            Box::pin(
+                text_stream.then(move |text| async move { self.translate(&text, from, to).await }),
+            )
         }
 
         fn supports_pair(&self, from: Language, to: Language) -> bool {
@@ -452,7 +454,6 @@ pub use onnx_impl::IndicTrans2Translator;
 pub use stub_impl::IndicTrans2Translator;
 
 // Always export config
-pub use self::IndicTrans2Config as Config;
 
 #[cfg(test)]
 mod tests {
@@ -475,7 +476,12 @@ mod tests {
     #[test]
     fn test_cache() {
         let mut cache = TranslationCache::new(10);
-        cache.insert("hello", Language::English, Language::Hindi, "नमस्ते".to_string());
+        cache.insert(
+            "hello",
+            Language::English,
+            Language::Hindi,
+            "नमस्ते".to_string(),
+        );
 
         let result = cache.get("hello", Language::English, Language::Hindi);
         assert_eq!(result, Some("नमस्ते"));

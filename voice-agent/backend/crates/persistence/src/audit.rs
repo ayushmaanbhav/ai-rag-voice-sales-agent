@@ -10,12 +10,12 @@
 //! Each entry is chained to the previous using SHA-256 hashing,
 //! creating a tamper-evident merkle chain.
 
+use crate::{PersistenceError, ScyllaClient};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{ScyllaClient, PersistenceError};
 
 /// Audit event types for compliance tracking
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -362,25 +362,28 @@ impl AuditLog for ScyllaAuditLog {
             self.client.keyspace()
         );
 
-        self.client.session().query_unpaged(
-            query,
-            (
-                &date,
-                session_id,
-                entry.timestamp.timestamp_millis(),
-                entry.id,
-                entry.event_type.as_str(),
-                &entry.actor.actor_type,
-                &entry.actor.actor_id,
-                &entry.resource_type,
-                &entry.resource_id,
-                &entry.action,
-                entry.outcome.as_str(),
-                entry.details.to_string(),
-                &entry.previous_hash,
-                &entry.hash,
-            ),
-        ).await?;
+        self.client
+            .session()
+            .query_unpaged(
+                query,
+                (
+                    &date,
+                    session_id,
+                    entry.timestamp.timestamp_millis(),
+                    entry.id,
+                    entry.event_type.as_str(),
+                    &entry.actor.actor_type,
+                    &entry.actor.actor_id,
+                    &entry.resource_type,
+                    &entry.resource_id,
+                    &entry.action,
+                    entry.outcome.as_str(),
+                    entry.details.to_string(),
+                    &entry.previous_hash,
+                    &entry.hash,
+                ),
+            )
+            .await?;
 
         tracing::debug!(
             event_type = entry.event_type.as_str(),
@@ -406,9 +409,7 @@ impl AuditLog for ScyllaAuditLog {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
-            .query_unpaged(cql, (limit,))
-            .await?;
+        let result = self.client.session().query_unpaged(cql, (limit,)).await?;
 
         let mut entries = Vec::new();
         if let Some(rows) = result.rows {
@@ -429,10 +430,23 @@ impl AuditLog for ScyllaAuditLog {
                     previous_hash,
                     hash,
                 ): (
-                    String, String, i64, Uuid, String,
-                    String, String, String, String,
-                    String, String, String, String, String,
-                ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+                    String,
+                    String,
+                    i64,
+                    Uuid,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                ) = row
+                    .into_typed()
+                    .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 entries.push(AuditEntry {
                     id,
@@ -463,13 +477,16 @@ impl AuditLog for ScyllaAuditLog {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (session_id,))
             .await?;
 
         if let Some(rows) = result.rows {
             if let Some(row) = rows.into_iter().next() {
-                let (hash,): (String,) = row.into_typed()
+                let (hash,): (String,) = row
+                    .into_typed()
                     .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
                 return Ok(hash);
             }
@@ -490,7 +507,9 @@ impl AuditLog for ScyllaAuditLog {
             self.client.keyspace()
         );
 
-        let result = self.client.session()
+        let result = self
+            .client
+            .session()
             .query_unpaged(query, (session_id,))
             .await?;
 
@@ -512,10 +531,21 @@ impl AuditLog for ScyllaAuditLog {
                     previous_hash,
                     hash,
                 ): (
-                    i64, Uuid, String, String, String,
-                    String, String, String, String,
-                    String, String, String,
-                ) = row.into_typed().map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
+                    i64,
+                    Uuid,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                    String,
+                ) = row
+                    .into_typed()
+                    .map_err(|e| PersistenceError::InvalidData(e.to_string()))?;
 
                 let entry = AuditEntry {
                     id,
@@ -600,8 +630,11 @@ impl AuditLogger {
         let previous_hash = self.log.get_latest_hash(session_id).await?;
 
         let event_type = if consent_type == "recording" {
-            if given { AuditEventType::RecordingConsentObtained }
-            else { AuditEventType::RecordingConsentDenied }
+            if given {
+                AuditEventType::RecordingConsentObtained
+            } else {
+                AuditEventType::RecordingConsentDenied
+            }
         } else {
             AuditEventType::PiiConsentObtained
         };
@@ -611,7 +644,11 @@ impl AuditLogger {
             Actor::user(session_id, None),
             "conversation",
             session_id,
-            format!("{}_consent_{}", consent_type, if given { "given" } else { "denied" }),
+            format!(
+                "{}_consent_{}",
+                consent_type,
+                if given { "given" } else { "denied" }
+            ),
             AuditOutcome::Success,
             serde_json::json!({
                 "consent_type": consent_type,
@@ -690,7 +727,11 @@ impl AuditLogger {
             "tool",
             tool_name,
             format!("execute_{}", tool_name),
-            if success { AuditOutcome::Success } else { AuditOutcome::Failure },
+            if success {
+                AuditOutcome::Success
+            } else {
+                AuditOutcome::Failure
+            },
             details,
             previous_hash,
         );
@@ -802,7 +843,10 @@ mod tests {
 
     #[test]
     fn test_event_type_serialization() {
-        assert_eq!(AuditEventType::AiDisclosureGiven.as_str(), "ai_disclosure_given");
+        assert_eq!(
+            AuditEventType::AiDisclosureGiven.as_str(),
+            "ai_disclosure_given"
+        );
         assert_eq!(
             AuditEventType::from_str("ai_disclosure_given"),
             AuditEventType::AiDisclosureGiven

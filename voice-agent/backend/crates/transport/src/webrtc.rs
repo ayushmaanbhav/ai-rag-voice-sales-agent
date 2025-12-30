@@ -10,32 +10,32 @@
 //!
 //! Target: <50ms one-way latency
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use async_trait::async_trait;
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
-use webrtc::api::API;
+use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::setting_engine::SettingEngine;
-use webrtc::api::interceptor_registry::register_default_interceptors;
+use webrtc::api::API;
 use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
 use webrtc::ice_transport::ice_gatherer_state::RTCIceGathererState;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::media::Sample;
 use webrtc::peer_connection::configuration::RTCConfiguration;
-use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
+use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 use webrtc::track::track_local::TrackLocal;
 use webrtc::track::track_remote::TrackRemote;
 
+use crate::codec::{OpusDecoder, OpusEncoder};
+use crate::traits::{AudioSink, AudioSource, ConnectionStats, Transport, TransportEvent};
 use crate::{AudioFormat, TransportError};
-use crate::codec::{OpusEncoder, OpusDecoder};
-use crate::traits::{Transport, TransportEvent, AudioSink, AudioSource, ConnectionStats};
 
 /// ICE server configuration
 #[derive(Debug, Clone)]
@@ -134,7 +134,10 @@ pub struct WebRtcAudioSink {
 
 impl WebRtcAudioSink {
     /// Create a new WebRTC audio sink
-    pub fn new(track: Arc<TrackLocalStaticSample>, format: AudioFormat) -> Result<Self, TransportError> {
+    pub fn new(
+        track: Arc<TrackLocalStaticSample>,
+        format: AudioFormat,
+    ) -> Result<Self, TransportError> {
         let encoder = OpusEncoder::new(format.sample_rate, format.channels)?;
 
         Ok(Self {
@@ -153,7 +156,8 @@ impl AudioSink for WebRtcAudioSink {
         let opus_data = self.encoder.encode(samples)?;
 
         // Calculate duration based on samples
-        let duration_ms = (samples.len() as u64 * 1000) / (self.format.sample_rate as u64 * self.format.channels as u64);
+        let duration_ms = (samples.len() as u64 * 1000)
+            / (self.format.sample_rate as u64 * self.format.channels as u64);
 
         // Write sample to track
         let sample = Sample {
@@ -162,7 +166,8 @@ impl AudioSink for WebRtcAudioSink {
             ..Default::default()
         };
 
-        self.track.write_sample(&sample)
+        self.track
+            .write_sample(&sample)
             .await
             .map_err(|e| TransportError::Media(format!("Failed to write sample: {}", e)))?;
 
@@ -222,9 +227,7 @@ impl AudioSource for WebRtcAudioSource {
             match rx.try_recv() {
                 Ok(data) => Ok(Some(data)),
                 Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-                Err(mpsc::error::TryRecvError::Disconnected) => {
-                    Err(TransportError::SessionClosed)
-                }
+                Err(mpsc::error::TryRecvError::Disconnected) => Err(TransportError::SessionClosed),
             }
         } else {
             Ok(None)
@@ -322,7 +325,9 @@ impl WebRtcTransport {
     ///
     /// Call this to add ICE candidates received from the remote peer.
     pub async fn add_ice_candidate(&self, candidate: &IceCandidate) -> Result<(), TransportError> {
-        let pc = self.peer_connection.as_ref()
+        let pc = self
+            .peer_connection
+            .as_ref()
             .ok_or_else(|| TransportError::ConnectionFailed("No peer connection".to_string()))?;
 
         let init = RTCIceCandidateInit {
@@ -332,9 +337,9 @@ impl WebRtcTransport {
             username_fragment: candidate.username_fragment.clone(),
         };
 
-        pc.add_ice_candidate(init)
-            .await
-            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to add ICE candidate: {}", e)))?;
+        pc.add_ice_candidate(init).await.map_err(|e| {
+            TransportError::ConnectionFailed(format!("Failed to add ICE candidate: {}", e))
+        })?;
 
         tracing::debug!(
             candidate = %candidate.candidate,
@@ -349,7 +354,9 @@ impl WebRtcTransport {
     /// Creates a new offer with ICE restart flag set. Use this when
     /// network connectivity changes or ICE connection fails.
     pub async fn ice_restart(&self) -> Result<String, TransportError> {
-        let pc = self.peer_connection.as_ref()
+        let pc = self
+            .peer_connection
+            .as_ref()
             .ok_or_else(|| TransportError::ConnectionFailed("No peer connection".to_string()))?;
 
         // Clear existing candidates
@@ -361,13 +368,13 @@ impl WebRtcTransport {
             ..Default::default()
         };
 
-        let offer = pc.create_offer(Some(offer_options))
-            .await
-            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to create restart offer: {}", e)))?;
+        let offer = pc.create_offer(Some(offer_options)).await.map_err(|e| {
+            TransportError::ConnectionFailed(format!("Failed to create restart offer: {}", e))
+        })?;
 
-        pc.set_local_description(offer.clone())
-            .await
-            .map_err(|e| TransportError::ConnectionFailed(format!("Failed to set local description: {}", e)))?;
+        pc.set_local_description(offer.clone()).await.map_err(|e| {
+            TransportError::ConnectionFailed(format!("Failed to set local description: {}", e))
+        })?;
 
         tracing::info!("ICE restart initiated");
 
@@ -376,16 +383,16 @@ impl WebRtcTransport {
 
     /// P2 FIX: Get ICE gathering state
     pub fn ice_gathering_state(&self) -> Option<String> {
-        self.peer_connection.as_ref().map(|pc| {
-            format!("{:?}", pc.ice_gathering_state())
-        })
+        self.peer_connection
+            .as_ref()
+            .map(|pc| format!("{:?}", pc.ice_gathering_state()))
     }
 
     /// P2 FIX: Get ICE connection state
     pub fn ice_connection_state(&self) -> Option<String> {
-        self.peer_connection.as_ref().map(|pc| {
-            format!("{:?}", pc.ice_connection_state())
-        })
+        self.peer_connection
+            .as_ref()
+            .map(|pc| format!("{:?}", pc.ice_connection_state()))
     }
 
     /// Create WebRTC API with media engine
@@ -401,14 +408,16 @@ impl WebRtcTransport {
             rtcp_feedback: vec![],
         };
 
-        media_engine.register_codec(
-            webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecParameters {
-                capability: opus_codec,
-                payload_type: 111,
-                stats_id: String::new(),
-            },
-            webrtc::rtp_transceiver::rtp_codec::RTPCodecType::Audio,
-        ).map_err(|e| TransportError::Internal(e.to_string()))?;
+        media_engine
+            .register_codec(
+                webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecParameters {
+                    capability: opus_codec,
+                    payload_type: 111,
+                    stats_id: String::new(),
+                },
+                webrtc::rtp_transceiver::rtp_codec::RTPCodecType::Audio,
+            )
+            .map_err(|e| TransportError::Internal(e.to_string()))?;
 
         // Create interceptor registry
         let mut registry = Registry::new();
@@ -420,9 +429,9 @@ impl WebRtcTransport {
 
         // Configure ICE timeouts for better NAT traversal
         setting_engine.set_ice_timeouts(
-            Some(std::time::Duration::from_secs(5)),  // disconnected_timeout
+            Some(std::time::Duration::from_secs(5)), // disconnected_timeout
             Some(std::time::Duration::from_secs(25)), // failed_timeout
-            Some(std::time::Duration::from_secs(2)),  // keep_alive_interval
+            Some(std::time::Duration::from_secs(2)), // keep_alive_interval
         );
 
         // Build API
@@ -437,7 +446,10 @@ impl WebRtcTransport {
 
     /// Create RTCConfiguration from config
     fn create_rtc_config(&self) -> RTCConfiguration {
-        let ice_servers: Vec<RTCIceServer> = self.config.ice_servers.iter()
+        let ice_servers: Vec<RTCIceServer> = self
+            .config
+            .ice_servers
+            .iter()
             .map(|s| RTCIceServer {
                 urls: s.urls.clone(),
                 username: s.username.clone().unwrap_or_default(),
@@ -466,7 +478,8 @@ impl Transport for WebRtcTransport {
 
         // Create peer connection
         let config = self.create_rtc_config();
-        let peer_connection = api.new_peer_connection(config)
+        let peer_connection = api
+            .new_peer_connection(config)
             .await
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
 
@@ -564,28 +577,34 @@ impl Transport for WebRtcTransport {
                                         Ok(s) => s,
                                         Err(_) => continue,
                                     }
-                                }
+                                },
                             };
 
                             let timestamp_ms = (rtp_packet.header.timestamp as u64 * 1000) / 48000;
 
                             // Send to audio channel
-                            if audio_tx.send((samples.clone(), timestamp_ms)).await.is_err() {
+                            if audio_tx
+                                .send((samples.clone(), timestamp_ms))
+                                .await
+                                .is_err()
+                            {
                                 break;
                             }
 
                             // Also send as event
                             if let Some(tx) = &event_tx {
-                                let _ = tx.send(TransportEvent::AudioReceived {
-                                    samples,
-                                    timestamp_ms,
-                                }).await;
+                                let _ = tx
+                                    .send(TransportEvent::AudioReceived {
+                                        samples,
+                                        timestamp_ms,
+                                    })
+                                    .await;
                             }
-                        }
+                        },
                         Err(e) => {
                             tracing::error!("Track read error: {}", e);
                             break;
-                        }
+                        },
                     }
                 }
             })
@@ -621,11 +640,13 @@ impl Transport for WebRtcTransport {
 
                     // Also send as transport event
                     if let Some(tx) = event_tx {
-                        let _ = tx.send(TransportEvent::IceCandidate {
-                            candidate: ice_candidate.candidate,
-                            sdp_mid: ice_candidate.sdp_mid,
-                            sdp_m_line_index: ice_candidate.sdp_m_line_index,
-                        }).await;
+                        let _ = tx
+                            .send(TransportEvent::IceCandidate {
+                                candidate: ice_candidate.candidate,
+                                sdp_mid: ice_candidate.sdp_mid,
+                                sdp_m_line_index: ice_candidate.sdp_m_line_index,
+                            })
+                            .await;
                     }
                 } else {
                     // null candidate means gathering complete
@@ -658,7 +679,8 @@ impl Transport for WebRtcTransport {
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
 
         // Create answer
-        let answer = pc.create_answer(None)
+        let answer = pc
+            .create_answer(None)
             .await
             .map_err(|e| TransportError::ConnectionFailed(e.to_string()))?;
 
@@ -672,11 +694,11 @@ impl Transport for WebRtcTransport {
         match tokio::time::timeout(timeout_duration, ice_complete_rx).await {
             Ok(Ok(())) => {
                 tracing::info!("ICE gathering completed successfully");
-            }
+            },
             Ok(Err(_)) => {
                 // Channel closed - gathering may have completed before we subscribed
                 tracing::debug!("ICE gathering channel closed (possibly already complete)");
-            }
+            },
             Err(_) => {
                 // Timeout - proceed anyway with partial candidates
                 tracing::warn!(
@@ -684,12 +706,13 @@ impl Transport for WebRtcTransport {
                     timeout_duration,
                     self.local_candidates.read().len()
                 );
-            }
+            },
         }
 
         // P2 FIX: Get the final SDP with all candidates included
         // The local description now contains all gathered ICE candidates
-        let final_sdp = pc.local_description()
+        let final_sdp = pc
+            .local_description()
             .await
             .map(|desc| desc.sdp)
             .unwrap_or_else(|| answer.sdp.clone());
@@ -731,7 +754,7 @@ impl Transport for WebRtcTransport {
                 Err(e) => {
                     tracing::error!("Failed to create audio sink: {}", e);
                     None
-                }
+                },
             }
         } else {
             None
@@ -748,7 +771,7 @@ impl Transport for WebRtcTransport {
                     tracing::error!("Failed to clone audio source");
                     // This is a workaround - in practice we'd use Arc properly
                     Box::new(DummyAudioSource) as Box<dyn AudioSource>
-                }
+                },
             }
         })
     }

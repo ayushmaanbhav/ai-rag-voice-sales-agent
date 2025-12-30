@@ -18,8 +18,8 @@
 //!
 //! This provides 2-5x speedup in practice while maintaining accuracy.
 
-use std::path::Path;
 use parking_lot::Mutex;
+use std::path::Path;
 
 #[cfg(feature = "onnx")]
 use ndarray::Array2;
@@ -83,10 +83,10 @@ impl Default for RerankerConfig {
             similarity_threshold: 0.95,
             // Cascaded defaults
             cascaded_enabled: true,
-            prefilter_threshold: 0.1,      // Filter docs with <10% keyword overlap
-            max_full_model_docs: 10,        // Only run model on top 10 candidates
-            early_termination_threshold: 0.95,  // Stop if we find 95%+ confident match
-            early_termination_min_results: 3,   // Need at least 3 good results first
+            prefilter_threshold: 0.1, // Filter docs with <10% keyword overlap
+            max_full_model_docs: 10,  // Only run model on top 10 candidates
+            early_termination_threshold: 0.95, // Stop if we find 95%+ confident match
+            early_termination_min_results: 3, // Need at least 3 good results first
         }
     }
 }
@@ -260,8 +260,8 @@ impl EarlyExitReranker {
             .commit_from_file(model_path)
             .map_err(|e| RagError::Model(e.to_string()))?;
 
-        let tokenizer = Tokenizer::from_file(tokenizer_path)
-            .map_err(|e| RagError::Model(e.to_string()))?;
+        let tokenizer =
+            Tokenizer::from_file(tokenizer_path).map_err(|e| RagError::Model(e.to_string()))?;
 
         Ok(Self {
             session,
@@ -420,7 +420,7 @@ impl EarlyExitReranker {
             results.push(RerankResult {
                 id: id.clone(),
                 score: *prefilter_score * 0.5, // Penalize pre-filter-only scores
-                exit_layer: Some(0), // Layer 0 = pre-filter only
+                exit_layer: Some(0),           // Layer 0 = pre-filter only
                 original_rank: *original_idx,
             });
         }
@@ -449,7 +449,8 @@ impl EarlyExitReranker {
         if total_this_call > 0 {
             let this_avg = full_model_count as f32 / total_this_call as f32;
             // Running average
-            stats.avg_exit_layer = (stats.avg_exit_layer * (stats.total_calls - 1) as f32 + this_avg)
+            stats.avg_exit_layer = (stats.avg_exit_layer * (stats.total_calls - 1) as f32
+                + this_avg)
                 / stats.total_calls as f32;
         }
 
@@ -468,11 +469,13 @@ impl EarlyExitReranker {
     /// Score a query-document pair
     #[cfg(feature = "onnx")]
     fn score_pair(&self, query: &str, document: &str) -> Result<(f32, Option<usize>), RagError> {
-        let encoding = self.tokenizer
+        let encoding = self
+            .tokenizer
             .encode((query, document), true)
             .map_err(|e| RagError::Reranker(e.to_string()))?;
 
-        let ids: Vec<i64> = encoding.get_ids()
+        let ids: Vec<i64> = encoding
+            .get_ids()
             .iter()
             .take(self.config.max_seq_len)
             .map(|&id| id as i64)
@@ -510,11 +513,16 @@ impl EarlyExitReranker {
         input_ids: &Array2<i64>,
         attention_mask: &Array2<i64>,
     ) -> Result<(f32, Option<usize>), RagError> {
-        let outputs = self.session.run(ort::inputs![
-            "input_ids" => input_ids.view(),
-            "attention_mask" => attention_mask.view(),
-        ].map_err(|e| RagError::Model(e.to_string()))?)
-        .map_err(|e| RagError::Model(e.to_string()))?;
+        let outputs = self
+            .session
+            .run(
+                ort::inputs![
+                    "input_ids" => input_ids.view(),
+                    "attention_mask" => attention_mask.view(),
+                ]
+                .map_err(|e| RagError::Model(e.to_string()))?,
+            )
+            .map_err(|e| RagError::Model(e.to_string()))?;
 
         let logits = outputs
             .get("logits")
@@ -577,27 +585,175 @@ impl SimpleScorer {
     /// Common stopwords for English and Hindi
     const STOPWORDS: &'static [&'static str] = &[
         // English
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "must", "shall", "can", "need", "dare",
-        "to", "of", "in", "for", "on", "with", "at", "by", "from", "as",
-        "into", "through", "during", "before", "after", "above", "below",
-        "between", "under", "again", "further", "then", "once", "here",
-        "there", "when", "where", "why", "how", "all", "each", "few",
-        "more", "most", "other", "some", "such", "no", "nor", "not",
-        "only", "own", "same", "so", "than", "too", "very", "just",
-        "and", "but", "if", "or", "because", "until", "while", "about",
-        "i", "me", "my", "myself", "we", "our", "ours", "ourselves",
-        "you", "your", "yours", "yourself", "yourselves", "he", "him",
-        "his", "himself", "she", "her", "hers", "herself", "it", "its",
-        "itself", "they", "them", "their", "theirs", "themselves",
-        "what", "which", "who", "whom", "this", "that", "these", "those",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "need",
+        "dare",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "and",
+        "but",
+        "if",
+        "or",
+        "because",
+        "until",
+        "while",
+        "about",
+        "i",
+        "me",
+        "my",
+        "myself",
+        "we",
+        "our",
+        "ours",
+        "ourselves",
+        "you",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+        "he",
+        "him",
+        "his",
+        "himself",
+        "she",
+        "her",
+        "hers",
+        "herself",
+        "it",
+        "its",
+        "itself",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "themselves",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
         // Hindi
-        "का", "की", "के", "को", "में", "है", "हैं", "था", "थी", "थे",
-        "से", "पर", "और", "या", "एक", "यह", "वह", "जो", "तो", "भी",
-        "ने", "हो", "कर", "ही", "इस", "उस", "अपने", "किया", "हुए",
-        "main", "mujhe", "hai", "hain", "ka", "ki", "ke", "ko", "mein",
-        "se", "par", "aur", "ya", "ek", "yeh", "woh", "jo", "toh", "bhi",
+        "का",
+        "की",
+        "के",
+        "को",
+        "में",
+        "है",
+        "हैं",
+        "था",
+        "थी",
+        "थे",
+        "से",
+        "पर",
+        "और",
+        "या",
+        "एक",
+        "यह",
+        "वह",
+        "जो",
+        "तो",
+        "भी",
+        "ने",
+        "हो",
+        "कर",
+        "ही",
+        "इस",
+        "उस",
+        "अपने",
+        "किया",
+        "हुए",
+        "main",
+        "mujhe",
+        "hai",
+        "hain",
+        "ka",
+        "ki",
+        "ke",
+        "ko",
+        "mein",
+        "se",
+        "par",
+        "aur",
+        "ya",
+        "ek",
+        "yeh",
+        "woh",
+        "jo",
+        "toh",
+        "bhi",
     ];
 
     /// Score using TF-IDF-like weighting
@@ -697,8 +853,12 @@ mod tests {
             "kotak gold loan eligibility",
             "The bank offers various loan products to customers",
         );
-        assert!(score_specific > score_generic,
-            "Specific match ({}) should beat generic ({})", score_specific, score_generic);
+        assert!(
+            score_specific > score_generic,
+            "Specific match ({}) should beat generic ({})",
+            score_specific,
+            score_generic
+        );
     }
 
     #[test]
@@ -714,20 +874,18 @@ mod tests {
     #[test]
     fn test_simple_scorer_stopwords() {
         // Stopwords should not inflate score
-        let score_with_stopwords = SimpleScorer::score(
-            "the gold loan",
-            "gold loan information",
-        );
-        let score_without_stopwords = SimpleScorer::score(
-            "gold loan",
-            "gold loan information",
-        );
+        let score_with_stopwords = SimpleScorer::score("the gold loan", "gold loan information");
+        let score_without_stopwords = SimpleScorer::score("gold loan", "gold loan information");
         // With stopwords filtered, "the gold loan" becomes "gold loan" which matches
         // But after filtering, both queries should give similar results
         println!("score_with_stopwords: {}", score_with_stopwords);
         println!("score_without_stopwords: {}", score_without_stopwords);
         // Both should work, stopword filtering keeps scores reasonable
-        assert!(score_without_stopwords > 0.0, "Without stopwords should score > 0: {}", score_without_stopwords);
+        assert!(
+            score_without_stopwords > 0.0,
+            "Without stopwords should score > 0: {}",
+            score_without_stopwords
+        );
         // With stopwords, the query terms that remain should still match
         // Note: If all query terms are stopwords, score will be 0 - which is expected
     }
@@ -739,8 +897,14 @@ mod tests {
         let reranker = EarlyExitReranker::simple(config);
 
         let documents = vec![
-            ("doc1".to_string(), "gold loan interest rate from kotak".to_string()),
-            ("doc2".to_string(), "weather forecast for tomorrow".to_string()),
+            (
+                "doc1".to_string(),
+                "gold loan interest rate from kotak".to_string(),
+            ),
+            (
+                "doc2".to_string(),
+                "weather forecast for tomorrow".to_string(),
+            ),
             ("doc3".to_string(), "gold loan processing fee".to_string()),
             ("doc4".to_string(), "restaurant menu items".to_string()),
             ("doc5".to_string(), "loan interest calculation".to_string()),
@@ -766,9 +930,18 @@ mod tests {
         let reranker = EarlyExitReranker::simple(config);
 
         let documents = vec![
-            ("relevant".to_string(), "gold loan interest rate".to_string()),
-            ("irrelevant1".to_string(), "unrelated topic here".to_string()),
-            ("irrelevant2".to_string(), "another unrelated doc".to_string()),
+            (
+                "relevant".to_string(),
+                "gold loan interest rate".to_string(),
+            ),
+            (
+                "irrelevant1".to_string(),
+                "unrelated topic here".to_string(),
+            ),
+            (
+                "irrelevant2".to_string(),
+                "another unrelated doc".to_string(),
+            ),
         ];
 
         let results = reranker.rerank("gold loan", &documents).unwrap();
@@ -793,14 +966,14 @@ mod tests {
 
         let documents = vec![
             ("doc1".to_string(), "gold loan".to_string()),
-            ("doc2".to_string(), "gold loan interest".to_string()),  // Both have "gold loan"
+            ("doc2".to_string(), "gold loan interest".to_string()), // Both have "gold loan"
         ];
 
         let _ = reranker.rerank("gold loan", &documents).unwrap();
 
         let stats = reranker.stats();
         assert_eq!(stats.total_calls, 1);
-        assert_eq!(stats.total_docs, 2);  // Input doc count
+        assert_eq!(stats.total_docs, 2); // Input doc count
     }
 
     #[cfg(not(feature = "onnx"))]

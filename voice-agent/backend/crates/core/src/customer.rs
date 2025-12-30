@@ -356,10 +356,17 @@ impl SegmentDetector {
         // Hindi: lakh, crore
         // Look for amounts like "5 lakh", "10 lakh", "1 crore"
         let high_value_patterns = [
-            "lakh", "lakhs", "lac", "lacs",
-            "crore", "crores",
-            "500000", "1000000",
-            "पाँच लाख", "दस लाख", "करोड़",
+            "lakh",
+            "lakhs",
+            "lac",
+            "lacs",
+            "crore",
+            "crores",
+            "500000",
+            "1000000",
+            "पाँच लाख",
+            "दस लाख",
+            "करोड़",
         ];
 
         // Check for large amounts
@@ -393,21 +400,19 @@ impl SegmentDetector {
         // Simple extraction: look for "N lakh" pattern
         let words: Vec<&str> = text.split_whitespace().collect();
         for (i, word) in words.iter().enumerate() {
-            if word.contains("lakh") || word.contains("lac") {
-                if i > 0 {
-                    if let Ok(n) = words[i - 1].parse::<f64>() {
-                        return n;
-                    }
-                    // Hindi number words
-                    match words[i - 1] {
-                        "एक" | "ek" => return 1.0,
-                        "दो" | "do" => return 2.0,
-                        "तीन" | "teen" => return 3.0,
-                        "चार" | "char" => return 4.0,
-                        "पाँच" | "paanch" | "panch" => return 5.0,
-                        "दस" | "das" => return 10.0,
-                        _ => {}
-                    }
+            if (word.contains("lakh") || word.contains("lac")) && i > 0 {
+                if let Ok(n) = words[i - 1].parse::<f64>() {
+                    return n;
+                }
+                // Hindi number words
+                match words[i - 1] {
+                    "एक" | "ek" => return 1.0,
+                    "दो" | "do" => return 2.0,
+                    "तीन" | "teen" => return 3.0,
+                    "चार" | "char" => return 4.0,
+                    "पाँच" | "paanch" | "panch" => return 5.0,
+                    "दस" | "das" => return 10.0,
+                    _ => {},
                 }
             }
         }
@@ -418,13 +423,28 @@ impl SegmentDetector {
     fn detect_price_sensitivity(&self, text: &str) -> bool {
         let price_patterns = [
             // English
-            "interest rate", "lowest rate", "best rate", "cheaper",
-            "how much interest", "what rate", "rate kitna",
-            "compare rate", "other bank", "better rate",
-            "processing fee", "hidden charge", "total cost",
+            "interest rate",
+            "lowest rate",
+            "best rate",
+            "cheaper",
+            "how much interest",
+            "what rate",
+            "rate kitna",
+            "compare rate",
+            "other bank",
+            "better rate",
+            "processing fee",
+            "hidden charge",
+            "total cost",
             // Hindi
-            "kitna byaj", "byaj dar", "sasta", "mehnga",
-            "sabse kam", "ब्याज दर", "सस्ता", "महंगा",
+            "kitna byaj",
+            "byaj dar",
+            "sasta",
+            "mehnga",
+            "sabse kam",
+            "ब्याज दर",
+            "सस्ता",
+            "महंगा",
         ];
 
         price_patterns.iter().any(|p| text.contains(p))
@@ -434,15 +454,29 @@ impl SegmentDetector {
     fn detect_trust_seeking(&self, text: &str) -> bool {
         let trust_patterns = [
             // Safety concerns
-            "gold safe", "safe hai", "surakshit",
-            "insurance", "vault", "locker",
-            "rbi", "regulated", "government",
+            "gold safe",
+            "safe hai",
+            "surakshit",
+            "insurance",
+            "vault",
+            "locker",
+            "rbi",
+            "regulated",
+            "government",
             // Past issues
-            "iifl", "muthoot", "manappuram",
-            "problem", "issue", "fraud", "cheat",
-            "lost gold", "gold missing",
+            "iifl",
+            "muthoot",
+            "manappuram",
+            "problem",
+            "issue",
+            "fraud",
+            "cheat",
+            "lost gold",
+            "gold missing",
             // Hindi
-            "सोना सुरक्षित", "भरोसा", "विश्वास",
+            "सोना सुरक्षित",
+            "भरोसा",
+            "विश्वास",
         ];
 
         trust_patterns.iter().any(|p| text.contains(p))
@@ -451,11 +485,18 @@ impl SegmentDetector {
     /// Detect first-time customer
     fn detect_first_time(&self, text: &str) -> bool {
         let first_time_patterns = [
-            "first time", "pehli baar", "pahli bar",
-            "never taken", "new to", "how does it work",
-            "kaise hota hai", "process kya hai",
-            "what is gold loan", "gold loan kya",
-            "पहली बार", "कैसे होता है",
+            "first time",
+            "pehli baar",
+            "pahli bar",
+            "never taken",
+            "new to",
+            "how does it work",
+            "kaise hota hai",
+            "process kya hai",
+            "what is gold loan",
+            "gold loan kya",
+            "पहली बार",
+            "कैसे होता है",
         ];
 
         first_time_patterns.iter().any(|p| text.contains(p))
@@ -465,13 +506,28 @@ impl SegmentDetector {
     pub fn detect_urgency(&self, text: &str) -> bool {
         let urgency_patterns = [
             // English
-            "urgent", "emergency", "asap", "today",
-            "right now", "immediately", "quick", "fast",
-            "need money", "hospital", "medical",
+            "urgent",
+            "emergency",
+            "asap",
+            "today",
+            "right now",
+            "immediately",
+            "quick",
+            "fast",
+            "need money",
+            "hospital",
+            "medical",
             // Hindi
-            "jaldi", "abhi", "turant", "fauran",
-            "जल्दी", "अभी", "तुरंत", "फौरन",
-            "paise chahiye", "पैसे चाहिए",
+            "jaldi",
+            "abhi",
+            "turant",
+            "fauran",
+            "जल्दी",
+            "अभी",
+            "तुरंत",
+            "फौरन",
+            "paise chahiye",
+            "पैसे चाहिए",
         ];
 
         urgency_patterns.iter().any(|p| text.contains(p))

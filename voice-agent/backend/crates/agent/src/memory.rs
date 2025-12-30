@@ -8,12 +8,12 @@
 //! P2-3 FIX: MemoryConfig is now defined in voice_agent_config to consolidate
 //! duplicate definitions and provide serde support.
 
-use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
-use voice_agent_core::{Turn, TurnRole, LanguageModel, GenerateRequest};
+use voice_agent_core::{GenerateRequest, LanguageModel, Turn, TurnRole};
 
 // P2-3 FIX: Re-export MemoryConfig from config crate
 pub use voice_agent_config::MemoryConfig;
@@ -61,7 +61,8 @@ impl From<&Turn> for MemoryEntry {
                 TurnRole::User => "user",
                 TurnRole::Assistant => "assistant",
                 TurnRole::System => "system",
-            }.to_string(),
+            }
+            .to_string(),
             content: turn.content.clone(),
             timestamp_ms: turn.timestamp.timestamp_millis() as u64,
             stage: None,
@@ -155,7 +156,9 @@ impl ConversationMemory {
         if working.len() > self.config.working_memory_size {
             // In production, would call LLM to summarize
             // For now, just trim
-            let to_summarize: Vec<MemoryEntry> = working.drain(..self.config.summarization_threshold).collect();
+            let to_summarize: Vec<MemoryEntry> = working
+                .drain(..self.config.summarization_threshold)
+                .collect();
             self.create_episodic_summary(to_summarize);
         }
     }
@@ -194,12 +197,11 @@ impl ConversationMemory {
         let start_ms = entries.first().map(|e| e.timestamp_ms).unwrap_or(0);
         let end_ms = entries.last().map(|e| e.timestamp_ms).unwrap_or(0);
 
-        let topics: Vec<String> = entries.iter()
-            .flat_map(|e| e.intents.clone())
-            .collect();
+        let topics: Vec<String> = entries.iter().flat_map(|e| e.intents.clone()).collect();
 
         // P2 FIX: Truncate at word boundaries instead of mid-word
-        let summary = entries.iter()
+        let summary = entries
+            .iter()
             .filter(|e| e.role == "user")
             .map(|e| Self::truncate_at_word_boundary(&e.content, 50))
             .collect::<Vec<_>>()
@@ -244,21 +246,20 @@ impl ConversationMemory {
                     // No LLM available, use simple summary
                     self.create_simple_summary(entries);
                     return Ok(());
-                }
+                },
             }
         };
 
         // Build conversation text for summarization
-        let conversation_text: String = entries.iter()
+        let conversation_text: String = entries
+            .iter()
             .map(|e| format!("{}: {}", e.role, e.content))
             .collect::<Vec<_>>()
             .join("\n");
 
         let start_ms = entries.first().map(|e| e.timestamp_ms).unwrap_or(0);
         let end_ms = entries.last().map(|e| e.timestamp_ms).unwrap_or(0);
-        let topics: Vec<String> = entries.iter()
-            .flat_map(|e| e.intents.clone())
-            .collect();
+        let topics: Vec<String> = entries.iter().flat_map(|e| e.intents.clone()).collect();
 
         // Create summarization prompt
         let prompt = format!(
@@ -296,15 +297,18 @@ Summary:"#,
                     episodic_memory.pop_front();
                 }
 
-                tracing::debug!("Created LLM-based episodic summary for {} turns", entries.len());
+                tracing::debug!(
+                    "Created LLM-based episodic summary for {} turns",
+                    entries.len()
+                );
                 Ok(())
-            }
+            },
             Err(e) => {
                 tracing::warn!("LLM summarization failed, using fallback: {}", e);
                 // Fallback to simple summary
                 self.create_simple_summary(entries);
                 Err(format!("LLM summarization failed: {}", e))
-            }
+            },
         }
     }
 
@@ -386,7 +390,8 @@ Summary:"#,
 
     /// Get recent conversation for LLM
     pub fn get_recent_messages(&self) -> Vec<(String, String)> {
-        self.working.read()
+        self.working
+            .read()
             .iter()
             .map(|e| (e.role.clone(), e.content.clone()))
             .collect()
@@ -485,7 +490,8 @@ Summary:"#,
             let stats = self.get_stats();
             if stats.estimated_tokens > self.config.low_watermark_tokens {
                 let mut semantic = self.semantic.write();
-                let low_confidence_keys: Vec<String> = semantic.iter()
+                let low_confidence_keys: Vec<String> = semantic
+                    .iter()
                     .filter(|(_, f)| f.confidence < 0.5)
                     .map(|(k, _)| k.clone())
                     .collect();
@@ -572,7 +578,10 @@ mod tests {
         memory.add_fact("loan_amount", "500000", 0.9);
 
         assert!(memory.get_fact("customer_name").is_some());
-        assert_eq!(memory.get_fact("customer_name").unwrap().value, "Rajesh Kumar");
+        assert_eq!(
+            memory.get_fact("customer_name").unwrap().value,
+            "Rajesh Kumar"
+        );
     }
 
     #[test]

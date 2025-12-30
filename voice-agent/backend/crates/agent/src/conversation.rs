@@ -2,18 +2,18 @@
 //!
 //! Manages the overall conversation flow and state.
 
+use chrono::{DateTime, Utc};
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
-use parking_lot::Mutex;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
-use voice_agent_core::{Turn, TurnRole};
-use crate::stage::{StageManager, ConversationStage, TransitionReason};
+use crate::intent::{DetectedIntent, IntentDetector};
 use crate::memory::{ConversationMemory, MemoryConfig, MemoryEntry};
-use crate::intent::{IntentDetector, DetectedIntent};
+use crate::stage::{ConversationStage, StageManager, TransitionReason};
 use crate::AgentError;
+use voice_agent_core::{Turn, TurnRole};
 
 /// Conversation configuration
 #[derive(Debug, Clone)]
@@ -52,7 +52,10 @@ pub enum ConversationEvent {
     /// Intent detected
     IntentDetected(DetectedIntent),
     /// Stage changed
-    StageChanged { from: ConversationStage, to: ConversationStage },
+    StageChanged {
+        from: ConversationStage,
+        to: ConversationStage,
+    },
     /// Fact learned
     FactLearned { key: String, value: String },
     /// Tool called
@@ -89,7 +92,7 @@ pub enum ConversationState {
 ///
 /// RBI requires that customers are informed they are speaking with an AI,
 /// and must be given the option to speak with a human agent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AiDisclosure {
     /// Whether AI disclosure has been given to the customer
     pub given: bool,
@@ -101,18 +104,6 @@ pub struct AiDisclosure {
     pub disclosure_text: Option<String>,
     /// Whether human escalation option was offered
     pub human_option_offered: bool,
-}
-
-impl Default for AiDisclosure {
-    fn default() -> Self {
-        Self {
-            given: false,
-            timestamp: None,
-            language: None,
-            disclosure_text: None,
-            human_option_offered: false,
-        }
-    }
 }
 
 impl AiDisclosure {
@@ -274,7 +265,8 @@ impl ComplianceStatus {
         }
 
         if !self.consent.recording_consent {
-            self.pending_requirements.push("recording_consent".to_string());
+            self.pending_requirements
+                .push("recording_consent".to_string());
         }
 
         self.compliant = self.pending_requirements.is_empty();
@@ -421,7 +413,9 @@ impl Conversation {
             content: content.to_string(),
         });
 
-        let _ = self.event_tx.send(ConversationEvent::IntentDetected(detected.clone()));
+        let _ = self
+            .event_tx
+            .send(ConversationEvent::IntentDetected(detected.clone()));
 
         // Check for stage transition triggers
         self.check_stage_transitions(&detected);
@@ -459,11 +453,16 @@ impl Conversation {
     pub fn transition_stage(&self, to: ConversationStage) -> Result<(), AgentError> {
         let from = self.stage();
 
-        match self.stage_manager.transition(to, TransitionReason::NaturalFlow) {
+        match self
+            .stage_manager
+            .transition(to, TransitionReason::NaturalFlow)
+        {
             Ok(_) => {
-                let _ = self.event_tx.send(ConversationEvent::StageChanged { from, to });
+                let _ = self
+                    .event_tx
+                    .send(ConversationEvent::StageChanged { from, to });
                 Ok(())
-            }
+            },
             Err(e) => Err(AgentError::Stage(e)),
         }
     }
@@ -489,27 +488,23 @@ impl Conversation {
                 } else {
                     None
                 }
-            }
+            },
 
             // Loan inquiry / eligibility query: Move to relevant stage
-            "loan_inquiry" | "eligibility_query" => {
-                match current {
-                    ConversationStage::Greeting => Some(ConversationStage::Discovery),
-                    ConversationStage::Discovery => Some(ConversationStage::Qualification),
-                    _ => None,
-                }
-            }
+            "loan_inquiry" | "eligibility_query" => match current {
+                ConversationStage::Greeting => Some(ConversationStage::Discovery),
+                ConversationStage::Discovery => Some(ConversationStage::Qualification),
+                _ => None,
+            },
 
             // Interest rate query: Customer interested in rates -> Presentation
-            "interest_rate_query" => {
-                match current {
-                    ConversationStage::Greeting | ConversationStage::Discovery => {
-                        Some(ConversationStage::Presentation)
-                    }
-                    ConversationStage::Qualification => Some(ConversationStage::Presentation),
-                    _ => None,
-                }
-            }
+            "interest_rate_query" => match current {
+                ConversationStage::Greeting | ConversationStage::Discovery => {
+                    Some(ConversationStage::Presentation)
+                },
+                ConversationStage::Qualification => Some(ConversationStage::Presentation),
+                _ => None,
+            },
 
             // Competitor reference: Need to understand their situation
             "competitor_reference" => {
@@ -517,16 +512,14 @@ impl Conversation {
                     ConversationStage::Greeting => Some(ConversationStage::Discovery),
                     _ => None, // Stay in current stage but note the competitor info
                 }
-            }
+            },
 
             // Branch locator: Ready to visit -> Closing
-            "branch_locator" => {
-                match current {
-                    ConversationStage::Presentation => Some(ConversationStage::Closing),
-                    ConversationStage::ObjectionHandling => Some(ConversationStage::Closing),
-                    _ => None,
-                }
-            }
+            "branch_locator" => match current {
+                ConversationStage::Presentation => Some(ConversationStage::Closing),
+                ConversationStage::ObjectionHandling => Some(ConversationStage::Closing),
+                _ => None,
+            },
 
             // Schedule visit: Ready to book appointment -> Closing
             "schedule_visit" | "schedule_appointment" | "book_appointment" => {
@@ -536,30 +529,26 @@ impl Conversation {
                     ConversationStage::Discovery => Some(ConversationStage::Closing), // Fast track
                     _ => None,
                 }
-            }
+            },
 
             // Objection: Handle objection (from any sales stage)
-            "objection" if current != ConversationStage::ObjectionHandling => {
-                match current {
-                    ConversationStage::Discovery
-                    | ConversationStage::Qualification
-                    | ConversationStage::Presentation
-                    | ConversationStage::Closing => Some(ConversationStage::ObjectionHandling),
-                    _ => None,
-                }
-            }
+            "objection" if current != ConversationStage::ObjectionHandling => match current {
+                ConversationStage::Discovery
+                | ConversationStage::Qualification
+                | ConversationStage::Presentation
+                | ConversationStage::Closing => Some(ConversationStage::ObjectionHandling),
+                _ => None,
+            },
 
             // Affirmative: Agreement to proceed to next stage
-            "affirmative" => {
-                match current {
-                    ConversationStage::Greeting => Some(ConversationStage::Discovery),
-                    ConversationStage::Discovery => Some(ConversationStage::Qualification),
-                    ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
-                    ConversationStage::Presentation => Some(ConversationStage::Closing),
-                    ConversationStage::Closing => Some(ConversationStage::Farewell),
-                    _ => None,
-                }
-            }
+            "affirmative" => match current {
+                ConversationStage::Greeting => Some(ConversationStage::Discovery),
+                ConversationStage::Discovery => Some(ConversationStage::Qualification),
+                ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
+                ConversationStage::Presentation => Some(ConversationStage::Closing),
+                ConversationStage::Closing => Some(ConversationStage::Farewell),
+                _ => None,
+            },
 
             // Negative: Might need objection handling or early exit
             "negative" => {
@@ -568,38 +557,35 @@ impl Conversation {
                     ConversationStage::Presentation => Some(ConversationStage::ObjectionHandling),
                     _ => None, // Don't force exit on negative, handle gracefully
                 }
-            }
+            },
 
             // Thank you: Positive signal, often near end
-            "thank_you" => {
-                match current {
-                    ConversationStage::Closing => Some(ConversationStage::Farewell),
-                    ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
-                    _ => None,
-                }
-            }
+            "thank_you" => match current {
+                ConversationStage::Closing => Some(ConversationStage::Farewell),
+                ConversationStage::ObjectionHandling => Some(ConversationStage::Presentation),
+                _ => None,
+            },
 
             // Farewell: End conversation (from any stage)
             "farewell" => Some(ConversationStage::Farewell),
 
             // Confusion: May need to revisit discovery
-            "confusion" => {
-                match current {
-                    ConversationStage::Presentation => Some(ConversationStage::Discovery),
-                    _ => None,
-                }
-            }
+            "confusion" => match current {
+                ConversationStage::Presentation => Some(ConversationStage::Discovery),
+                _ => None,
+            },
 
             _ => None,
         };
 
         if let Some(to) = new_stage {
             if current.valid_transitions().contains(&to) {
-                let _ = self.stage_manager.transition(to, TransitionReason::IntentDetected(intent.intent.clone()));
-                let _ = self.event_tx.send(ConversationEvent::StageChanged {
-                    from: current,
-                    to,
-                });
+                let _ = self
+                    .stage_manager
+                    .transition(to, TransitionReason::IntentDetected(intent.intent.clone()));
+                let _ = self
+                    .event_tx
+                    .send(ConversationEvent::StageChanged { from: current, to });
             }
         }
 
@@ -669,23 +655,26 @@ impl Conversation {
                 // Check timeouts
                 if self.duration() > Duration::from_secs(self.config.max_duration_seconds as u64) {
                     self.end(EndReason::MaxDuration);
-                    return Err(AgentError::Conversation("Max duration exceeded".to_string()));
+                    return Err(AgentError::Conversation(
+                        "Max duration exceeded".to_string(),
+                    ));
                 }
 
                 let last = *self.last_activity.lock();
-                if last.elapsed() > Duration::from_secs(self.config.session_timeout_seconds as u64) {
+                if last.elapsed() > Duration::from_secs(self.config.session_timeout_seconds as u64)
+                {
                     self.end(EndReason::Timeout);
                     return Err(AgentError::Conversation("Session timeout".to_string()));
                 }
 
                 Ok(())
-            }
-            ConversationState::Paused => {
-                Err(AgentError::Conversation("Conversation is paused".to_string()))
-            }
-            ConversationState::Ended => {
-                Err(AgentError::Conversation("Conversation has ended".to_string()))
-            }
+            },
+            ConversationState::Paused => Err(AgentError::Conversation(
+                "Conversation is paused".to_string(),
+            )),
+            ConversationState::Ended => Err(AgentError::Conversation(
+                "Conversation has ended".to_string(),
+            )),
         }
     }
 
@@ -732,7 +721,9 @@ impl Conversation {
         let disclosure_text = AiDisclosure::get_disclosure_message(language);
 
         let mut compliance = self.compliance.lock();
-        compliance.ai_disclosure.mark_disclosed(language, disclosure_text, true);
+        compliance
+            .ai_disclosure
+            .mark_disclosed(language, disclosure_text, true);
         compliance.update();
 
         disclosure_text.to_string()
@@ -741,7 +732,9 @@ impl Conversation {
     /// Mark AI disclosure with custom text
     pub fn mark_ai_disclosed_with_text(&self, language: &str, text: &str, human_option: bool) {
         let mut compliance = self.compliance.lock();
-        compliance.ai_disclosure.mark_disclosed(language, text, human_option);
+        compliance
+            .ai_disclosure
+            .mark_disclosed(language, text, human_option);
         compliance.update();
     }
 
@@ -807,7 +800,8 @@ mod tests {
         let intent = conv.add_user_turn("Hello").unwrap();
         assert_eq!(intent.intent, "greeting");
 
-        conv.add_assistant_turn("Hello! How can I help you?").unwrap();
+        conv.add_assistant_turn("Hello! How can I help you?")
+            .unwrap();
 
         assert_eq!(conv.turn_count(), 2);
     }

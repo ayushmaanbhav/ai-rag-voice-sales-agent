@@ -7,8 +7,8 @@
 mod magicnet;
 mod silero;
 
-pub use magicnet::{VoiceActivityDetector, VadConfig, VadState, VadResult};
-pub use silero::{SileroVad, SileroConfig};
+pub use magicnet::{VadConfig, VadResult, VadState, VoiceActivityDetector};
+pub use silero::{SileroConfig, SileroVad};
 
 use crate::PipelineError;
 use voice_agent_core::AudioFrame;

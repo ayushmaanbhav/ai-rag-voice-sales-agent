@@ -1,10 +1,10 @@
 //! No-op translator (pass-through)
 
+use super::ScriptDetector;
 use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
-use voice_agent_core::{Translator, Language, Result};
-use super::ScriptDetector;
+use voice_agent_core::{Language, Result, Translator};
 
 /// Pass-through translator that does nothing
 #[derive(Debug, Clone, Default)]
@@ -59,7 +59,10 @@ mod tests {
         let translator = NoopTranslator::new();
 
         let input = "नमस्ते";
-        let output = translator.translate(input, Language::Hindi, Language::English).await.unwrap();
+        let output = translator
+            .translate(input, Language::Hindi, Language::English)
+            .await
+            .unwrap();
 
         assert_eq!(input, output);
         assert!(!translator.supports_pair(Language::Hindi, Language::English));

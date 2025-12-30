@@ -16,19 +16,20 @@
 //! ```
 
 use std::sync::Arc;
-use voice_agent_core::{LanguageModel, llm_types::ToolDefinition};
+use voice_agent_core::{llm_types::ToolDefinition, LanguageModel};
 
 use crate::{
-    LlmError,
-    backend::{LlmBackend, LlmConfig, OllamaBackend, OpenAIConfig, OpenAIBackend},
-    claude::{ClaudeBackend, ClaudeConfig},
     adapter::LanguageModelAdapter,
+    backend::{LlmBackend, LlmConfig, OllamaBackend, OpenAIBackend, OpenAIConfig},
+    claude::{ClaudeBackend, ClaudeConfig},
+    LlmError,
 };
 
 /// LLM provider type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LlmProvider {
     /// Claude (Anthropic) - native tool_use support
+    #[default]
     Claude,
     /// Ollama - local models, text-based tool injection
     Ollama,
@@ -36,12 +37,6 @@ pub enum LlmProvider {
     OpenAI,
     /// Azure OpenAI - Azure-hosted GPT models
     AzureOpenAI,
-}
-
-impl Default for LlmProvider {
-    fn default() -> Self {
-        LlmProvider::Claude
-    }
 }
 
 impl LlmProvider {
@@ -180,14 +175,18 @@ pub struct LlmFactory;
 
 impl LlmFactory {
     /// Create a LanguageModel from config (implements core trait)
-    pub fn create(config: &LlmProviderConfig) -> std::result::Result<Arc<dyn LanguageModel>, LlmError> {
+    pub fn create(
+        config: &LlmProviderConfig,
+    ) -> std::result::Result<Arc<dyn LanguageModel>, LlmError> {
         match config.provider {
             LlmProvider::Claude => {
-                let api_key = config.api_key.clone()
+                let api_key = config
+                    .api_key
+                    .clone()
                     .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
-                    .ok_or_else(|| LlmError::Configuration(
-                        "Claude requires ANTHROPIC_API_KEY".to_string()
-                    ))?;
+                    .ok_or_else(|| {
+                        LlmError::Configuration("Claude requires ANTHROPIC_API_KEY".to_string())
+                    })?;
 
                 let claude_config = ClaudeConfig::new(api_key)
                     .with_model_str(&config.model)
@@ -197,10 +196,12 @@ impl LlmFactory {
 
                 let backend = ClaudeBackend::new(claude_config)?;
                 Ok(Arc::new(ClaudeLanguageModel::new(backend)))
-            }
+            },
 
             LlmProvider::Ollama => {
-                let endpoint = config.endpoint.clone()
+                let endpoint = config
+                    .endpoint
+                    .clone()
                     .unwrap_or_else(|| "http://localhost:11434".to_string());
 
                 let ollama_config = LlmConfig {
@@ -214,53 +215,55 @@ impl LlmFactory {
 
                 let backend = OllamaBackend::new(ollama_config)?;
                 Ok(Arc::new(LanguageModelAdapter::new(backend)))
-            }
+            },
 
             LlmProvider::OpenAI => {
-                let api_key = config.api_key.clone()
+                let api_key = config
+                    .api_key
+                    .clone()
                     .or_else(|| std::env::var("OPENAI_API_KEY").ok())
-                    .ok_or_else(|| LlmError::Configuration(
-                        "OpenAI requires OPENAI_API_KEY".to_string()
-                    ))?;
+                    .ok_or_else(|| {
+                        LlmError::Configuration("OpenAI requires OPENAI_API_KEY".to_string())
+                    })?;
 
                 let openai_config = OpenAIConfig::openai(api_key, &config.model);
                 let backend = OpenAIBackend::new(openai_config)?;
                 Ok(Arc::new(LanguageModelAdapter::new(backend)))
-            }
+            },
 
             LlmProvider::AzureOpenAI => {
-                let endpoint = config.endpoint.clone()
-                    .ok_or_else(|| LlmError::Configuration(
-                        "Azure OpenAI requires endpoint".to_string()
-                    ))?;
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| LlmError::Configuration(
-                        "Azure OpenAI requires api_key".to_string()
-                    ))?;
-                let api_version = config.azure_api_version.clone()
+                let endpoint = config.endpoint.clone().ok_or_else(|| {
+                    LlmError::Configuration("Azure OpenAI requires endpoint".to_string())
+                })?;
+                let api_key = config.api_key.clone().ok_or_else(|| {
+                    LlmError::Configuration("Azure OpenAI requires api_key".to_string())
+                })?;
+                let api_version = config
+                    .azure_api_version
+                    .clone()
                     .unwrap_or_else(|| "2024-02-01".to_string());
 
-                let azure_config = OpenAIConfig::azure(
-                    endpoint,
-                    api_key,
-                    &config.model,
-                    api_version,
-                );
+                let azure_config =
+                    OpenAIConfig::azure(endpoint, api_key, &config.model, api_version);
                 let backend = OpenAIBackend::new(azure_config)?;
                 Ok(Arc::new(LanguageModelAdapter::new(backend)))
-            }
+            },
         }
     }
 
     /// Create a raw LlmBackend (for low-level access)
-    pub fn create_backend(config: &LlmProviderConfig) -> std::result::Result<Arc<dyn LlmBackend>, LlmError> {
+    pub fn create_backend(
+        config: &LlmProviderConfig,
+    ) -> std::result::Result<Arc<dyn LlmBackend>, LlmError> {
         match config.provider {
             LlmProvider::Claude => {
-                let api_key = config.api_key.clone()
+                let api_key = config
+                    .api_key
+                    .clone()
                     .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
-                    .ok_or_else(|| LlmError::Configuration(
-                        "Claude requires ANTHROPIC_API_KEY".to_string()
-                    ))?;
+                    .ok_or_else(|| {
+                        LlmError::Configuration("Claude requires ANTHROPIC_API_KEY".to_string())
+                    })?;
 
                 let claude_config = ClaudeConfig::new(api_key)
                     .with_model_str(&config.model)
@@ -269,10 +272,12 @@ impl LlmFactory {
                     .with_streaming(config.streaming);
 
                 Ok(Arc::new(ClaudeBackend::new(claude_config)?))
-            }
+            },
 
             LlmProvider::Ollama => {
-                let endpoint = config.endpoint.clone()
+                let endpoint = config
+                    .endpoint
+                    .clone()
                     .unwrap_or_else(|| "http://localhost:11434".to_string());
 
                 let ollama_config = LlmConfig {
@@ -285,20 +290,20 @@ impl LlmFactory {
                 };
 
                 Ok(Arc::new(OllamaBackend::new(ollama_config)?))
-            }
+            },
 
             LlmProvider::OpenAI | LlmProvider::AzureOpenAI => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| LlmError::Configuration(
-                        "OpenAI/Azure requires api_key".to_string()
-                    ))?;
+                let api_key = config.api_key.clone().ok_or_else(|| {
+                    LlmError::Configuration("OpenAI/Azure requires api_key".to_string())
+                })?;
 
                 let openai_config = if config.provider == LlmProvider::AzureOpenAI {
-                    let endpoint = config.endpoint.clone()
-                        .ok_or_else(|| LlmError::Configuration(
-                            "Azure OpenAI requires endpoint".to_string()
-                        ))?;
-                    let api_version = config.azure_api_version.clone()
+                    let endpoint = config.endpoint.clone().ok_or_else(|| {
+                        LlmError::Configuration("Azure OpenAI requires endpoint".to_string())
+                    })?;
+                    let api_version = config
+                        .azure_api_version
+                        .clone()
                         .unwrap_or_else(|| "2024-02-01".to_string());
                     OpenAIConfig::azure(endpoint, api_key, &config.model, api_version)
                 } else {
@@ -306,7 +311,7 @@ impl LlmFactory {
                 };
 
                 Ok(Arc::new(OpenAIBackend::new(openai_config)?))
-            }
+            },
         }
     }
 
@@ -326,13 +331,13 @@ impl LlmFactory {
 // Claude LanguageModel Wrapper
 // =============================================================================
 
-use std::pin::Pin;
 use async_trait::async_trait;
 use futures::Stream;
+use std::pin::Pin;
 use tokio::sync::mpsc;
 use voice_agent_core::{
-    GenerateRequest, GenerateResponse, StreamChunk, Result, Error,
     llm_types::{FinishReason, TokenUsage},
+    Error, GenerateRequest, GenerateResponse, Result, StreamChunk,
 };
 
 /// Wrapper that implements core::LanguageModel for ClaudeBackend
@@ -343,7 +348,9 @@ pub struct ClaudeLanguageModel {
 
 impl ClaudeLanguageModel {
     pub fn new(backend: ClaudeBackend) -> Self {
-        Self { backend: Arc::new(backend) }
+        Self {
+            backend: Arc::new(backend),
+        }
     }
 }
 
@@ -352,7 +359,10 @@ impl LanguageModel for ClaudeLanguageModel {
     async fn generate(&self, request: GenerateRequest) -> Result<GenerateResponse> {
         let messages = convert_to_prompt_messages(&request);
 
-        let response = self.backend.generate_with_tools(&messages, &[]).await
+        let response = self
+            .backend
+            .generate_with_tools(&messages, &[])
+            .await
             .map_err(|e| Error::Llm(e.to_string()))?;
 
         Ok(GenerateResponse {
@@ -419,7 +429,10 @@ impl LanguageModel for ClaudeLanguageModel {
     ) -> Result<GenerateResponse> {
         let messages = convert_to_prompt_messages(&request);
 
-        let response = self.backend.generate_with_tools(&messages, tools).await
+        let response = self
+            .backend
+            .generate_with_tools(&messages, tools)
+            .await
             .map_err(|e| Error::Llm(e.to_string()))?;
 
         Ok(GenerateResponse {
@@ -452,8 +465,10 @@ impl LanguageModel for ClaudeLanguageModel {
 }
 
 fn convert_to_prompt_messages(request: &GenerateRequest) -> Vec<crate::prompt::Message> {
-    request.messages.iter().map(|m| {
-        crate::prompt::Message {
+    request
+        .messages
+        .iter()
+        .map(|m| crate::prompt::Message {
             role: match m.role {
                 voice_agent_core::llm_types::Role::System => crate::prompt::Role::System,
                 voice_agent_core::llm_types::Role::User => crate::prompt::Role::User,
@@ -461,8 +476,8 @@ fn convert_to_prompt_messages(request: &GenerateRequest) -> Vec<crate::prompt::M
                 voice_agent_core::llm_types::Role::Tool => crate::prompt::Role::Tool,
             },
             content: m.content.clone(),
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 fn convert_claude_stop_reason(reason: crate::claude::ClaudeStopReason) -> FinishReason {
@@ -483,7 +498,10 @@ mod tests {
         assert_eq!(LlmProvider::from_str("claude"), Some(LlmProvider::Claude));
         assert_eq!(LlmProvider::from_str("ollama"), Some(LlmProvider::Ollama));
         assert_eq!(LlmProvider::from_str("openai"), Some(LlmProvider::OpenAI));
-        assert_eq!(LlmProvider::from_str("azure"), Some(LlmProvider::AzureOpenAI));
+        assert_eq!(
+            LlmProvider::from_str("azure"),
+            Some(LlmProvider::AzureOpenAI)
+        );
         assert_eq!(LlmProvider::from_str("unknown"), None);
     }
 

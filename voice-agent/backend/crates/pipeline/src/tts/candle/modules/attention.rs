@@ -90,8 +90,12 @@ impl RotaryEmbedding {
         let x2 = x.narrow(D::Minus1, half, half)?;
 
         // Apply rotation: [x1, x2] -> [x1*cos - x2*sin, x1*sin + x2*cos]
-        let rotated_x1 = x1.broadcast_mul(cos)?.broadcast_sub(&x2.broadcast_mul(sin)?)?;
-        let rotated_x2 = x1.broadcast_mul(sin)?.broadcast_add(&x2.broadcast_mul(cos)?)?;
+        let rotated_x1 = x1
+            .broadcast_mul(cos)?
+            .broadcast_sub(&x2.broadcast_mul(sin)?)?;
+        let rotated_x2 = x1
+            .broadcast_mul(sin)?
+            .broadcast_add(&x2.broadcast_mul(cos)?)?;
 
         // Concatenate back
         Tensor::cat(&[rotated_x1, rotated_x2], D::Minus1)

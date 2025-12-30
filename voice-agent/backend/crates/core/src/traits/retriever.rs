@@ -1,8 +1,8 @@
 //! Retrieval traits for RAG
 
+use crate::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use crate::Result;
 
 /// Retriever interface for RAG
 ///
@@ -30,11 +30,7 @@ pub trait Retriever: Send + Sync + 'static {
     ///
     /// # Returns
     /// List of documents sorted by relevance (highest first)
-    async fn retrieve(
-        &self,
-        query: &str,
-        options: &RetrieveOptions,
-    ) -> Result<Vec<Document>>;
+    async fn retrieve(&self, query: &str, options: &RetrieveOptions) -> Result<Vec<Document>>;
 
     /// Agentic multi-step retrieval
     ///
@@ -206,7 +202,11 @@ impl Document {
     }
 
     /// Add metadata
-    pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<serde_json::Value>) -> Self {
+    pub fn with_metadata(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
@@ -302,7 +302,10 @@ mod tests {
             .with_entity("loan_amount", "50000");
 
         ctx.add_turn("user", "How much gold loan can I get?");
-        ctx.add_turn("assistant", "That depends on your gold's purity and weight.");
+        ctx.add_turn(
+            "assistant",
+            "That depends on your gold's purity and weight.",
+        );
 
         assert_eq!(ctx.recent_turns.len(), 2);
         assert_eq!(ctx.intent, Some("check_eligibility".to_string()));

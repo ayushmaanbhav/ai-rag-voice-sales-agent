@@ -34,7 +34,10 @@ impl Default for PromptTemplates {
         stage_prompts.insert("greeting".to_string(), StagePrompt::greeting());
         stage_prompts.insert("discovery".to_string(), StagePrompt::discovery());
         stage_prompts.insert("presentation".to_string(), StagePrompt::presentation());
-        stage_prompts.insert("objection_handling".to_string(), StagePrompt::objection_handling());
+        stage_prompts.insert(
+            "objection_handling".to_string(),
+            StagePrompt::objection_handling(),
+        );
         stage_prompts.insert("closing".to_string(), StagePrompt::closing());
 
         Self {
