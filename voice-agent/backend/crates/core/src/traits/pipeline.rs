@@ -80,6 +80,52 @@ pub enum Frame {
 
     /// Metrics/telemetry event
     Metrics(Arc<MetricsEvent>),
+
+    // P0-1 FIX: Additional Frame variants for full text processing pipeline
+
+    /// Grammar-corrected text (output of grammar correction stage)
+    GrammarCorrected {
+        original: String,
+        corrected: String,
+        language: Language,
+    },
+
+    /// Translated text (output of translation stage)
+    Translated {
+        original: String,
+        translated: String,
+        source_language: Language,
+        target_language: Language,
+    },
+
+    /// Intent detection result
+    IntentDetected {
+        text: String,
+        intent: String,
+        confidence: f32,
+        entities: HashMap<String, String>,
+    },
+
+    /// PII detection result
+    PiiDetected {
+        original: String,
+        redacted: String,
+        pii_types: Vec<String>,
+    },
+
+    /// User turn ready for processing (after all pre-processing)
+    UserTurnReady {
+        text: String,
+        language: Language,
+        intent: Option<String>,
+    },
+
+    /// Agent response ready (before TTS)
+    AgentResponse {
+        text: String,
+        language: Language,
+        tool_calls: Vec<String>,
+    },
 }
 
 /// Metrics event for telemetry
@@ -139,6 +185,13 @@ impl Frame {
             Frame::Control(_) => "control",
             Frame::RagResults { .. } => "rag_results",
             Frame::Metrics(_) => "metrics",
+            // P0-1 FIX: New frame types
+            Frame::GrammarCorrected { .. } => "grammar_corrected",
+            Frame::Translated { .. } => "translated",
+            Frame::IntentDetected { .. } => "intent_detected",
+            Frame::PiiDetected { .. } => "pii_detected",
+            Frame::UserTurnReady { .. } => "user_turn_ready",
+            Frame::AgentResponse { .. } => "agent_response",
         }
     }
 }

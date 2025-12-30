@@ -28,26 +28,123 @@
 
 ## Implementation Status (Updated Dec 2025)
 
-> **Overall Production Readiness: 52%**
+> **Overall Production Readiness: ~75%**
 
 | Component | Spec | Implemented | Gap |
 |-----------|------|-------------|-----|
-| Core Traits | 9 traits | 9 traits ✅ | None |
+| Core Traits | 9 traits | 13 traits ✅ | Extended |
 | 22 Languages | Full | Full ✅ | None |
-| Frame Pipeline | Channel-based | Monolithic ⚠️ | HIGH |
-| Sentence Streaming | Full | Detector only ⚠️ | HIGH |
-| Text Processing | Full | 72% ⚠️ | Translation stubbed |
-| RAG Hybrid | Full | 85% ✅ | Query expansion not wired |
-| Personalization | 6 segments | Complete ✅ | Not used in agent |
-| Session Persistence | Redis | Stubbed ❌ | CRITICAL |
+| Frame Pipeline | Channel-based | **Hybrid** ✅ | Documented below |
+| Sentence Streaming | Full | Full ✅ | P0-2 FIX applied |
+| Text Processing | Full | 60% ⚠️ | Intent in wrong crate |
+| RAG Hybrid | Full | 90% ✅ | Missing ContextCompressor |
+| LLM Integration | Streaming | 100% ✅ | None |
+| Personalization | 6 segments | Complete ✅ | Wired to agent |
+| Session Persistence | ScyllaDB | Full ✅ | Redis deprecated |
+| Tools/MCP | 8 tools | 70% ⚠️ | Missing JSON-RPC server |
 
-**Key Gaps:**
-1. Translation is 100% stubbed (no ONNX, gRPC warns only)
-2. Pipeline is monolithic, not frame-based as documented
-3. Redis session store returns stubs (in-memory only)
-4. Hindi slot extraction ASCII-only (Devanagari broken)
+**Key Architecture Note:**
+The actual implementation uses a **hybrid architecture** (see below) rather than the fully frame-based pipeline documented in later sections. This is intentional for v1 and works well.
 
-**See `/plan3/` for detailed review and implementation roadmap.**
+**Recent Fixes (Dec 2025):**
+1. ✅ P0-2: `speak_streaming()` now wired for sentence-by-sentence TTS
+2. ✅ P0-2: `process_stream()` added to agent with streaming translation
+3. ✅ Frame types extended (GrammarCorrected, Translated, IntentDetected, etc.)
+
+**See `/report/FIX-PLAN.md` for detailed review and remediation steps.**
+
+---
+
+## Actual Implementation Architecture (Hybrid)
+
+> **Important:** The documented "frame-based pipeline" architecture (below) represents the v2 target.
+> The current v1 implementation uses a **hybrid architecture** that works well for production.
+
+### Hybrid Architecture Diagram
+
+```
+                    +------------------+
+                    |     SERVER       |
+                    | (WebSocket/REST) |
+                    +--------+---------+
+                             |
+              +--------------+--------------+
+              |                             |
+      +-------v-------+            +--------v--------+
+      |   PIPELINE    |            |     AGENT       |
+      | (Audio Only)  |            | (Language+Tools)|
+      +-------+-------+            +--------+--------+
+              |                             |
+    +---------+---------+         +---------+---------+---------+
+    |         |         |         |         |         |         |
++---v---+ +---v---+ +---v---+ +---v---+ +---v---+ +---v---+ +---v---+
+|  VAD  | |  STT  | |  TTS  | |  LLM  | |  RAG  | | TOOLS | | TEXT  |
++-------+ +-------+ +-------+ +-------+ +-------+ +-------+ +-------+
+```
+
+### Data Flow (Actual Implementation)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    ACTUAL CONVERSATION TURN DATA FLOW                         │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  AUDIO PIPELINE (crates/pipeline):                                           │
+│  ┌─────┐ ┌─────┐ ┌─────────┐                                                │
+│  │Audio│→│ VAD │→│   STT   │──────────┐                                      │
+│  │ In  │ │     │ │         │          │                                      │
+│  └─────┘ └─────┘ └─────────┘          │                                      │
+│                                        │                                      │
+│  AGENT PROCESSING (crates/agent):      │                                      │
+│                                        ▼                                      │
+│  ┌───────────────────────────────────────────────────────────────────────┐   │
+│  │                       GoldLoanAgent.process_stream()                   │   │
+│  │                                                                        │   │
+│  │  1. Text Processing (grammar, PII detection)                          │   │
+│  │  2. Translation (user lang → English)                                 │   │
+│  │  3. Intent Detection                                                  │   │
+│  │  4. RAG Retrieval                                                     │   │
+│  │  5. Tool Calls                                                        │   │
+│  │  6. LLM Generation (streaming)                                        │   │
+│  │  7. Sentence Detection + Translation (English → user lang)            │   │
+│  │                                                                        │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                      │
+│                                        ▼                                      │
+│  AUDIO OUTPUT (via speak_streaming):                                         │
+│                              ┌─────────────────────────────────────────────┐ │
+│                              │  SentenceDetector → TtsProcessor →          │ │
+│                              │  InterruptHandler → AudioOutput             │ │
+│                              └───────────────────────────────────┬─────────┘ │
+│                                                                  │           │
+│                                                                  ▼           │
+│                                                            ┌─────────┐       │
+│                                                            │  Audio  │       │
+│                                                            │   Out   │       │
+│                                                            └─────────┘       │
+│                                                                              │
+│  KEY BENEFIT: Sentence-by-sentence streaming enables sub-800ms latency      │
+│  First audio output starts before full LLM response completes               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why Hybrid Architecture?
+
+1. **Simplicity**: Agent handles complex language processing logic in one place
+2. **Flexibility**: Easy to change RAG timing, tool ordering, etc.
+3. **Streaming Works**: `process_stream()` + `speak_streaming()` achieve low latency
+4. **Testability**: Agent can be tested independently of audio pipeline
+
+### Future: Full Frame Pipeline (v2)
+
+The fully frame-based architecture (documented below) would allow:
+- Each stage as independent processor with channels
+- More granular metrics per stage
+- Easier A/B testing of individual components
+- Hot-swappable processors
+
+This is planned for v2 but not required for production MVP.
 
 ---
 

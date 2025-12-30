@@ -15,7 +15,7 @@ use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use voice_agent_core::{AudioFrame, SampleRate, Channels};
+use voice_agent_core::{AudioFrame, SampleRate, Channels, Frame};
 use voice_agent_pipeline::{VoicePipeline, PipelineConfig, PipelineEvent};
 
 use crate::state::AppState;
@@ -217,31 +217,102 @@ impl WebSocketHandler {
                                     }
                                 };
 
-                                match session_for_pipeline.agent.process(&processed_input).await {
-                                    Ok(response) => {
-                                        // P2 FIX: Simplify response for TTS (numbers, abbreviations)
-                                        let simplified_response = text_simplifier_for_pipeline.simplify(&response);
+                                // P0-2 FIX: Use streaming agent response with streaming TTS
+                                // Note: process_stream blocks until complete (LLM stream lifetime limitation)
+                                // Spawn the entire flow to not block the pipeline event handler
+                                let session = session_for_pipeline.clone();
+                                let sender = sender_for_pipeline.clone();
+                                let text_simplifier = text_simplifier_for_pipeline.clone();
+                                let pipeline = pipeline_for_tts.clone();
 
-                                        // Send text response first (original, not simplified)
-                                        let resp = WsMessage::Response { text: response.clone() };
-                                        let json = serde_json::to_string(&resp).unwrap();
-                                        let mut s = sender_for_pipeline.lock().await;
-                                        let _ = s.send(Message::Text(json)).await;
-                                        drop(s); // Release lock before TTS
+                                tokio::spawn(async move {
+                                    let user_language = session.agent.user_language();
 
-                                        // P0 FIX: Trigger TTS synthesis with simplified text
-                                        // TTS audio events will be handled by the TtsAudio handler above
-                                        if let Some(ref pipeline) = pipeline_for_tts {
-                                            let p = pipeline.lock().await;
-                                            if let Err(e) = p.speak(&simplified_response).await {
-                                                tracing::debug!("TTS speak failed: {}", e);
+                                    match session.agent.process_stream(&processed_input).await {
+                                        Ok(mut chunk_rx) => {
+                                            // P0-2 FIX: Use speak_streaming() for lower latency TTS
+                                            if let Some(ref pipeline) = pipeline {
+                                                let p = pipeline.lock().await;
+
+                                                // Create channel to forward to TTS
+                                                let (tts_tx, tts_rx) = mpsc::channel::<String>(32);
+
+                                                // Start streaming TTS first
+                                                match p.speak_streaming(tts_rx, user_language).await {
+                                                    Ok(mut audio_rx) => {
+                                                        drop(p); // Release pipeline lock
+
+                                                        // Spawn task to handle audio output frames
+                                                        let sender_for_audio = sender.clone();
+                                                        tokio::spawn(async move {
+                                                            while let Some(frame) = audio_rx.recv().await {
+                                                                if let Frame::AudioOutput(audio_frame) = frame {
+                                                                    // Convert f32 samples to i16 PCM bytes
+                                                                    let pcm_bytes: Vec<u8> = audio_frame.samples.iter()
+                                                                        .flat_map(|&sample| {
+                                                                            let clamped = sample.max(-1.0).min(1.0);
+                                                                            let i16_sample = (clamped * 32767.0) as i16;
+                                                                            i16_sample.to_le_bytes().to_vec()
+                                                                        })
+                                                                        .collect();
+
+                                                                    // Base64 encode and send
+                                                                    let audio_data = BASE64.encode(&pcm_bytes);
+                                                                    let msg = WsMessage::ResponseAudio { data: audio_data };
+                                                                    let json = serde_json::to_string(&msg).unwrap();
+                                                                    let mut s = sender_for_audio.lock().await;
+                                                                    if let Err(e) = s.send(Message::Text(json)).await {
+                                                                        tracing::debug!("Failed to send streaming TTS audio: {}", e);
+                                                                        break;
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+
+                                                        // Forward chunks to client and TTS
+                                                        while let Some(chunk) = chunk_rx.recv().await {
+                                                            // Send to client
+                                                            let resp = WsMessage::Response { text: chunk.clone() };
+                                                            let json = serde_json::to_string(&resp).unwrap();
+                                                            let mut s = sender.lock().await;
+                                                            let _ = s.send(Message::Text(json)).await;
+                                                            drop(s);
+
+                                                            // Simplify and send to TTS
+                                                            let simplified = text_simplifier.simplify(&chunk);
+                                                            let _ = tts_tx.send(simplified).await;
+                                                        }
+
+                                                        tracing::debug!("Streaming response complete");
+                                                    }
+                                                    Err(e) => {
+                                                        drop(p);
+                                                        tracing::warn!("speak_streaming failed: {}, using text-only", e);
+
+                                                        // Fallback: just stream text
+                                                        while let Some(chunk) = chunk_rx.recv().await {
+                                                            let resp = WsMessage::Response { text: chunk };
+                                                            let json = serde_json::to_string(&resp).unwrap();
+                                                            let mut s = sender.lock().await;
+                                                            let _ = s.send(Message::Text(json)).await;
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                // No pipeline - just stream text responses
+                                                while let Some(chunk) = chunk_rx.recv().await {
+                                                    let resp = WsMessage::Response { text: chunk };
+                                                    let json = serde_json::to_string(&resp).unwrap();
+                                                    let mut s = sender.lock().await;
+                                                    let _ = s.send(Message::Text(json)).await;
+                                                }
                                             }
                                         }
+                                        Err(e) => {
+                                            tracing::error!("Agent streaming error: {}", e);
+                                        }
                                     }
-                                    Err(e) => {
-                                        tracing::error!("Agent error: {}", e);
-                                    }
-                                }
+                                });
                             }
                         }
                         PipelineEvent::VadStateChanged(state) => {

@@ -704,6 +704,283 @@ impl GoldLoanAgent {
         Ok(response)
     }
 
+    /// P0-2 FIX: Process user input with streaming LLM output
+    ///
+    /// Same as `process()` but streams LLM output sentence-by-sentence.
+    /// Each sentence is translated (if needed) before being sent to the output channel.
+    /// This enables lower latency TTS by starting synthesis before the full response is ready.
+    ///
+    /// # Arguments
+    /// * `user_input` - User's message
+    ///
+    /// # Returns
+    /// A channel receiver that yields translated sentences as they are ready
+    pub async fn process_stream(
+        &self,
+        user_input: &str,
+    ) -> Result<tokio::sync::mpsc::Receiver<String>, AgentError> {
+        use futures::StreamExt;
+
+        // Emit thinking event
+        let _ = self.event_tx.send(AgentEvent::Thinking);
+
+        // P5 FIX: Translate user input to English if needed
+        let english_input = if self.user_language != Language::English {
+            if let Some(ref translator) = self.translator {
+                translator.translate(user_input, self.user_language, Language::English)
+                    .await
+                    .unwrap_or_else(|_| user_input.to_string())
+            } else {
+                user_input.to_string()
+            }
+        } else {
+            user_input.to_string()
+        };
+
+        // Add user turn and detect intent
+        let intent = self.conversation.add_user_turn(user_input)?;
+
+        // P4 FIX: Process through personalization engine
+        {
+            let mut ctx = self.personalization_ctx.write();
+            self.personalization.process_input(&mut ctx, user_input);
+        }
+
+        // Forward intent event
+        let _ = self.event_tx.send(AgentEvent::Conversation(
+            ConversationEvent::IntentDetected(intent.clone())
+        ));
+
+        // Check for tool calls
+        let tool_result = if self.config.tools_enabled {
+            self.maybe_call_tool(&intent).await?
+        } else {
+            None
+        };
+
+        // Build prompt (same as in generate_response)
+        let prompt_request = self.build_llm_request(&english_input, tool_result.as_deref()).await?;
+
+        // Create output channel
+        let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
+
+        // Check if LLM is available for streaming
+        if let Some(ref llm) = self.llm {
+            if llm.is_available().await {
+                // Get the stream - lifetime tied to &self, so process inline
+                let mut stream = llm.generate_stream(prompt_request);
+
+                let translator = &self.translator;
+                let user_language = self.user_language;
+                let terminators = user_language.sentence_terminators();
+
+                let mut buffer = String::new();
+                let mut full_response = String::new();
+
+                // Process stream inline (can't spawn due to stream lifetime)
+                while let Some(result) = stream.next().await {
+                    match result {
+                        Ok(chunk) => {
+                            buffer.push_str(&chunk.delta);
+                            full_response.push_str(&chunk.delta);
+
+                            // Check for sentence boundaries
+                            while let Some(pos) = find_sentence_end(&buffer, terminators) {
+                                let sentence = buffer[..=pos].trim().to_string();
+                                buffer = buffer[pos + 1..].to_string();
+
+                                if sentence.is_empty() {
+                                    continue;
+                                }
+
+                                // Translate sentence if needed
+                                let translated = if user_language != Language::English {
+                                    if let Some(ref t) = translator {
+                                        t.translate(&sentence, Language::English, user_language)
+                                            .await
+                                            .unwrap_or(sentence)
+                                    } else {
+                                        sentence
+                                    }
+                                } else {
+                                    sentence
+                                };
+
+                                // Send translated sentence - use try_send to not block
+                                if tx.send(translated).await.is_err() {
+                                    tracing::debug!("Stream receiver dropped");
+                                    break;
+                                }
+                            }
+
+                            if chunk.is_final {
+                                break;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("LLM stream error: {}", e);
+                            break;
+                        }
+                    }
+                }
+
+                // Flush remaining buffer
+                if !buffer.trim().is_empty() {
+                    let sentence = buffer.trim().to_string();
+                    let translated = if user_language != Language::English {
+                        if let Some(ref t) = translator {
+                            t.translate(&sentence, Language::English, user_language)
+                                .await
+                                .unwrap_or(sentence)
+                        } else {
+                            sentence
+                        }
+                    } else {
+                        sentence
+                    };
+                    let _ = tx.send(translated).await;
+                }
+
+                // Update conversation with full response (translate for history)
+                let final_response = if user_language != Language::English {
+                    if let Some(ref t) = translator {
+                        t.translate(&full_response, Language::English, user_language)
+                            .await
+                            .unwrap_or(full_response.clone())
+                    } else {
+                        full_response.clone()
+                    }
+                } else {
+                    full_response.clone()
+                };
+
+                // Add assistant turn
+                if let Err(e) = self.conversation.add_assistant_turn(&final_response) {
+                    tracing::warn!("Failed to add assistant turn: {}", e);
+                }
+
+                // Emit response event
+                let _ = self.event_tx.send(AgentEvent::Response(final_response));
+
+                return Ok(rx);
+            }
+        }
+
+        // Fallback: No LLM available, use mock response
+        let response = self.generate_mock_response(user_input, tool_result.as_deref());
+        self.conversation.add_assistant_turn(&response)?;
+        let _ = self.event_tx.send(AgentEvent::Response(response.clone()));
+
+        // Send mock response as single chunk
+        let _ = tx.send(response).await;
+
+        Ok(rx)
+    }
+
+    /// Build LLM request (extracted from generate_response for reuse)
+    async fn build_llm_request(
+        &self,
+        english_input: &str,
+        tool_result: Option<&str>,
+    ) -> Result<voice_agent_core::GenerateRequest, AgentError> {
+        let persona = self.config.persona.clone();
+
+        let mut builder = PromptBuilder::new()
+            .with_persona(persona)
+            .system_prompt(&self.config.language);
+
+        // Add personalization instructions
+        {
+            let ctx = self.personalization_ctx.read();
+            let instructions = self.personalization.generate_instructions(&ctx);
+            if !instructions.is_empty() {
+                builder = builder.with_context(&format!("## Personalization Guidance\n{}", instructions));
+            }
+        }
+
+        // Add memory context
+        let context = self.conversation.get_context();
+        if !context.is_empty() {
+            builder = builder.with_context(&context);
+        }
+
+        // Add RAG context
+        if self.config.rag_enabled {
+            let stage = self.conversation.stage();
+            let rag_fraction = stage.rag_context_fraction();
+
+            if rag_fraction > 0.0 {
+                if let (Some(retriever), Some(vector_store)) = (&self.retriever, &self.vector_store) {
+                    let results = if let Some(prefetched) = self.get_prefetch_results(english_input) {
+                        self.clear_prefetch_cache();
+                        prefetched
+                    } else {
+                        retriever.search(english_input, vector_store, None)
+                            .await
+                            .unwrap_or_default()
+                    };
+
+                    if !results.is_empty() {
+                        let max_results = ((rag_fraction * 10.0).ceil() as usize).clamp(1, 5);
+                        let rag_context = results.iter()
+                            .take(max_results)
+                            .map(|r| format!("- {}", r.text))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        builder = builder.with_context(&format!("## Relevant Information\n{}", rag_context));
+                    }
+                }
+            }
+        }
+
+        // Add tool result
+        if let Some(result) = tool_result {
+            builder = builder.with_context(&format!("## Tool Result\n{}", result));
+        }
+
+        // Add stage guidance
+        builder = builder.with_stage_guidance(self.conversation.stage().display_name());
+
+        // Add persuasion guidance
+        if let Some(objection_response) = self.persuasion.handle_objection(english_input, self.user_language) {
+            let guidance = format!(
+                "## Objection Handling Guidance\n\
+                1. **Acknowledge**: {}\n\
+                2. **Reframe**: {}\n\
+                3. **Evidence**: {}\n\
+                4. **Call to Action**: {}",
+                objection_response.acknowledge,
+                objection_response.reframe,
+                objection_response.evidence,
+                objection_response.call_to_action
+            );
+            builder = builder.with_context(&guidance);
+        }
+
+        // Add conversation history
+        let history: Vec<Message> = self.conversation.get_messages()
+            .into_iter()
+            .map(|(role, content)| {
+                let r = match role.as_str() {
+                    "user" => Role::User,
+                    "assistant" => Role::Assistant,
+                    _ => Role::System,
+                };
+                Message { role: r, content }
+            })
+            .collect();
+        builder = builder.with_history(&history);
+
+        // Add current message
+        builder = builder.user_message(english_input);
+
+        // Build with context budget
+        let stage = self.conversation.stage();
+        let effective_budget = self.config.context_window_tokens.min(stage.context_budget_tokens());
+
+        Ok(builder.build_request_with_limit(effective_budget))
+    }
+
     /// Maybe call a tool based on intent
     async fn maybe_call_tool(&self, intent: &crate::intent::DetectedIntent) -> Result<Option<String>, AgentError> {
         let tool_name = match intent.intent.as_str() {
@@ -1212,6 +1489,35 @@ impl GoldLoanAgent {
     pub fn name(&self) -> &str {
         &self.config.persona.name
     }
+}
+
+/// P0-2 FIX: Find the position of a sentence boundary in text
+///
+/// Returns the byte position of the sentence-ending character if found.
+/// Supports multiple scripts including Indic terminators (।, ॥, etc.)
+fn find_sentence_end(text: &str, terminators: &[char]) -> Option<usize> {
+    for (i, c) in text.char_indices() {
+        if terminators.contains(&c) {
+            // Check if this is the end of a sentence (not abbreviation, etc.)
+            // Look for space or end after the terminator
+            let next_pos = i + c.len_utf8();
+            if next_pos >= text.len() {
+                return Some(i);
+            }
+
+            // Check next character - if whitespace or newline, it's a sentence end
+            if let Some(next_char) = text[next_pos..].chars().next() {
+                if next_char.is_whitespace() || next_char == '\n' {
+                    return Some(i);
+                }
+                // For Devanagari terminators, always treat as sentence end
+                if c == '।' || c == '॥' {
+                    return Some(i);
+                }
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]
