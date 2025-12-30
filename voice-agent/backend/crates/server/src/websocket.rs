@@ -163,6 +163,7 @@ impl WebSocketHandler {
         // Spawn pipeline event handler task
         let session_for_pipeline = session.clone();
         let sender_for_pipeline = sender.clone();
+        let pipeline_for_tts = pipeline.clone(); // P0 FIX: Clone for TTS synthesis
 
         #[allow(unused_mut)]
         let pipeline_event_task = if let Some(ref pipeline) = pipeline {
@@ -191,14 +192,27 @@ impl WebSocketHandler {
                             let json = serde_json::to_string(&msg).unwrap();
                             let mut s = sender_for_pipeline.lock().await;
                             let _ = s.send(Message::Text(json)).await;
+                            drop(s); // Release lock before async operations
 
                             // Process through agent
                             if !text.trim().is_empty() {
                                 match session_for_pipeline.agent.process(&text).await {
                                     Ok(response) => {
-                                        let resp = WsMessage::Response { text: response };
+                                        // Send text response first
+                                        let resp = WsMessage::Response { text: response.clone() };
                                         let json = serde_json::to_string(&resp).unwrap();
+                                        let mut s = sender_for_pipeline.lock().await;
                                         let _ = s.send(Message::Text(json)).await;
+                                        drop(s); // Release lock before TTS
+
+                                        // P0 FIX: Trigger TTS synthesis
+                                        // TTS audio events will be handled by the TtsAudio handler above
+                                        if let Some(ref pipeline) = pipeline_for_tts {
+                                            let p = pipeline.lock().await;
+                                            if let Err(e) = p.speak(&response).await {
+                                                tracing::debug!("TTS speak failed: {}", e);
+                                            }
+                                        }
                                     }
                                     Err(e) => {
                                         tracing::error!("Agent error: {}", e);
@@ -224,6 +238,27 @@ impl WebSocketHandler {
                         }
                         PipelineEvent::Error(e) => {
                             tracing::error!("Pipeline error: {}", e);
+                        }
+                        PipelineEvent::TtsAudio { samples, text: _, is_final: _ } => {
+                            // P0 FIX: Send TTS audio to client
+                            // Convert f32 samples to i16 PCM bytes
+                            let pcm_bytes: Vec<u8> = samples.iter()
+                                .flat_map(|&sample| {
+                                    // Clamp to [-1.0, 1.0] and convert to i16
+                                    let clamped = sample.max(-1.0).min(1.0);
+                                    let i16_sample = (clamped * 32767.0) as i16;
+                                    i16_sample.to_le_bytes().to_vec()
+                                })
+                                .collect();
+
+                            // Base64 encode and send
+                            let audio_data = BASE64.encode(&pcm_bytes);
+                            let msg = WsMessage::ResponseAudio { data: audio_data };
+                            let json = serde_json::to_string(&msg).unwrap();
+                            let mut s = sender_for_pipeline.lock().await;
+                            if let Err(e) = s.send(Message::Text(json)).await {
+                                tracing::debug!("Failed to send TTS audio: {}", e);
+                            }
                         }
                         _ => {}
                     }
@@ -396,7 +431,8 @@ pub async fn create_session(
 ) -> Result<axum::Json<serde_json::Value>, axum::http::StatusCode> {
     let config = voice_agent_agent::AgentConfig::default();
 
-    match state.sessions.create(config) {
+    // P0 FIX: Pass vector store to enable RAG in agent
+    match state.sessions.create_with_vector_store(config, state.vector_store.clone()) {
         Ok(session) => {
             // P2-3 FIX: Persist session metadata to configured store
             if let Err(e) = state.persist_session(&session).await {
@@ -406,6 +442,7 @@ pub async fn create_session(
                 tracing::debug!(
                     session_id = %session.id,
                     distributed = state.is_distributed_sessions(),
+                    rag_enabled = state.vector_store.is_some(),
                     "Session persisted"
                 );
             }
@@ -413,6 +450,7 @@ pub async fn create_session(
             Ok(axum::Json(serde_json::json!({
                 "session_id": session.id,
                 "websocket_url": format!("/ws/{}", session.id),
+                "rag_enabled": state.vector_store.is_some(),
             })))
         }
         Err(_) => Err(axum::http::StatusCode::SERVICE_UNAVAILABLE),

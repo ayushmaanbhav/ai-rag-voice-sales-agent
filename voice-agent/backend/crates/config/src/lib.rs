@@ -24,7 +24,7 @@ pub mod competitor;
 pub mod prompts;
 pub mod domain;
 
-pub use settings::{Settings, ServerConfig, RateLimitConfig, RagConfig, AuthConfig, RuntimeEnvironment, TurnServerConfig, load_settings};
+pub use settings::{Settings, ServerConfig, RateLimitConfig, RagConfig, AuthConfig, RuntimeEnvironment, TurnServerConfig, PersistenceConfig, load_settings};
 pub use pipeline::PipelineConfig;
 pub use agent::{AgentConfig, PersonaConfig};
 pub use gold_loan::{GoldLoanConfig, PurityFactors, CompetitorRates, TieredRates};

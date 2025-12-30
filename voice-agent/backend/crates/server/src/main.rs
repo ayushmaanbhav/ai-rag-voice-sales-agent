@@ -2,10 +2,11 @@
 
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 use voice_agent_config::{Settings, DomainConfigManager};
-use voice_agent_server::{create_router, AppState, init_metrics};
+use voice_agent_server::{create_router, AppState, init_metrics, session::ScyllaSessionStore};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,9 +27,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _metrics_handle = init_metrics();
     tracing::info!("Initialized Prometheus metrics at /metrics");
 
-    // Create application state with domain config
-    let state = AppState::with_domain_config(config.clone(), domain_config);
-    tracing::info!("Initialized application state");
+    // P0 FIX: Optionally initialize ScyllaDB persistence
+    let mut state = if config.persistence.enabled {
+        tracing::info!("Initializing ScyllaDB persistence layer...");
+        match init_persistence(&config).await {
+            Ok(persistence) => {
+                tracing::info!(
+                    hosts = ?config.persistence.scylla_hosts,
+                    keyspace = %config.persistence.keyspace,
+                    "ScyllaDB persistence initialized"
+                );
+                let scylla_store = ScyllaSessionStore::new(persistence.sessions);
+                AppState::with_session_store_and_domain(
+                    config.clone(),
+                    Arc::new(scylla_store),
+                    domain_config,
+                )
+            }
+            Err(e) => {
+                tracing::error!("Failed to initialize ScyllaDB: {}. Falling back to in-memory.", e);
+                AppState::with_domain_config(config.clone(), domain_config)
+            }
+        }
+    } else {
+        tracing::info!("Persistence disabled, using in-memory session store");
+        AppState::with_domain_config(config.clone(), domain_config)
+    };
+
+    // P0 FIX: Optionally initialize VectorStore for RAG
+    if config.rag.enabled {
+        tracing::info!("Initializing VectorStore for RAG...");
+        match init_vector_store(&config).await {
+            Ok(vs) => {
+                tracing::info!(
+                    endpoint = %config.rag.qdrant_endpoint,
+                    collection = %config.rag.qdrant_collection,
+                    "VectorStore initialized for RAG"
+                );
+                state = state.with_vector_store(Arc::new(vs));
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize VectorStore: {}. RAG will be disabled.", e);
+            }
+        }
+    }
+
+    tracing::info!(
+        distributed = state.is_distributed_sessions(),
+        rag_enabled = state.vector_store.is_some(),
+        "Initialized application state"
+    );
 
     // Create router
     let app = create_router(state);
@@ -148,6 +196,30 @@ fn init_tracing(config: &Settings) {
 
     // Fallback: console logging only
     subscriber.with(fmt_layer).init();
+}
+
+/// P0 FIX: Initialize ScyllaDB persistence layer
+async fn init_persistence(config: &Settings) -> Result<voice_agent_persistence::PersistenceLayer, voice_agent_persistence::PersistenceError> {
+    let scylla_config = voice_agent_persistence::ScyllaConfig {
+        hosts: config.persistence.scylla_hosts.clone(),
+        keyspace: config.persistence.keyspace.clone(),
+        replication_factor: config.persistence.replication_factor,
+    };
+    voice_agent_persistence::init(scylla_config).await
+}
+
+/// P0 FIX: Initialize VectorStore for RAG retrieval
+async fn init_vector_store(config: &Settings) -> Result<voice_agent_rag::VectorStore, voice_agent_rag::RagError> {
+    let vs_config = voice_agent_rag::VectorStoreConfig {
+        endpoint: config.rag.qdrant_endpoint.clone(),
+        collection: config.rag.qdrant_collection.clone(),
+        vector_dim: config.rag.vector_dim,
+        distance: voice_agent_rag::VectorDistance::Cosine,
+        api_key: config.rag.qdrant_api_key.clone(),
+    };
+    let store = voice_agent_rag::VectorStore::new(vs_config).await?;
+    store.ensure_collection().await?;
+    Ok(store)
 }
 
 /// P4 FIX: Load domain configuration from file

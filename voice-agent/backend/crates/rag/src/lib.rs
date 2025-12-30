@@ -35,7 +35,7 @@ pub use candle_embeddings::{
     UnifiedEmbedder, QuantizationMode,
 };
 pub use cache::{EmbeddingCache, CachedEmbedder, CacheStats};
-pub use vector_store::{VectorStore, VectorStoreConfig};
+pub use vector_store::{VectorStore, VectorStoreConfig, VectorDistance};
 pub use sparse_search::{SparseIndex, SparseConfig};
 pub use reranker::{EarlyExitReranker, RerankerConfig, ExitStrategy};
 pub use retriever::{HybridRetriever, RetrieverConfig, SearchResult};

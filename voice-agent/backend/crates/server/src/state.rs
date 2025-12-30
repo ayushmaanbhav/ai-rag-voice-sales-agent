@@ -7,6 +7,7 @@ use parking_lot::RwLock;
 
 use voice_agent_config::{Settings, load_settings, DomainConfigManager};
 use voice_agent_tools::ToolRegistry;
+use voice_agent_rag::VectorStore;
 
 use crate::session::{SessionManager, SessionStore, InMemorySessionStore};
 
@@ -23,6 +24,8 @@ pub struct AppState {
     pub tools: Arc<ToolRegistry>,
     /// P2-3 FIX: Session store for persistence (ScyllaDB or in-memory)
     pub session_store: Arc<dyn SessionStore>,
+    /// P0 FIX: Vector store for RAG retrieval (optional - initialized if Qdrant is available)
+    pub vector_store: Option<Arc<VectorStore>>,
     /// Environment name for config reload
     env: Option<String>,
 }
@@ -36,6 +39,7 @@ impl AppState {
             sessions: Arc::new(SessionManager::new(100)),
             tools: Arc::new(voice_agent_tools::registry::create_default_registry()),
             session_store: Arc::new(InMemorySessionStore::new()),
+            vector_store: None,
             env: None,
         }
     }
@@ -48,6 +52,7 @@ impl AppState {
             sessions: Arc::new(SessionManager::new(100)),
             tools: Arc::new(voice_agent_tools::registry::create_default_registry()),
             session_store: Arc::new(InMemorySessionStore::new()),
+            vector_store: None,
             env: None,
         }
     }
@@ -60,6 +65,7 @@ impl AppState {
             sessions: Arc::new(SessionManager::new(100)),
             tools: Arc::new(voice_agent_tools::registry::create_default_registry()),
             session_store: Arc::new(InMemorySessionStore::new()),
+            vector_store: None,
             env,
         }
     }
@@ -72,8 +78,32 @@ impl AppState {
             sessions: Arc::new(SessionManager::new(100)),
             tools: Arc::new(voice_agent_tools::registry::create_default_registry()),
             session_store: store,
+            vector_store: None,
             env: None,
         }
+    }
+
+    /// P0 FIX: Create application state with custom session store AND domain config
+    pub fn with_session_store_and_domain(
+        config: Settings,
+        store: Arc<dyn SessionStore>,
+        domain_config: DomainConfigManager,
+    ) -> Self {
+        Self {
+            config: Arc::new(RwLock::new(config)),
+            domain_config: Arc::new(domain_config),
+            sessions: Arc::new(SessionManager::new(100)),
+            tools: Arc::new(voice_agent_tools::registry::create_default_registry()),
+            session_store: store,
+            vector_store: None,
+            env: None,
+        }
+    }
+
+    /// P0 FIX: Set vector store for RAG retrieval
+    pub fn with_vector_store(mut self, vector_store: Arc<VectorStore>) -> Self {
+        self.vector_store = Some(vector_store);
+        self
     }
 
     /// P1 FIX: Reload configuration from files

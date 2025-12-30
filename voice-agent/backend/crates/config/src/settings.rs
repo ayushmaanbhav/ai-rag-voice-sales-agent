@@ -74,6 +74,53 @@ pub struct Settings {
     /// P5 FIX: RAG configuration for retrieval and reranking
     #[serde(default)]
     pub rag: RagConfig,
+
+    /// P0 FIX: Persistence configuration (ScyllaDB)
+    #[serde(default)]
+    pub persistence: PersistenceConfig,
+}
+
+/// P0 FIX: Persistence configuration for ScyllaDB
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistenceConfig {
+    /// Enable ScyllaDB persistence (false = in-memory only)
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// ScyllaDB host addresses
+    #[serde(default = "default_scylla_hosts")]
+    pub scylla_hosts: Vec<String>,
+
+    /// ScyllaDB keyspace name
+    #[serde(default = "default_scylla_keyspace")]
+    pub keyspace: String,
+
+    /// ScyllaDB replication factor
+    #[serde(default = "default_replication_factor")]
+    pub replication_factor: u8,
+}
+
+fn default_scylla_hosts() -> Vec<String> {
+    vec!["127.0.0.1:9042".to_string()]
+}
+
+fn default_scylla_keyspace() -> String {
+    "voice_agent".to_string()
+}
+
+fn default_replication_factor() -> u8 {
+    1
+}
+
+impl Default for PersistenceConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false, // Disabled by default for development
+            scylla_hosts: default_scylla_hosts(),
+            keyspace: default_scylla_keyspace(),
+            replication_factor: default_replication_factor(),
+        }
+    }
 }
 
 fn default_domain_config_path() -> String {
@@ -509,6 +556,23 @@ pub struct RagConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
+    // P0 FIX: Vector store connection settings
+    /// Qdrant endpoint URL
+    #[serde(default = "default_qdrant_endpoint")]
+    pub qdrant_endpoint: String,
+
+    /// Qdrant collection name
+    #[serde(default = "default_qdrant_collection")]
+    pub qdrant_collection: String,
+
+    /// Qdrant API key (optional, for cloud deployments)
+    #[serde(default)]
+    pub qdrant_api_key: Option<String>,
+
+    /// Embedding dimension (384 for e5-multilingual, 1024 for larger models)
+    #[serde(default = "default_vector_dim")]
+    pub vector_dim: usize,
+
     // Retriever settings
     /// Top-K results from dense (embedding) search
     #[serde(default = "default_dense_top_k")]
@@ -566,6 +630,9 @@ pub struct RagConfig {
 }
 
 // RAG default value functions
+fn default_qdrant_endpoint() -> String { "http://localhost:6333".to_string() }
+fn default_qdrant_collection() -> String { "gold_loan_knowledge".to_string() }
+fn default_vector_dim() -> usize { 384 } // e5-multilingual default
 fn default_dense_top_k() -> usize { 20 }
 fn default_sparse_top_k() -> usize { 20 }
 fn default_final_top_k() -> usize { 5 }
@@ -583,6 +650,12 @@ impl Default for RagConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            // P0 FIX: Vector store connection defaults
+            qdrant_endpoint: default_qdrant_endpoint(),
+            qdrant_collection: default_qdrant_collection(),
+            qdrant_api_key: None,
+            vector_dim: default_vector_dim(),
+            // Retriever settings
             dense_top_k: default_dense_top_k(),
             sparse_top_k: default_sparse_top_k(),
             final_top_k: default_final_top_k(),

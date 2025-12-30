@@ -364,6 +364,24 @@ impl Session {
         }
     }
 
+    /// P0 FIX: Create a new session with vector store for RAG
+    pub fn with_vector_store(
+        id: impl Into<String>,
+        config: AgentConfig,
+        vector_store: Arc<voice_agent_rag::VectorStore>,
+    ) -> Self {
+        let id = id.into();
+        let agent = GoldLoanAgent::new(&id, config).with_vector_store(vector_store);
+        Self {
+            agent: Arc::new(agent),
+            id,
+            created_at: Instant::now(),
+            last_activity: RwLock::new(Instant::now()),
+            active: RwLock::new(true),
+            webrtc: RwLock::new(None),
+        }
+    }
+
     /// P2 FIX: Set the WebRTC transport for this session
     pub fn set_webrtc_transport(&self, session: crate::webrtc::WebRtcSession) {
         *self.webrtc.write() = Some(session);
@@ -473,6 +491,15 @@ impl SessionManager {
 
     /// Create a new session
     pub fn create(&self, config: AgentConfig) -> Result<Arc<Session>, ServerError> {
+        self.create_with_vector_store(config, None)
+    }
+
+    /// P0 FIX: Create a new session with optional vector store for RAG
+    pub fn create_with_vector_store(
+        &self,
+        config: AgentConfig,
+        vector_store: Option<Arc<voice_agent_rag::VectorStore>>,
+    ) -> Result<Arc<Session>, ServerError> {
         let mut sessions = self.sessions.write();
 
         // Check capacity
@@ -486,10 +513,19 @@ impl SessionManager {
         }
 
         let id = uuid::Uuid::new_v4().to_string();
-        let session = Arc::new(Session::new(&id, config));
+        let rag_enabled = vector_store.is_some();
+        let session = if let Some(vs) = vector_store {
+            Arc::new(Session::with_vector_store(&id, config, vs))
+        } else {
+            Arc::new(Session::new(&id, config))
+        };
         sessions.insert(id.clone(), session.clone());
 
-        tracing::info!("Created session: {}", id);
+        tracing::info!(
+            session_id = %id,
+            rag_enabled = rag_enabled,
+            "Created session"
+        );
 
         Ok(session)
     }
