@@ -5,6 +5,7 @@
 //! - **Translation**: Translate between Indian languages (Translate-Think-Translate)
 //! - **PII Detection**: Detect and redact sensitive Indian data (Aadhaar, PAN, etc.)
 //! - **Compliance Checking**: Ensure banking regulatory compliance
+//! - **Intent Detection**: Detect user intents and extract slots (P1-2 FIX: moved from agent)
 //!
 //! # Example
 //!
@@ -24,6 +25,9 @@ pub mod translation;
 pub mod pii;
 pub mod compliance;
 pub mod simplifier;  // P2 FIX: Text simplifier for TTS
+pub mod intent;      // P1-2 FIX: Intent detection moved from agent crate
+pub mod sentiment;   // P2-1 FIX: Sentiment analysis for customer emotion detection
+pub mod entities;    // P2-5 FIX: Loan entity extraction
 
 mod pipeline;
 mod error;
@@ -37,3 +41,9 @@ pub use translation::{TranslationConfig, TranslationProvider, ScriptDetector};
 pub use pii::{PIIConfig, PIIProvider, HybridPIIDetector, IndianPIIPatterns};
 pub use compliance::{ComplianceConfig, ComplianceProvider, RuleBasedComplianceChecker};
 pub use simplifier::{TextSimplifier, TextSimplifierConfig, NumberToWords, AbbreviationExpander};
+// P1-2 FIX: Intent detection exports
+pub use intent::{IntentDetector, Intent, Slot, SlotType, DetectedIntent};
+// P2-1 FIX: Sentiment analysis exports
+pub use sentiment::{SentimentAnalyzer, Sentiment, SentimentResult, SentimentConfig};
+// P2-5 FIX: Loan entity extraction exports
+pub use entities::{LoanEntityExtractor, LoanEntities, Currency, Weight, Percentage, Duration};

@@ -1,6 +1,12 @@
 //! Agent configuration
+//!
+//! P2-3 FIX: Consolidated duplicate config definitions.
+//! - RagConfig now uses the detailed version from settings.rs
+//! - MemoryConfig now includes P1 token limits with serde support
 
 use serde::{Deserialize, Serialize};
+
+use crate::settings::RagConfig;
 
 /// Agent configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +35,7 @@ pub struct AgentConfig {
     #[serde(default)]
     pub llm: LlmConfig,
 
-    /// RAG configuration
+    /// RAG configuration (uses detailed settings::RagConfig)
     #[serde(default)]
     pub rag: RagConfig,
 
@@ -201,13 +207,13 @@ impl Default for LlmConfig {
 }
 
 /// LLM provider
+///
+/// P3-2 FIX: Removed unused Kalosm variant (no implementation exists)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LlmProvider {
     /// Local Ollama server
     Ollama,
-    /// Kalosm (native Rust)
-    Kalosm,
     /// Anthropic Claude
     Claude,
     /// OpenAI
@@ -230,142 +236,13 @@ pub enum SpeculativeMode {
     HybridStreaming,
 }
 
-/// RAG configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RagConfig {
-    /// Enable RAG
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-
-    /// Qdrant endpoint
-    #[serde(default = "default_qdrant_endpoint")]
-    pub qdrant_endpoint: String,
-
-    /// Collection name
-    #[serde(default = "default_collection")]
-    pub collection: String,
-
-    /// Number of results to retrieve
-    #[serde(default = "default_top_k")]
-    pub top_k: usize,
-
-    /// Minimum relevance score
-    #[serde(default = "default_min_score")]
-    pub min_score: f32,
-
-    /// Enable hybrid search (dense + BM25)
-    #[serde(default = "default_true")]
-    pub hybrid_search: bool,
-
-    /// Enable reranking
-    #[serde(default = "default_true")]
-    pub reranking_enabled: bool,
-
-    /// Early exit configuration
-    #[serde(default)]
-    pub early_exit: EarlyExitConfig,
-
-    /// Enable prefetch on partial transcript
-    #[serde(default = "default_true")]
-    pub prefetch_enabled: bool,
-
-    /// Minimum confidence for prefetch
-    #[serde(default = "default_prefetch_confidence")]
-    pub prefetch_min_confidence: f32,
-}
-
-fn default_qdrant_endpoint() -> String {
-    "http://localhost:6333".to_string()
-}
-fn default_collection() -> String {
-    "gold_loan_knowledge".to_string()
-}
-fn default_top_k() -> usize {
-    5
-}
-fn default_min_score() -> f32 {
-    0.5
-}
-fn default_prefetch_confidence() -> f32 {
-    0.7
-}
-
-impl Default for RagConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            qdrant_endpoint: default_qdrant_endpoint(),
-            collection: default_collection(),
-            top_k: default_top_k(),
-            min_score: default_min_score(),
-            hybrid_search: true,
-            reranking_enabled: true,
-            early_exit: EarlyExitConfig::default(),
-            prefetch_enabled: true,
-            prefetch_min_confidence: default_prefetch_confidence(),
-        }
-    }
-}
-
-/// Early exit cross-encoder configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EarlyExitConfig {
-    /// Exit strategy
-    #[serde(default = "default_exit_strategy")]
-    pub strategy: ExitStrategy,
-
-    /// Confidence threshold for early exit
-    #[serde(default = "default_confidence_threshold")]
-    pub confidence_threshold: f32,
-
-    /// Patience (consecutive agreeing layers)
-    #[serde(default = "default_patience")]
-    pub patience: usize,
-
-    /// Minimum layer before allowing exit
-    #[serde(default = "default_min_layer")]
-    pub min_layer: usize,
-}
-
-fn default_exit_strategy() -> ExitStrategy {
-    ExitStrategy::Hybrid
-}
-fn default_confidence_threshold() -> f32 {
-    0.9
-}
-fn default_patience() -> usize {
-    2
-}
-fn default_min_layer() -> usize {
-    3
-}
-
-impl Default for EarlyExitConfig {
-    fn default() -> Self {
-        Self {
-            strategy: default_exit_strategy(),
-            confidence_threshold: default_confidence_threshold(),
-            patience: default_patience(),
-            min_layer: default_min_layer(),
-        }
-    }
-}
-
-/// Early exit strategy
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExitStrategy {
-    /// Exit when confidence exceeds threshold
-    Confidence,
-    /// Exit when k consecutive layers agree
-    Patience,
-    /// Combination of confidence and patience
-    Hybrid,
-    /// Exit based on layer output similarity
-    Similarity,
-}
+// P2-3 FIX: Removed duplicate RagConfig - now using settings::RagConfig
+// See settings.rs for the canonical RagConfig with all P5 fields
 
 /// Memory configuration
+///
+/// P2-3 FIX: Consolidated from config::agent and agent::memory.
+/// Now includes both serde support AND P1 token limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryConfig {
     /// Working memory size (recent turns)
@@ -383,6 +260,18 @@ pub struct MemoryConfig {
     /// Enable semantic memory (key facts)
     #[serde(default = "default_true")]
     pub semantic_memory_enabled: bool,
+
+    /// P1 FIX: Maximum total tokens before aggressive truncation
+    #[serde(default = "default_max_context_tokens")]
+    pub max_context_tokens: usize,
+
+    /// P1 FIX: High watermark - trigger summarization when exceeded
+    #[serde(default = "default_high_watermark_tokens")]
+    pub high_watermark_tokens: usize,
+
+    /// P1 FIX: Low watermark - target after truncation
+    #[serde(default = "default_low_watermark_tokens")]
+    pub low_watermark_tokens: usize,
 }
 
 fn default_working_memory() -> usize {
@@ -394,6 +283,15 @@ fn default_summarization_threshold() -> usize {
 fn default_max_summaries() -> usize {
     10
 }
+fn default_max_context_tokens() -> usize {
+    4096 // Hard limit
+}
+fn default_high_watermark_tokens() -> usize {
+    3072 // 75% - trigger summarization
+}
+fn default_low_watermark_tokens() -> usize {
+    2048 // 50% - target after cleanup
+}
 
 impl Default for MemoryConfig {
     fn default() -> Self {
@@ -402,6 +300,9 @@ impl Default for MemoryConfig {
             summarization_threshold: default_summarization_threshold(),
             max_episodic_summaries: default_max_summaries(),
             semantic_memory_enabled: true,
+            max_context_tokens: default_max_context_tokens(),
+            high_watermark_tokens: default_high_watermark_tokens(),
+            low_watermark_tokens: default_low_watermark_tokens(),
         }
     }
 }

@@ -344,6 +344,11 @@ impl ResourceContent {
 }
 
 /// Resource provider trait
+///
+/// P3-3 FIX: Note - This trait is defined for MCP resource support but has no
+/// implementations yet. It is kept for future MCP resources/subscriptions feature.
+/// If you need to implement resources, implement this trait.
+#[allow(dead_code)]
 pub trait ResourceProvider: Send + Sync {
     /// List available resources
     fn list(&self) -> Vec<Resource>;

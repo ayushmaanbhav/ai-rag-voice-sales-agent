@@ -40,10 +40,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let scylla_store = ScyllaSessionStore::new(persistence.sessions);
                 // P2 FIX: Wire audit logging for RBI compliance
                 let audit_log: Arc<dyn voice_agent_persistence::AuditLog> = Arc::new(persistence.audit);
-                AppState::with_session_store_and_domain(
+                // P1-4 FIX: Wire SMS and GoldPrice services into tools
+                let sms_service: Arc<dyn voice_agent_persistence::SmsService> = Arc::new(persistence.sms);
+                let gold_price_service: Arc<dyn voice_agent_persistence::GoldPriceService> = Arc::new(persistence.gold_price);
+                tracing::info!("SMS and GoldPrice services wired into tools");
+                AppState::with_full_persistence(
                     config.clone(),
                     Arc::new(scylla_store),
                     domain_config,
+                    sms_service,
+                    gold_price_service,
                 ).with_audit_logger(audit_log)
             }
             Err(e) => {

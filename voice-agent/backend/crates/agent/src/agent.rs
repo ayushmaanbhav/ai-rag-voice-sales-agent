@@ -1491,6 +1491,71 @@ impl GoldLoanAgent {
     }
 }
 
+// P1-1 FIX: Implement Agent trait for GoldLoanAgent
+use crate::traits::{Agent, PrefetchingAgent, PersonalizableAgent};
+
+#[async_trait::async_trait]
+impl Agent for GoldLoanAgent {
+    async fn process(&self, input: &str) -> Result<String, AgentError> {
+        // Delegate to the inherent method
+        GoldLoanAgent::process(self, input).await
+    }
+
+    async fn process_stream(&self, input: &str) -> Result<tokio::sync::mpsc::Receiver<String>, AgentError> {
+        // Delegate to the inherent method
+        GoldLoanAgent::process_stream(self, input).await
+    }
+
+    fn stage(&self) -> ConversationStage {
+        GoldLoanAgent::stage(self)
+    }
+
+    fn user_language(&self) -> Language {
+        GoldLoanAgent::user_language(self)
+    }
+
+    fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {
+        GoldLoanAgent::subscribe(self)
+    }
+
+    fn name(&self) -> &str {
+        GoldLoanAgent::name(self)
+    }
+
+    fn end(&self, reason: crate::conversation::EndReason) {
+        GoldLoanAgent::end(self, reason)
+    }
+}
+
+#[async_trait::async_trait]
+impl PrefetchingAgent for GoldLoanAgent {
+    async fn prefetch_on_partial(&self, partial_transcript: &str, confidence: f32) -> bool {
+        GoldLoanAgent::prefetch_on_partial(self, partial_transcript, confidence).await
+    }
+
+    fn prefetch_background(&self, partial_transcript: String, confidence: f32) {
+        GoldLoanAgent::prefetch_background(self, partial_transcript, confidence)
+    }
+
+    fn clear_prefetch_cache(&self) {
+        GoldLoanAgent::clear_prefetch_cache(self)
+    }
+}
+
+impl PersonalizableAgent for GoldLoanAgent {
+    fn set_customer_profile(&self, profile: &voice_agent_core::CustomerProfile) {
+        GoldLoanAgent::set_customer_profile(self, profile)
+    }
+
+    fn set_customer_name(&self, name: impl Into<String>) {
+        GoldLoanAgent::set_customer_name(self, name)
+    }
+
+    fn set_customer_segment(&self, segment: voice_agent_core::CustomerSegment) {
+        GoldLoanAgent::set_customer_segment(self, segment)
+    }
+}
+
 /// P0-2 FIX: Find the position of a sentence boundary in text
 ///
 /// Returns the byte position of the sentence-ending character if found.

@@ -1,6 +1,27 @@
 //! Intent Detection and Slot Filling
 //!
-//! Detects user intents and extracts relevant entities.
+//! Detects user intents and extracts relevant entities for gold loan conversations.
+//!
+//! # P1-2 FIX: Moved from agent crate to text_processing for proper separation of concerns.
+//!
+//! # Features
+//!
+//! - 14 gold loan specific intents
+//! - Slot extraction with multi-script support (11 Indic scripts)
+//! - Currency parsing with lakh/crore multipliers
+//! - Hindi number word recognition
+//!
+//! # Example
+//!
+//! ```
+//! use voice_agent_text_processing::intent::{IntentDetector, DetectedIntent};
+//!
+//! let detector = IntentDetector::new();
+//! let result = detector.detect("I want a gold loan of 5 lakh");
+//!
+//! assert_eq!(result.intent, "loan_inquiry");
+//! assert!(result.slots.contains_key("loan_amount"));
+//! ```
 
 use std::collections::HashMap;
 use parking_lot::RwLock;

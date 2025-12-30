@@ -26,7 +26,7 @@ pub mod domain;
 
 pub use settings::{Settings, ServerConfig, RateLimitConfig, RagConfig, AuthConfig, RuntimeEnvironment, TurnServerConfig, PersistenceConfig, load_settings};
 pub use pipeline::PipelineConfig;
-pub use agent::{AgentConfig, PersonaConfig};
+pub use agent::{AgentConfig, PersonaConfig, MemoryConfig};
 pub use gold_loan::{GoldLoanConfig, PurityFactors, CompetitorRates, TieredRates};
 
 // Phase 6 exports

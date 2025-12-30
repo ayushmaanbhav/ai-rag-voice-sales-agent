@@ -1,6 +1,22 @@
 //! Gold Loan Business Configuration
 //!
 //! Contains configurable business parameters for gold loan calculations.
+//!
+//! # P3-4 FIX: Interest Rate Configuration
+//!
+//! There are two types of interest rates in this configuration:
+//!
+//! 1. **`kotak_interest_rate`** (default: 10.5%): The "headline" rate used for
+//!    marketing comparisons and general savings calculations. This represents
+//!    the mid-tier rate that most customers see advertised.
+//!
+//! 2. **`tiered_rates`**: The actual rates applied based on loan amount:
+//!    - Tier 1 (up to ₹1L): 11.5% (small loans, higher rate)
+//!    - Tier 2 (₹1L-5L): 10.5% (matches headline rate)
+//!    - Tier 3 (above ₹5L): 9.5% (premium customers, best rate)
+//!
+//! Use `get_tiered_rate(loan_amount)` for actual pricing.
+//! Use `kotak_interest_rate` for marketing/comparison purposes.
 
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +28,11 @@ pub struct GoldLoanConfig {
     pub gold_price_per_gram: f64,
 
     /// Kotak's gold loan interest rate (%)
+    ///
+    /// P3-4 FIX: This is the "headline" rate for marketing comparisons.
+    /// For actual loan pricing, use `get_tiered_rate(loan_amount)` which
+    /// applies tiered rates based on loan amount. The tier2_rate (medium loans)
+    /// matches this value for consistency.
     #[serde(default = "default_kotak_rate")]
     pub kotak_interest_rate: f64,
 

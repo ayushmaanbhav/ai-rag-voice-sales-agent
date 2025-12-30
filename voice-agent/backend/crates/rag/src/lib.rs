@@ -30,6 +30,8 @@ pub mod adapter;
 pub mod context;
 // P2 FIX: Knowledge base loading
 pub mod knowledge_loader;
+// P2-2 FIX: Context compression for long conversations
+pub mod compressor;
 
 pub use embeddings::{Embedder, EmbeddingConfig, SimpleEmbedder};
 pub use candle_embeddings::{
@@ -64,6 +66,11 @@ pub use context::{
     context_budget_for_stage,
 };
 pub use knowledge_loader::{KnowledgeLoader, KnowledgeDocument, KnowledgeFile};
+// P2-2 FIX: Context compression exports
+pub use compressor::{
+    ContextCompressor, CompressorConfig, CompressedContext,
+    Turn, Summarizer, RuleBasedSummarizer,
+};
 
 use thiserror::Error;
 

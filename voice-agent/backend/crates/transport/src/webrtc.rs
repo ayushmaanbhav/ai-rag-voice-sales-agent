@@ -66,10 +66,23 @@ pub struct WebRtcConfig {
     /// Audio format
     pub audio_format: AudioFormat,
     /// Enable echo cancellation
+    ///
+    /// P2-4 FIX: This flag is currently a placeholder. Actual AEC implementation
+    /// requires a signal processing library (e.g., webrtc-audio-processing, speexdsp).
+    /// The flag is passed to WebRTC negotiation but server-side processing is not yet
+    /// implemented. Browser-side AEC may still be active via getUserMedia constraints.
     pub echo_cancellation: bool,
     /// Enable noise suppression
+    ///
+    /// P2-4 FIX: This flag is currently a placeholder. Actual NS implementation
+    /// requires a signal processing library (e.g., rnnoise, webrtc-audio-processing).
+    /// The flag is passed to WebRTC negotiation but server-side processing is not yet
+    /// implemented. Browser-side NS may still be active via getUserMedia constraints.
     pub noise_suppression: bool,
     /// Enable automatic gain control
+    ///
+    /// P2-4 FIX: This flag is currently a placeholder. Actual AGC implementation
+    /// requires a signal processing library. Browser-side AGC may still be active.
     pub auto_gain_control: bool,
     /// Maximum bitrate in kbps
     pub max_bitrate_kbps: u32,

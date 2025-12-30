@@ -138,6 +138,40 @@ impl AppState {
         }
     }
 
+    /// P1-4 FIX: Create application state with full persistence layer (SMS, GoldPrice wired)
+    ///
+    /// This method wires the SMS and GoldPrice services from the persistence layer
+    /// into the tool registry, enabling proper persistence of SMS messages and
+    /// gold price queries to ScyllaDB.
+    pub fn with_full_persistence(
+        config: Settings,
+        store: Arc<dyn SessionStore>,
+        domain_config: DomainConfigManager,
+        sms_service: Arc<dyn voice_agent_persistence::SmsService>,
+        gold_price_service: Arc<dyn voice_agent_persistence::GoldPriceService>,
+    ) -> Self {
+        let (text_processing, text_simplifier) = Self::create_text_processing();
+
+        // P1-4 FIX: Create tool registry with persistence services wired
+        let integration_config = voice_agent_tools::FullIntegrationConfig::default()
+            .with_sms_service(sms_service)
+            .with_gold_price_service(gold_price_service);
+        let tools = voice_agent_tools::create_registry_with_persistence(integration_config);
+
+        Self {
+            config: Arc::new(RwLock::new(config)),
+            domain_config: Arc::new(domain_config),
+            sessions: Arc::new(SessionManager::new(100)),
+            tools: Arc::new(tools),
+            session_store: store,
+            vector_store: None,
+            text_processing,
+            text_simplifier,
+            audit_logger: None,
+            env: None,
+        }
+    }
+
     /// P0 FIX: Set vector store for RAG retrieval
     pub fn with_vector_store(mut self, vector_store: Arc<VectorStore>) -> Self {
         self.vector_store = Some(vector_store);

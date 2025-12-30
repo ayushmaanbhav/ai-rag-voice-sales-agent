@@ -9,20 +9,33 @@
 //! - Voice session integration with STT/TTS
 //! - WebRTC/WebSocket transport integration
 //! - P2 FIX: Persuasion engine for objection handling
+//! - P1-1 FIX: Agent trait abstraction for testability
+//! - P1-2 FIX: Intent detection moved to text_processing crate
 
 pub mod conversation;
 pub mod memory;
 pub mod stage;
-pub mod intent;
 pub mod agent;
 pub mod voice_session;
 // P2 FIX: Persuasion engine for objection handling
 pub mod persuasion;
+// P1-1 FIX: Agent trait abstraction
+pub mod traits;
+
+// P1-2 FIX: Re-export intent module from text_processing for backward compatibility
+pub mod intent {
+    //! Intent Detection and Slot Filling
+    //!
+    //! P1-2 FIX: This module re-exports from voice_agent_text_processing::intent.
+    //! The canonical implementation is now in the text_processing crate.
+    pub use voice_agent_text_processing::intent::*;
+}
 
 pub use conversation::{Conversation, ConversationConfig, ConversationEvent};
 pub use memory::{ConversationMemory, MemoryConfig, MemoryEntry};
 pub use stage::{StageManager, ConversationStage, StageTransition, RagTimingStrategy, TransitionReason};
-pub use intent::{IntentDetector, Intent, Slot, DetectedIntent};
+// P1-2 FIX: Re-export intent types from text_processing
+pub use voice_agent_text_processing::intent::{IntentDetector, Intent, Slot, SlotType, DetectedIntent};
 // P2 FIX: Persuasion engine exports
 pub use persuasion::{
     PersuasionEngine, ObjectionType, ObjectionResponse, ValueProposition,
@@ -30,6 +43,8 @@ pub use persuasion::{
 };
 pub use agent::{GoldLoanAgent, AgentConfig, AgentEvent};
 pub use voice_session::{VoiceSession, VoiceSessionConfig, VoiceSessionState, VoiceSessionEvent};
+// P1-1 FIX: Export Agent traits
+pub use traits::{Agent, PrefetchingAgent, PersonalizableAgent};
 
 // Re-export transport types for convenience
 pub use voice_agent_transport::{

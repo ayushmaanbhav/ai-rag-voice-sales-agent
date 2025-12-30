@@ -4,6 +4,9 @@
 //! - Working memory: Recent turns
 //! - Episodic memory: Summarized past segments
 //! - Semantic memory: Key facts and entities
+//!
+//! P2-3 FIX: MemoryConfig is now defined in voice_agent_config to consolidate
+//! duplicate definitions and provide serde support.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -12,39 +15,8 @@ use serde::{Deserialize, Serialize};
 
 use voice_agent_core::{Turn, TurnRole, LanguageModel, GenerateRequest};
 
-/// Memory configuration
-#[derive(Debug, Clone)]
-pub struct MemoryConfig {
-    /// Maximum turns in working memory
-    pub working_memory_size: usize,
-    /// Threshold for summarizing to episodic
-    pub summarization_threshold: usize,
-    /// Maximum episodic summaries
-    pub max_episodic_summaries: usize,
-    /// Enable semantic memory
-    pub semantic_memory_enabled: bool,
-    /// P1 FIX: Maximum total tokens before aggressive truncation
-    pub max_context_tokens: usize,
-    /// P1 FIX: High watermark - trigger summarization when exceeded
-    pub high_watermark_tokens: usize,
-    /// P1 FIX: Low watermark - target after truncation
-    pub low_watermark_tokens: usize,
-}
-
-impl Default for MemoryConfig {
-    fn default() -> Self {
-        Self {
-            working_memory_size: 8,
-            summarization_threshold: 6,
-            max_episodic_summaries: 10,
-            semantic_memory_enabled: true,
-            // P1 FIX: Token-based limits (assuming ~4 chars per token)
-            max_context_tokens: 4096,      // Hard limit
-            high_watermark_tokens: 3072,   // 75% - trigger summarization
-            low_watermark_tokens: 2048,    // 50% - target after cleanup
-        }
-    }
-}
+// P2-3 FIX: Re-export MemoryConfig from config crate
+pub use voice_agent_config::MemoryConfig;
 
 /// P1 FIX: Memory usage statistics
 #[derive(Debug, Clone, Default)]

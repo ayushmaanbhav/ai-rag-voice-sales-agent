@@ -325,7 +325,24 @@ pub trait VoiceActivityDetector: Send + Sync + 'static {
 
 /// Audio Processor trait for pre-processing audio
 ///
-/// Used for echo cancellation (AEC), noise suppression, etc.
+/// Used for echo cancellation (AEC), noise suppression (NS), and
+/// automatic gain control (AGC).
+///
+/// # P2-4 FIX: Implementation Status
+///
+/// **This trait is defined but NOT YET IMPLEMENTED.**
+///
+/// The trait provides the interface for audio preprocessing, but actual
+/// implementations require signal processing libraries:
+///
+/// - **AEC (Acoustic Echo Cancellation)**: Requires webrtc-audio-processing or speexdsp
+/// - **NS (Noise Suppression)**: Requires rnnoise or webrtc-audio-processing
+/// - **AGC (Automatic Gain Control)**: Requires webrtc-audio-processing
+///
+/// Browser-side processing may still be active via getUserMedia constraints,
+/// but server-side processing is not currently implemented.
+///
+/// Future work: Add implementations using rnnoise-c or webrtc-audio-processing-sys crates.
 #[async_trait]
 pub trait AudioProcessor: Send + Sync + 'static {
     /// Process audio frame

@@ -4,16 +4,14 @@
 //!
 //! ## P1 FIX: Session Store Abstraction
 //!
-//! The session management now uses a trait-based abstraction for storage,
-//! allowing different backends (in-memory, Redis, etc.) to be used.
+//! The session management uses a trait-based abstraction for storage,
+//! allowing different backends to be used.
 //!
-//! - `InMemorySessionStore` - Default, uses HashMap (current behavior)
-//! - `RedisSessionStore` - Stub for Redis-based persistence (future)
+//! - `InMemorySessionStore` - Default, uses HashMap
+//! - `ScyllaSessionStore` - Production persistence using ScyllaDB
 //!
-//! Note: Full Redis persistence requires serialization of agent state,
-//! which is complex due to the agent containing LLM connections and
-//! async state. For now, Redis support focuses on session metadata
-//! and coordination between instances.
+//! P3-1 FIX: Removed deprecated RedisSessionStore stub.
+//! Use ScyllaSessionStore for distributed session persistence.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -145,90 +143,8 @@ impl SessionStore for InMemorySessionStore {
     }
 }
 
-/// P1 FIX: Redis session store configuration
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RedisSessionConfig {
-    /// Redis connection URL
-    pub url: String,
-    /// Key prefix for session data
-    pub key_prefix: String,
-    /// TTL for session keys in seconds
-    pub ttl_seconds: u64,
-    /// Instance ID for session affinity
-    pub instance_id: String,
-}
-
-impl Default for RedisSessionConfig {
-    fn default() -> Self {
-        Self {
-            url: "redis://127.0.0.1:6379".to_string(),
-            key_prefix: "voice_agent:session:".to_string(),
-            ttl_seconds: 3600,
-            instance_id: uuid::Uuid::new_v4().to_string(),
-        }
-    }
-}
-
-/// P1 FIX: Redis session store (stub - deprecated in favor of ScyllaDB)
-///
-/// This is a placeholder for Redis-based session persistence.
-/// Use `ScyllaSessionStore` instead for production deployments.
-pub struct RedisSessionStore {
-    config: RedisSessionConfig,
-}
-
-impl RedisSessionStore {
-    pub fn new(config: RedisSessionConfig) -> Self {
-        tracing::warn!("RedisSessionStore is deprecated - use ScyllaSessionStore instead");
-        Self { config }
-    }
-
-    fn _key(&self, id: &str) -> String {
-        format!("{}{}", self.config.key_prefix, id)
-    }
-}
-
-#[async_trait]
-impl SessionStore for RedisSessionStore {
-    async fn store_metadata(&self, session: &Session) -> Result<(), ServerError> {
-        tracing::debug!("Redis store_metadata stub called for session {}", session.id);
-        let _key = self._key(&session.id);
-        Ok(())
-    }
-
-    async fn get_metadata(&self, id: &str) -> Result<Option<SessionMetadata>, ServerError> {
-        tracing::debug!("Redis get_metadata stub called for session {}", id);
-        let _key = self._key(id);
-        Ok(None)
-    }
-
-    async fn delete_metadata(&self, id: &str) -> Result<(), ServerError> {
-        tracing::debug!("Redis delete_metadata stub called for session {}", id);
-        let _key = self._key(id);
-        Ok(())
-    }
-
-    async fn list_ids(&self) -> Result<Vec<String>, ServerError> {
-        tracing::debug!("Redis list_ids stub called");
-        Ok(vec![])
-    }
-
-    async fn touch(&self, id: &str) -> Result<(), ServerError> {
-        tracing::debug!("Redis touch stub called for session {}", id);
-        let _key = self._key(id);
-        Ok(())
-    }
-
-    fn is_distributed(&self) -> bool {
-        true
-    }
-
-    async fn list_active_sessions(&self, _limit: i32) -> Result<Vec<RecoverableSession>, ServerError> {
-        // RedisSessionStore is deprecated - no implementation
-        tracing::debug!("Redis list_active_sessions stub called");
-        Ok(Vec::new())
-    }
-}
+// P3-1 FIX: Removed deprecated RedisSessionStore stub.
+// Use ScyllaSessionStore for distributed session persistence.
 
 /// P1 FIX: ScyllaDB session store for production persistence
 ///
@@ -682,28 +598,5 @@ mod tests {
         assert!(!store.is_distributed());
     }
 
-    #[test]
-    fn test_redis_session_config_default() {
-        let config = RedisSessionConfig::default();
-        assert_eq!(config.url, "redis://127.0.0.1:6379");
-        assert!(config.key_prefix.starts_with("voice_agent:session:"));
-        assert_eq!(config.ttl_seconds, 3600);
-        assert!(!config.instance_id.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_redis_session_store_stub() {
-        let config = RedisSessionConfig::default();
-        let store = RedisSessionStore::new(config);
-
-        // The stub should return empty/None values but not error
-        let ids = store.list_ids().await.unwrap();
-        assert!(ids.is_empty());
-
-        let metadata = store.get_metadata("nonexistent").await.unwrap();
-        assert!(metadata.is_none());
-
-        // Should be marked as distributed
-        assert!(store.is_distributed());
-    }
+    // P3-1 FIX: Removed Redis session store tests (deprecated)
 }
